@@ -1,0 +1,1120 @@
+@startuml E-Learning Platform - Complete UML Diagrams
+
+' ============================================================================
+' USE CASE DIAGRAMS
+' ============================================================================
+
+@startuml 01-student-use-cases
+title Student Use Cases - Tutor Nomor Satu Platform
+
+left to right direction
+
+actor Student as student
+
+rectangle "E-Learning Platform" {
+  usecase (Register) as UC1
+  usecase (Login) as UC2
+  usecase (Browse Classes) as UC3
+  usecase (Search Classes) as UC4
+  usecase (View Class Detail) as UC5
+  usecase (Filter Classes) as UC6
+  usecase (Enroll in Class) as UC7
+  usecase (Make Payment) as UC8
+  usecase (Apply Promo Code) as UC9
+  usecase (Access Class Materials) as UC10
+  usecase (View Video Lessons) as UC11
+  usecase (Download Materials) as UC12
+  usecase (Take Quiz) as UC13
+  usecase (Submit Assignment) as UC14
+  usecase (Join Live Class) as UC15
+  usecase (Participate in Forum) as UC16
+  usecase (View Grades) as UC17
+  usecase (Track Progress) as UC18
+  usecase (View Certificate) as UC19
+}
+
+student --> UC1
+student --> UC2
+student --> UC3
+student --> UC5
+student --> UC7
+student --> UC10
+student --> UC11
+student --> UC13
+student --> UC14
+student --> UC15
+student --> UC16
+student --> UC17
+student --> UC19
+
+UC3 ..> UC4 : <<include>>
+UC5 ..> UC6 : <<include>>
+UC8 ..> UC9 : <<extend>>
+UC10 ..> UC11 : <<include>>
+UC10 ..> UC12 : <<include>>
+UC17 ..> UC18 : <<include>>
+
+@enduml
+
+@startuml 02-tutor-use-cases
+title Tutor Use Cases - Tutor Nomor Satu Platform
+
+left to right direction
+
+actor Tutor as tutor
+
+rectangle "E-Learning Platform" {
+  usecase (Register as Tutor) as UC1
+  usecase (Login) as UC2
+  usecase (Create Class) as UC3
+  usecase (Set Class Info) as UC4
+  usecase (Set Schedule) as UC5
+  usecase (Set Pricing) as UC6
+  usecase (Upload Materials) as UC7
+  usecase (Upload Videos) as UC8
+  usecase (Create Quiz) as UC9
+  usecase (Create Assignment) as UC10
+  usecase (Publish Class) as UC11
+  usecase (View Student List) as UC12
+  usecase (Grade Assignments) as UC13
+  usecase (Manage Forum) as UC14
+  usecase (Conduct Live Class) as UC15
+  usecase (View Analytics) as UC16
+  usecase (View Earnings) as UC17
+  usecase (Generate Reports) as UC18
+}
+
+tutor --> UC1
+tutor --> UC2
+tutor --> UC3
+tutor --> UC11
+tutor --> UC12
+tutor --> UC13
+tutor --> UC14
+tutor --> UC15
+tutor --> UC16
+tutor --> UC17
+
+UC3 ..> UC4 : <<include>>
+UC3 ..> UC5 : <<include>>
+UC3 ..> UC6 : <<include>>
+UC3 ..> UC7 : <<include>>
+UC7 ..> UC8 : <<extend>>
+UC3 ..> UC9 : <<include>>
+UC3 ..> UC10 : <<include>>
+UC16 ..> UC18 : <<extend>>
+
+@enduml
+
+@startuml 03-admin-use-cases
+title Admin Use Cases - Tutor Nomor Satu Platform
+
+left to right direction
+
+actor Admin as admin
+
+rectangle "E-Learning Platform" {
+  usecase (Login) as UC1
+  usecase (View Dashboard) as UC2
+  usecase (Manage Users) as UC3
+  usecase (View User Details) as UC4
+  usecase (Suspend/Delete Users) as UC5
+  usecase (Change User Roles) as UC6
+  usecase (Manage Classes) as UC7
+  usecase (Approve/Reject Classes) as UC8
+  usecase (View Class Details) as UC9
+  usecase (Feature Classes) as UC10
+  usecase (Moderate Content) as UC11
+  usecase (Review Reports) as UC12
+  usecase (Delete Inappropriate Content) as UC13
+  usecase (Warn Users) as UC14
+  usecase (Manage Categories) as UC15
+  usecase (View Analytics) as UC16
+  usecase (Generate Reports) as UC17
+  usecase (Monitor Payments) as UC18
+  usecase (View Transactions) as UC19
+  usecase (System Settings) as UC20
+}
+
+admin --> UC1
+admin --> UC2
+admin --> UC3
+admin --> UC7
+admin --> UC11
+admin --> UC15
+admin --> UC16
+admin --> UC18
+admin --> UC20
+
+UC3 ..> UC4 : <<include>>
+UC3 ..> UC5 : <<extend>>
+UC3 ..> UC6 : <<extend>>
+UC7 ..> UC8 : <<include>>
+UC8 ..> UC9 : <<include>>
+UC7 ..> UC10 : <<extend>>
+UC11 ..> UC12 : <<include>>
+UC11 ..> UC13 : <<extend>>
+UC11 ..> UC14 : <<extend>>
+UC16 ..> UC17 : <<extend>>
+UC18 ..> UC19 : <<include>>
+
+@enduml
+
+' ============================================================================
+' ACTIVITY DIAGRAMS
+' ============================================================================
+
+@startuml 04-student-registration-activity
+title Student Registration Flow
+
+start
+:User clicks "Register";
+:Fill registration form
+(email, password, name);
+:Select role
+(Student/Tutor);
+:Submit form;
+:Validate input;
+
+if (Valid?) then (yes)
+  :Check if email exists;
+  if (Email exists?) then (yes)
+    :Show error "Email taken";
+    stop
+  else (no)
+    :Create user in Supabase;
+    :Create profile
+    (Student/Tutor);
+    :Send verification email;
+    :Show success message;
+    stop
+  endif
+else (no)
+  :Show error message;
+  stop
+endif
+
+@enduml
+
+@startuml 05-enrollment-payment-activity
+title Class Enrollment & Payment Flow
+
+start
+:Browse classes;
+:Select class;
+:View class details;
+
+if (Free class?) then (yes)
+  :Direct enrollment;
+else (no - paid class)
+  :Click "Enroll";
+  :Check capacity;
+  
+  if (Class full?) then (yes)
+    :Show error "Class Full";
+    stop
+  else (no)
+    :Create enrollment;
+    :Create payment transaction;
+    :Redirect to Pakasir payment;
+    :Complete payment (QRIS/VA);
+    
+    if (Payment success?) then (yes)
+      :Update enrollment to PAID;
+      :Grant access to class materials;
+      :Send confirmation email;
+      :Redirect to My Classes;
+    else (no)
+      :Show error message;
+      stop
+    endif
+  endif
+endif
+
+stop
+
+@enduml
+
+@startuml 06-class-creation-activity
+title Class Creation Flow (Tutor)
+
+start
+:Click "Create New Class";
+:Enter class basic info
+(title, description);
+:Select subject & grade level;
+:Set pricing & capacity;
+:Set schedule (dates, time);
+:Upload thumbnail;
+:Save as draft;
+:Add materials;
+
+fork
+  :Upload video lessons;
+fork again
+  :Upload documents/PDFs;
+end fork
+
+:Create assignments;
+:Create quizzes;
+:Preview class;
+
+if (All content complete?) then (yes)
+  :Publish class;
+  :Class visible to students;
+  stop
+else (no)
+  :Continue editing;
+  stop
+endif
+
+@enduml
+
+@startuml 07-assignment-grading-activity
+title Assignment Submission & Grading Flow
+
+|Tutor|
+start
+:Create assignment;
+:Set title, description,
+due date, points;
+:Publish assignment;
+
+|Student|
+:Receive notification;
+:View assignment;
+:Prepare solution;
+:Upload file;
+
+if (Before deadline?) then (yes)
+  :Submit (Status: SUBMITTED);
+else (no - after deadline)
+  :Submit (Status: LATE);
+endif
+
+|Tutor|
+:Receive notification;
+:Review submission;
+:Enter score & feedback;
+:Submit grade;
+:Update gradebook;
+
+|Student|
+:Receive notification;
+:View grade & feedback;
+
+stop
+
+@enduml
+
+' ============================================================================
+' SEQUENCE DIAGRAMS
+' ============================================================================
+
+@startuml 08-authentication-sequence
+title User Authentication Sequence
+
+actor Student
+participant Frontend
+participant API
+participant "Supabase\nAuth" as Auth
+database Database
+
+Student -> Frontend: Login
+Frontend -> API: POST /api/auth/login
+API -> Auth: Validate credentials
+Auth -> Database: Query user
+Database --> Auth: User data
+Auth --> API: JWT token & session
+API --> Frontend: JWT + User data
+Frontend --> Student: Redirect to Dashboard
+
+@enduml
+
+@startuml 09-enrollment-payment-sequence
+title Student Enrollment & Payment Sequence
+
+actor Student
+participant Frontend
+participant API
+participant "Pakasir\nPayment" as Pakasir
+database Database
+participant "Email\nService" as Email
+
+Student -> Frontend: Enroll in class
+Frontend -> API: POST /api/enrollments
+API -> Database: Create enrollment (PENDING)
+API -> Database: Create payment (PENDING)
+API -> Pakasir: Create transaction
+Pakasir --> API: Payment URL
+API --> Frontend: Payment URL
+Frontend --> Student: Redirect to payment page
+
+Student -> Pakasir: Complete payment (QRIS/VA)
+Pakasir -> API: Webhook (payment success)
+API -> API: Verify signature
+API -> Database: Update payment (PAID)
+API -> Database: Update enrollment (PAID)
+API -> Email: Send confirmation
+API --> Pakasir: 200 OK
+
+Student -> Frontend: Return to platform
+Frontend -> API: GET /api/enrollments/my
+API -> Database: Fetch enrollments
+Database --> API: Enrollments
+API --> Frontend: Enrolled classes
+Frontend --> Student: Display My Classes
+
+@enduml
+
+@startuml 10-assignment-submission-sequence
+title Assignment Submission Sequence
+
+actor Student
+participant Frontend
+participant API
+database Database
+participant "Supabase\nStorage" as Storage
+actor Tutor
+
+Student -> Frontend: Upload file
+Frontend -> Storage: Upload file
+Storage --> Frontend: File URL
+
+Frontend -> API: POST /api/assignments/:id/submit
+API -> Database: Create submission
+API -> Database: Create notification
+API -> Tutor: Notify tutor
+API --> Frontend: Success
+Frontend --> Student: Show success message
+
+@enduml
+
+@startuml 11-quiz-taking-sequence
+title Quiz Taking Sequence
+
+actor Student
+participant Frontend
+participant API
+database Database
+
+Student -> Frontend: Start Quiz
+Frontend -> API: POST /api/quizzes/:id/start
+API -> Database: Create QuizAttempt
+API -> Database: Fetch questions\n(without correct answers)
+API --> Frontend: Questions & attemptId
+Frontend --> Student: Display quiz with timer
+
+loop Every 5 seconds
+  Frontend -> API: PUT /api/quiz-attempts/:id/autosave
+  API -> Database: Save current answers
+end
+
+Student -> Frontend: Submit Quiz
+Frontend -> API: POST /api/quizzes/:id/submit
+API -> Database: Fetch correct answers
+API -> API: Auto-grade
+API -> API: Calculate score
+API -> Database: Update QuizAttempt
+API --> Frontend: Results
+Frontend --> Student: Show score & review
+
+@enduml
+
+' ============================================================================
+' CLASS DIAGRAM
+' ============================================================================
+
+@startuml 12-class-diagram
+title E-Learning Platform - Class Diagram
+
+enum UserRole {
+  STUDENT
+  TUTOR
+  ADMIN
+}
+
+enum EnrollmentStatus {
+  PENDING
+  PAID
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum AssignmentStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  LATE
+  GRADED
+}
+
+enum QuizStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+class User {
+  - id: string
+  - email: string
+  - phone: string
+  - name: string
+  - avatar: string?
+  - role: UserRole
+  - authId: string
+  - createdAt: Date
+  - updatedAt: Date
+  --
+  + register(): Promise<User>
+  + login(credentials): Promise<AuthResponse>
+  + updateProfile(data): Promise<User>
+  + changePassword(oldPwd, newPwd): Promise<void>
+}
+
+class StudentProfile {
+  - id: string
+  - userId: string
+  - grade: string
+  - school: string
+  - parentName: string
+  - parentPhone: string
+  - createdAt: Date
+  --
+  + enroll(classId): Promise<Enrollment>
+  + submitAssignment(): Promise<void>
+  + takeQuiz(): Promise<void>
+}
+
+class TutorProfile {
+  - id: string
+  - userId: string
+  - bio: string
+  - subjects: string[]
+  - createdAt: Date
+  --
+  + createClass(): Promise<Class>
+  + gradeAssignment(): Promise<void>
+  + createQuiz(): Promise<Quiz>
+}
+
+class Class {
+  - id: string
+  - title: string
+  - description: string
+  - subject: string
+  - gradeLevel: string
+  - price: decimal
+  - capacity: int
+  - schedule: string
+  - startDate: Date
+  - endDate: Date
+  - published: boolean
+  - tutorId: string
+  - createdAt: Date
+  --
+  + publish(): void
+  + addMaterial(): void
+  + enroll(userId): void
+}
+
+class Enrollment {
+  - id: string
+  - studentId: string
+  - classId: string
+  - status: EnrollmentStatus
+  - enrolledAt: Date
+  --
+  + trackProgress(): number
+  + complete(): void
+}
+
+class Payment {
+  - id: string
+  - enrollmentId: string
+  - amount: decimal
+  - method: string
+  - status: PaymentStatus
+  - externalId: string
+  - paidAt: Date
+  --
+  + process(): Promise<void>
+  + verify(): boolean
+}
+
+class Material {
+  - id: string
+  - classId: string
+  - tutorId: string
+  - title: string
+  - description: string
+  - type: string
+  - fileUrl: string
+  - session: int
+  - order: int
+  - published: boolean
+  --
+  + view(): void
+}
+
+class Assignment {
+  - id: string
+  - classId: string
+  - tutorId: string
+  - title: string
+  - description: string
+  - maxPoints: int
+  - dueDate: Date
+  - status: AssignmentStatus
+  --
+  + submit(): void
+}
+
+class AssignmentSubmission {
+  - id: string
+  - assignmentId: string
+  - studentId: string
+  - fileUrl: string
+  - status: AssignmentStatus
+  - score: int
+  - feedback: string
+  - submittedAt: Date
+  - gradedAt: Date
+  --
+  + grade(score, feedback): void
+}
+
+class Quiz {
+  - id: string
+  - classId: string
+  - tutorId: string
+  - title: string
+  - timeLimit: int
+  - maxAttempts: int
+  - startTime: Date
+  - endTime: Date
+  - status: QuizStatus
+  --
+  + take(): void
+}
+
+class QuizQuestion {
+  - id: string
+  - quizId: string
+  - type: string
+  - question: string
+  - points: int
+  - order: int
+  - options: json
+  - correctAnswer: string
+}
+
+class QuizAttempt {
+  - id: string
+  - quizId: string
+  - studentId: string
+  - score: int
+  - percentage: int
+  - startedAt: Date
+  - submittedAt: Date
+  --
+  + calculate(): void
+}
+
+class LiveClass {
+  - id: string
+  - classId: string
+  - title: string
+  - meetingUrl: string
+  - scheduledAt: Date
+  - duration: int
+  --
+  + start(): void
+  + end(): void
+}
+
+class ForumThread {
+  - id: string
+  - classId: string
+  - title: string
+  - isPinned: boolean
+  - isLocked: boolean
+  --
+  + pin(): void
+  + lock(): void
+}
+
+class ForumPost {
+  - id: string
+  - threadId: string
+  - authorId: string
+  - authorType: UserRole
+  - content: string
+  - parentId: string?
+  - createdAt: Date
+  --
+  + reply(): void
+  + edit(): void
+}
+
+class Notification {
+  - id: string
+  - userId: string
+  - type: string
+  - title: string
+  - message: string
+  - link: string
+  - read: boolean
+  - createdAt: Date
+  --
+  + markAsRead(): void
+  + send(): void
+}
+
+' Relationships
+User "1" -- "0..1" StudentProfile : has >
+User "1" -- "0..1" TutorProfile : has >
+
+note right of User
+  Admin users (role = ADMIN) 
+  do NOT have a separate profile.
+  They use User table directly.
+end note
+
+TutorProfile "1" -- "*" Class : creates >
+
+Class "1" -- "*" Enrollment
+StudentProfile "1" -- "*" Enrollment
+
+Enrollment "1" -- "0..1" Payment
+
+Class "1" -- "*" Material
+Class "1" -- "*" Assignment
+Class "1" -- "*" Quiz
+Class "1" -- "*" LiveClass
+Class "1" -- "*" ForumThread
+
+Assignment "1" -- "*" AssignmentSubmission
+StudentProfile "1" -- "*" AssignmentSubmission
+
+Quiz "1" -- "*" QuizQuestion
+Quiz "1" -- "*" QuizAttempt
+StudentProfile "1" -- "*" QuizAttempt
+
+ForumThread "1" -- "*" ForumPost
+ForumPost "1" -- "*" ForumPost : replies >
+
+User "1" -- "*" Notification
+
+@enduml
+
+' ============================================================================
+' STATE DIAGRAMS
+' ============================================================================
+
+@startuml 13-enrollment-state-diagram
+title Enrollment Status State Diagram
+
+[*] --> PENDING : Student clicks Enroll
+
+PENDING --> PAID : Payment Success
+PENDING --> CANCELLED : Payment Failed
+
+PAID --> ACTIVE : Class Starts
+
+ACTIVE --> COMPLETED : Class Ends
+ACTIVE --> CANCELLED : Student Withdraws
+
+CANCELLED --> [*]
+COMPLETED --> [*]
+
+@enduml
+
+@startuml 14-assignment-state-diagram
+title Assignment Submission State Diagram
+
+[*] --> NOT_SUBMITTED : Assignment Published
+
+NOT_SUBMITTED --> SUBMITTED : Submit Before Deadline
+NOT_SUBMITTED --> LATE : Deadline Passed
+
+LATE --> SUBMITTED : Late Submission Allowed
+
+SUBMITTED --> GRADED : Tutor Grades
+
+GRADED --> [*]
+
+@enduml
+
+@startuml 15-payment-state-diagram
+title Payment Status State Diagram
+
+[*] --> PENDING : Payment Created
+
+PENDING --> PAID : Webhook Success
+PENDING --> FAILED : Timeout/Error
+
+PAID --> REFUNDED : Refund Request
+
+FAILED --> [*]
+REFUNDED --> [*]
+
+@enduml
+
+@startuml 16-quiz-state-diagram
+title Quiz Status State Diagram
+
+[*] --> DRAFT : Tutor Creates Quiz
+
+DRAFT --> DRAFT : Tutor Edits
+DRAFT --> PUBLISHED : Tutor Publishes
+
+PUBLISHED --> CLOSED : End Time Reached
+
+CLOSED --> [*]
+
+@enduml
+
+' ============================================================================
+' COMPONENT DIAGRAM
+' ============================================================================
+
+@startuml 17-component-diagram
+title E-Learning Platform - Component Diagram
+
+package "Frontend Layer\n(Next.js 15)" {
+  component [Pages/Routes] as Pages
+  component [UI Components] as UI
+  component [Client State] as State
+  component [API Client] as APIClient
+  
+  Pages --> UI
+  Pages --> State
+  Pages --> APIClient
+}
+
+package "Backend Layer\n(Next.js API)" {
+  component [API Routes] as APIRoutes
+  component [Server Actions] as ServerActions
+  component [Middleware\n(Auth & RBAC)] as Middleware
+  component [Prisma Client] as Prisma
+  
+  APIRoutes --> Middleware
+  ServerActions --> Middleware
+  APIRoutes --> Prisma
+  ServerActions --> Prisma
+}
+
+package "Data Layer" {
+  database "PostgreSQL\n(Primary DB)" as DB
+  component [Supabase Auth\n(JWT)] as Auth
+  component [Supabase Storage] as Storage
+}
+
+package "External Services" {
+  component [Pakasir\nPayment Gateway] as Payment
+  component [Email Service\n(SMTP)] as Email
+  component [Meeting API\n(Future)] as Meeting
+}
+
+APIClient --> APIRoutes : HTTP/HTTPS
+APIClient --> ServerActions : HTTP/HTTPS
+
+Prisma --> DB
+APIRoutes --> Auth
+APIRoutes --> Storage
+APIRoutes --> Payment
+APIRoutes --> Email
+
+@enduml
+
+' ============================================================================
+' DEPLOYMENT DIAGRAM
+' ============================================================================
+
+@startuml 18-deployment-diagram
+title E-Learning Platform - Deployment Diagram
+
+node "Client Devices" {
+  component [Desktop Browser]
+  component [Mobile Browser]
+  component [Tablet Browser]
+}
+
+cloud "Vercel Edge Network (CDN)" {
+  component [Static Assets\n(CSS, JS, Images)]
+  component [Edge Functions\n(Middleware)]
+}
+
+cloud "Vercel Serverless" {
+  component [Next.js Application] as NextJS {
+    component [App Router]
+    component [API Routes]
+    component [Server Actions]
+    component [Server Components]
+  }
+}
+
+cloud "Supabase Cloud" {
+  database [PostgreSQL\nDatabase] as DB
+  component [Supabase Auth\n(JWT)] as Auth
+  component [Supabase Storage\n(S3-like)] as Storage
+  component [Realtime\n(WebSocket)] as Realtime
+}
+
+cloud "External Services" {
+  component [Pakasir API\nPayment Gateway] as Pakasir
+  component [Email Service\n(SMTP)] as EmailSvc
+}
+
+[Desktop Browser] --> [Static Assets] : HTTPS
+[Mobile Browser] --> [Static Assets] : HTTPS
+[Tablet Browser] --> [Static Assets] : HTTPS
+
+[Static Assets] --> NextJS
+[Edge Functions] --> NextJS
+
+NextJS --> DB
+NextJS --> Auth
+NextJS --> Storage
+NextJS --> Realtime
+NextJS --> Pakasir
+NextJS --> EmailSvc
+
+Pakasir ..> NextJS : Webhook
+
+@enduml
+
+' ============================================================================
+' ENTITY RELATIONSHIP DIAGRAM (ERD)
+' ============================================================================
+
+@startuml 19-erd-diagram
+title E-Learning Platform - Entity Relationship Diagram
+
+entity User {
+  * id : string <<PK>>
+  --
+  * email : string <<UK>>
+  * phone : string
+  * name : string
+  avatar : string
+  * role : enum
+  * authId : string <<UK>>
+  * createdAt : datetime
+  * updatedAt : datetime
+}
+
+entity StudentProfile {
+  * id : string <<PK>>
+  --
+  * userId : string <<FK>>
+  grade : string
+  school : string
+  parentName : string
+  parentPhone : string
+  * createdAt : datetime
+}
+
+entity TutorProfile {
+  * id : string <<PK>>
+  --
+  * userId : string <<FK>>
+  bio : text
+  subjects : json
+  * createdAt : datetime
+}
+
+entity Class {
+  * id : string <<PK>>
+  --
+  * title : string
+  * description : text
+  * subject : string
+  * gradeLevel : string
+  * price : decimal
+  * capacity : integer
+  schedule : string
+  startDate : date
+  endDate : date
+  * published : boolean
+  * tutorId : string <<FK>>
+  * createdAt : datetime
+}
+
+entity Enrollment {
+  * id : string <<PK>>
+  --
+  * studentId : string <<FK>>
+  * classId : string <<FK>>
+  * status : enum
+  * enrolledAt : datetime
+}
+
+entity Payment {
+  * id : string <<PK>>
+  --
+  * enrollmentId : string <<FK>>
+  * amount : decimal
+  * method : string
+  * status : enum
+  externalId : string <<UK>>
+  paidAt : datetime
+}
+
+entity Material {
+  * id : string <<PK>>
+  --
+  * classId : string <<FK>>
+  * tutorId : string <<FK>>
+  * title : string
+  description : text
+  * type : string
+  fileUrl : string
+  session : integer
+  * order : integer
+  * published : boolean
+}
+
+entity Assignment {
+  * id : string <<PK>>
+  --
+  * classId : string <<FK>>
+  * tutorId : string <<FK>>
+  * title : string
+  description : text
+  * maxPoints : integer
+  * dueDate : datetime
+  * status : enum
+}
+
+entity AssignmentSubmission {
+  * id : string <<PK>>
+  --
+  * assignmentId : string <<FK>>
+  * studentId : string <<FK>>
+  fileUrl : string
+  * status : enum
+  score : integer
+  feedback : text
+  submittedAt : datetime
+  gradedAt : datetime
+}
+
+entity Quiz {
+  * id : string <<PK>>
+  --
+  * classId : string <<FK>>
+  * tutorId : string <<FK>>
+  * title : string
+  timeLimit : integer
+  maxAttempts : integer
+  startTime : datetime
+  endTime : datetime
+  * status : enum
+}
+
+entity QuizQuestion {
+  * id : string <<PK>>
+  --
+  * quizId : string <<FK>>
+  * type : string
+  * question : text
+  * points : integer
+  * order : integer
+  options : json
+  correctAnswer : string
+}
+
+entity QuizAttempt {
+  * id : string <<PK>>
+  --
+  * quizId : string <<FK>>
+  * studentId : string <<FK>>
+  score : integer
+  percentage : integer
+  startedAt : datetime
+  submittedAt : datetime
+}
+
+entity LiveClass {
+  * id : string <<PK>>
+  --
+  * classId : string <<FK>>
+  * title : string
+  meetingUrl : string
+  * scheduledAt : datetime
+  duration : integer
+}
+
+entity ForumThread {
+  * id : string <<PK>>
+  --
+  * classId : string <<FK>>
+  * title : string
+  * isPinned : boolean
+  * isLocked : boolean
+}
+
+entity ForumPost {
+  * id : string <<PK>>
+  --
+  * threadId : string <<FK>>
+  * authorId : string <<FK>>
+  * authorType : enum
+  * content : text
+  parentId : string <<FK>>
+  * createdAt : datetime
+}
+
+entity Notification {
+  * id : string <<PK>>
+  --
+  * userId : string <<FK>>
+  * type : string
+  * title : string
+  * message : text
+  link : string
+  * read : boolean
+  * createdAt : datetime
+}
+
+' Relationships
+User ||--o| StudentProfile
+User ||--o| TutorProfile
+
+TutorProfile ||--o{ Class
+
+Class ||--o{ Enrollment
+StudentProfile ||--o{ Enrollment
+
+Enrollment ||--o| Payment
+
+Class ||--o{ Material
+Class ||--o{ Assignment
+Class ||--o{ Quiz
+Class ||--o{ LiveClass
+Class ||--o{ ForumThread
+
+Assignment ||--o{ AssignmentSubmission
+StudentProfile ||--o{ AssignmentSubmission
+
+Quiz ||--o{ QuizQuestion
+Quiz ||--o{ QuizAttempt
+StudentProfile ||--o{ QuizAttempt
+
+ForumThread ||--o{ ForumPost
+ForumPost ||--o{ ForumPost : replies
+
+User ||--o{ Notification
+
+@enduml
+
+@enduml
