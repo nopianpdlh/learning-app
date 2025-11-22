@@ -111,7 +111,9 @@ export function ClassManagementClient({
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const headers: HeadersInit = { "Content-Type": "application/json" };
       if (session?.access_token) {
         headers["Authorization"] = `Bearer ${session.access_token}`;
@@ -159,7 +161,9 @@ export function ClassManagementClient({
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const headers: HeadersInit = { "Content-Type": "application/json" };
       if (session?.access_token) {
         headers["Authorization"] = `Bearer ${session.access_token}`;
@@ -178,7 +182,9 @@ export function ClassManagementClient({
       }
 
       const updatedClass = await response.json();
-      setClasses(classes.map((c) => (c.id === updatedClass.id ? updatedClass : c)));
+      setClasses(
+        classes.map((c) => (c.id === updatedClass.id ? updatedClass : c))
+      );
       setIsEditDialogOpen(false);
       setEditingClass(null);
       setFormData({
@@ -220,7 +226,9 @@ export function ClassManagementClient({
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const headers: HeadersInit = {};
       if (session?.access_token) {
         headers["Authorization"] = `Bearer ${session.access_token}`;
@@ -581,7 +589,9 @@ export function ClassManagementClient({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-thumbnail">Thumbnail URL (Optional)</Label>
+                  <Label htmlFor="edit-thumbnail">
+                    Thumbnail URL (Optional)
+                  </Label>
                   <Input
                     id="edit-thumbnail"
                     placeholder="Enter image URL"

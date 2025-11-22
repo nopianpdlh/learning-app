@@ -20,7 +20,13 @@ async function getPayments() {
     },
   });
 
-  return payments;
+  // Convert dates to serializable format for client component
+  return payments.map((payment) => ({
+    ...payment,
+    createdAt: payment.createdAt.toISOString(),
+    updatedAt: payment.updatedAt.toISOString(),
+    paidAt: payment.paidAt?.toISOString() ?? null,
+  }));
 }
 
 async function getPaymentStats() {
@@ -28,6 +34,7 @@ async function getPaymentStats() {
     totalRevenue,
     completedPayments,
     pendingPayments,
+    pendingRevenue,
     failedPayments,
     recentRevenue,
   ] = await Promise.all([
@@ -37,6 +44,10 @@ async function getPaymentStats() {
     }),
     db.payment.count({ where: { status: "PAID" } }),
     db.payment.count({ where: { status: "PENDING" } }),
+    db.payment.aggregate({
+      _sum: { amount: true },
+      where: { status: "PENDING" },
+    }),
     db.payment.count({ where: { status: "FAILED" } }),
     db.payment.aggregate({
       _sum: { amount: true },
@@ -53,6 +64,7 @@ async function getPaymentStats() {
     totalRevenue: totalRevenue._sum?.amount ?? 0,
     completedPayments,
     pendingPayments,
+    pendingRevenue: pendingRevenue._sum?.amount ?? 0,
     failedPayments,
     recentRevenue: recentRevenue._sum?.amount ?? 0,
   };
@@ -104,7 +116,16 @@ export default async function AdminPayments() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingPayments}</div>
+            <div className="text-2xl font-bold">
+              {" "}
+              Rp {stats.pendingRevenue.toLocaleString("id-ID")}
+            </div>
+            <p
+              className="text-xs text-muted-foreground mt-1"
+              suppressHydrationWarning
+            >
+              {stats.pendingPayments} transactions
+            </p>
           </CardContent>
         </Card>
         <Card>

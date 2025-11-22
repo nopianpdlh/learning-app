@@ -60,10 +60,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!tutorProfile) {
-      return NextResponse.json(
-        { error: "Tutor not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Tutor not found" }, { status: 404 });
     }
 
     // Create class
@@ -97,10 +94,12 @@ export async function POST(request: NextRequest) {
     // Get current admin user from auth header
     const authHeader = request.headers.get("authorization");
     let adminUserId: string | null = null;
-    
+
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      const { data: { user: adminUser } } = await supabase.auth.getUser(token);
+      const {
+        data: { user: adminUser },
+      } = await supabase.auth.getUser(token);
       if (adminUser) {
         adminUserId = adminUser.id;
       }

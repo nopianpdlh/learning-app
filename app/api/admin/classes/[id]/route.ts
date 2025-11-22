@@ -80,10 +80,7 @@ export async function PUT(
       });
 
       if (!tutorProfile) {
-        return NextResponse.json(
-          { error: "Tutor not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Tutor not found" }, { status: 404 });
       }
     }
 
@@ -119,10 +116,12 @@ export async function PUT(
     // Get current admin user from auth header
     const authHeader = request.headers.get("authorization");
     let adminUserId: string | null = null;
-    
+
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      const { data: { user: adminUser } } = await supabase.auth.getUser(token);
+      const {
+        data: { user: adminUser },
+      } = await supabase.auth.getUser(token);
       if (adminUser) {
         adminUserId = adminUser.id;
       }
@@ -197,10 +196,12 @@ export async function DELETE(
     // Get current admin user from auth header
     const authHeader = request.headers.get("authorization");
     let adminUserId: string | null = null;
-    
+
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      const { data: { user: adminUser } } = await supabase.auth.getUser(token);
+      const {
+        data: { user: adminUser },
+      } = await supabase.auth.getUser(token);
       if (adminUser) {
         adminUserId = adminUser.id;
       }

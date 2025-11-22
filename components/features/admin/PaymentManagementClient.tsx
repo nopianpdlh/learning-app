@@ -12,6 +12,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -28,16 +40,28 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Search, Download, Eye } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import {
+  Search,
+  Download,
+  Eye,
+  CalendarIcon,
+  ChevronDown,
+  FileText,
+  FileSpreadsheet,
+  FileDown,
+} from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
 import { id } from "date-fns/locale";
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface PaymentData {
   id: string;
   amount: number;
   paymentMethod: string;
   status: string;
-  createdAt: Date;
+  createdAt: string;
   enrollment: {
     student: {
       user: {
@@ -59,10 +83,112 @@ export function PaymentManagementClient({
 }: PaymentManagementClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Filter payments based on search and status
+  // Export functions
+  const exportToCSV = () => {
+    const csvData = filteredPayments.map((payment) => ({
+      "Payment ID": payment.id,
+      Student: payment.enrollment.student.user.name,
+      Class: payment.enrollment.class.name,
+      Amount: payment.amount,
+      Method: payment.paymentMethod,
+      Status: payment.status,
+      Date: format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(csvData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Payments");
+    XLSX.writeFile(wb, `payments_${format(new Date(), "yyyyMMdd_HHmmss")}.csv`);
+  };
+
+  const exportToExcel = () => {
+    const excelData = filteredPayments.map((payment) => ({
+      "Payment ID": payment.id,
+      Student: payment.enrollment.student.user.name,
+      Class: payment.enrollment.class.name,
+      Amount: payment.amount,
+      Method: payment.paymentMethod,
+      Status: payment.status,
+      Date: format(new Date(payment.createdAt), "yyyy-MM-dd HH:mm:ss"),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Payments");
+    XLSX.writeFile(
+      wb,
+      `payments_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`
+    );
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+
+    // Add title
+    doc.setFontSize(18);
+    doc.text("Payment Report", 14, 20);
+
+    // Add filter info
+    doc.setFontSize(10);
+    let yPos = 30;
+    if (statusFilter !== "ALL") {
+      doc.text(`Status: ${statusFilter}`, 14, yPos);
+      yPos += 5;
+    }
+    if (startDate) {
+      doc.text(`From: ${format(startDate, "yyyy-MM-dd")}`, 14, yPos);
+      yPos += 5;
+    }
+    if (endDate) {
+      doc.text(`To: ${format(endDate, "yyyy-MM-dd")}`, 14, yPos);
+      yPos += 5;
+    }
+    doc.text(
+      `Generated: ${format(new Date(), "yyyy-MM-dd HH:mm:ss")}`,
+      14,
+      yPos
+    );
+    yPos += 5;
+    doc.text(`Total Records: ${filteredPayments.length}`, 14, yPos);
+
+    // Add table
+    const tableData = filteredPayments.map((payment) => [
+      payment.id.slice(0, 8) + "...",
+      payment.enrollment.student.user.name,
+      payment.enrollment.class.name,
+      `Rp ${payment.amount.toLocaleString("id-ID")}`,
+      payment.paymentMethod,
+      payment.status,
+      format(new Date(payment.createdAt), "yyyy-MM-dd"),
+    ]);
+
+    autoTable(doc, {
+      startY: yPos + 5,
+      head: [["ID", "Student", "Class", "Amount", "Method", "Status", "Date"]],
+      body: tableData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    // Add summary
+    const finalY = (doc as any).lastAutoTable.finalY || yPos + 10;
+    const totalAmount = filteredPayments.reduce((sum, p) => sum + p.amount, 0);
+    doc.setFontSize(10);
+    doc.text(
+      `Total Amount: Rp ${totalAmount.toLocaleString("id-ID")}`,
+      14,
+      finalY + 10
+    );
+
+    doc.save(`payment_report_${format(new Date(), "yyyyMMdd_HHmmss")}.pdf`);
+  };
+
+  // Filter payments based on search, status, and date range
   const filteredPayments = payments.filter((payment) => {
     const matchesSearch =
       payment.enrollment.student.user.name
@@ -74,7 +200,14 @@ export function PaymentManagementClient({
       payment.id.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus =
       statusFilter === "ALL" || payment.status === statusFilter;
-    return matchesSearch && matchesStatus;
+
+    // Date range filter
+    const paymentDate = new Date(payment.createdAt);
+    const matchesStartDate = !startDate || paymentDate >= startDate;
+    const matchesEndDate =
+      !endDate || paymentDate <= new Date(endDate.setHours(23, 59, 59, 999));
+
+    return matchesSearch && matchesStatus && matchesStartDate && matchesEndDate;
   });
 
   // Pagination calculations
@@ -86,34 +219,132 @@ export function PaymentManagementClient({
   return (
     <>
       {/* Search and Filter Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by payment ID, student, or class..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by payment ID, student, or class..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border border-gray-200 shadow-lg">
+                <SelectItem value="ALL">All Status</SelectItem>
+                <SelectItem value="PAID">Paid</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="FAILED">Failed</SelectItem>
+                <SelectItem value="REFUNDED">Refunded</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Date Range Filters */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-[140px] justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "MMM dd") : "Start Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-[140px] justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "MMM dd") : "End Date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 bg-white" align="start">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {(startDate || endDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStartDate(undefined);
+                  setEndDate(undefined);
+                }}
+              >
+                Clear Dates
+              </Button>
+            )}
+
+            {/* Export Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-white">
+                <DropdownMenuItem onClick={exportToCSV}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToExcel}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export as Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={exportToPDF}>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent className="bg-white border border-gray-200 shadow-lg ">
-              <SelectItem value="ALL">All Status</SelectItem>
-              <SelectItem value="PAID">Paid</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-              <SelectItem value="REFUNDED">Refunded</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
+
+        {/* Active Filters Display */}
+        {(statusFilter !== "ALL" || startDate || endDate) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Active filters:</span>
+            {statusFilter !== "ALL" && (
+              <Badge variant="secondary">Status: {statusFilter}</Badge>
+            )}
+            {startDate && (
+              <Badge variant="secondary">
+                From: {format(startDate, "MMM dd, yyyy")}
+              </Badge>
+            )}
+            {endDate && (
+              <Badge variant="secondary">
+                To: {format(endDate, "MMM dd, yyyy")}
+              </Badge>
+            )}
+            <span className="ml-2">• {filteredPayments.length} results</span>
+          </div>
+        )}
       </div>
 
       {/* Payments Table */}
@@ -168,7 +399,7 @@ export function PaymentManagementClient({
                   </Badge>
                 </TableCell>
                 <TableCell suppressHydrationWarning>
-                  {formatDistanceToNow(payment.createdAt, {
+                  {formatDistanceToNow(new Date(payment.createdAt), {
                     addSuffix: true,
                     locale: id,
                   })}
