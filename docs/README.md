@@ -1,8 +1,9 @@
 # 📚 Documentation Index
+
 # Platform E-Learning Tutor Nomor Satu
 
 **Version:** 1.0  
-**Last Updated:** November 15, 2025  
+**Last Updated:** November 15, 2025
 
 ---
 
@@ -15,10 +16,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ## 🗂️ Core Documentation
 
 ### 1. **Konsep Awal** 📖
+
 **File**: [`konsep-awal.md`](./konsep-awal.md)  
 **Tujuan**: Dokumen foundational yang menjelaskan visi, masalah, solusi, dan fitur platform  
 **Untuk Siapa**: Semua stakeholders (Product Owner, Developer, Designer, Business Owner)  
 **Highlights**:
+
 - Masalah sistem saat ini (manual & terfragmentasi)
 - Solusi: Platform E-Learning terpusat (LMS)
 - Fitur-fitur utama (Kuis, Tugas, Materi, Forum, dll)
@@ -28,10 +31,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 2. **Product Requirements Document (PRD)** 📝
+
 **File**: [`PRD.md`](./PRD.md)  
 **Tujuan**: Dokumen spesifikasi lengkap semua fitur dan requirement produk  
 **Untuk Siapa**: Product Manager, Developer, QA Tester  
 **Highlights**:
+
 - **Business Objectives**: Efisiensi 80%, NPS > 70
 - **User Roles**: Admin, Tutor, Siswa (dengan permissions masing-masing)
 - **Functional Requirements (FR)**: Semua fitur (FR-AUTH-001 sampai FR-NOTIF-002)
@@ -51,10 +56,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 3. **Software Requirements Specification (SRS)** 🔧
+
 **File**: [`SRS.md`](./SRS.md)  
 **Tujuan**: Spesifikasi teknis detail untuk developer dan tester  
 **Untuk Siapa**: Software Engineer, QA Tester, System Architect  
 **Highlights**:
+
 - **System Features**: Breakdown detail setiap fitur dengan FR (Functional Requirements)
   - FR-3.1.1.1 sampai FR-3.12.2.3 (100+ requirements)
   - Input/Output specifications
@@ -69,10 +76,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 4. **Non-Functional Requirements (NFR)** ⚡
+
 **File**: [`NFR.md`](./NFR.md)  
 **Tujuan**: Spesifikasi kualitas sistem (performance, security, reliability)  
 **Untuk Siapa**: Developer, DevOps Engineer, Security Specialist  
 **Highlights**:
+
 - **Performance**:
   - Page load < 2s, API response < 500ms
   - Support 500 concurrent users
@@ -94,10 +103,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 5. **Technical Architecture** 🏗️
+
 **File**: [`TECHNICAL_ARCHITECTURE.md`](./TECHNICAL_ARCHITECTURE.md)  
 **Tujuan**: Arsitektur teknis lengkap (tech stack, data schema, API, security)  
 **Untuk Siapa**: Tech Lead, Backend Developer, Database Admin  
 **Highlights**:
+
 - **Tech Stack**:
   - Frontend: Next.js 15, React 19, TailwindCSS 4, Shadcn UI
   - Backend: Next.js API Routes, Server Actions, Prisma ORM
@@ -122,10 +133,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 6. **High-Level Architecture** 🌐
+
 **File**: [`HIGH_LEVEL_ARCHITECTURE.md`](./HIGH_LEVEL_ARCHITECTURE.md)  
 **Tujuan**: Overview arsitektur sistem secara high-level (layers, data flow, infrastructure)  
 **Untuk Siapa**: CTO, Tech Lead, Solution Architect, Business Owner  
 **Highlights**:
+
 - **Architecture Pattern**: Serverless Monolith (Next.js)
 - **Architectural Layers**:
   - Presentation (Frontend: Next.js SSR/CSR)
@@ -145,10 +158,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 7. **Development Roadmap** 🗓️
+
 **File**: [`ROADMAP.md`](./ROADMAP.md)  
 **Tujuan**: Timeline development dari Week 1 sampai Launch (20 weeks)  
 **Untuk Siapa**: Project Manager, Developer, QA Tester, Business Owner  
 **Highlights**:
+
 - **Phase 1 (Week 1-2)**: Foundation & Setup
   - Project init, Supabase setup, Auth, User management
 - **Phase 2 (Week 3-5)**: Class Management & Payment
@@ -172,10 +187,12 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 8. **UML Diagrams** 📊
+
 **File**: [`UML_DIAGRAMS.md`](./UML_DIAGRAMS.md)  
 **Tujuan**: Visualisasi sistem dengan UML diagrams (use case, class, sequence, dll)  
 **Untuk Siapa**: Software Engineer, System Analyst, Database Designer  
 **Highlights**:
+
 - **Use Case Diagram**: Interaksi Student, Tutor, Admin dengan sistem
 - **Class Diagram**: Database schema dengan relationships
 - **Sequence Diagrams**:
@@ -198,12 +215,14 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 ---
 
 ### 9. **User Flow Diagrams** 🔄
+
 **File**: [`USER_FLOW.md`](./USER_FLOW.md)  
 **Tujuan**: Detail flow setiap user interaction (student, tutor, admin)  
 **Untuk Siapa**: UX Designer, Frontend Developer, QA Tester  
 **Highlights**:
 
 #### **Student Flows**:
+
 1. Registration & First Enrollment (15 steps)
 2. Accessing Materials (PDF preview, video embed, download)
 3. Submitting Assignment (upload file, deadline check)
@@ -212,6 +231,7 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 6. Viewing Grades (gradebook, progress chart)
 
 #### **Tutor Flows**:
+
 1. Uploading Materials (file/video, session, publish)
 2. Creating Assignment (rich text, due date, max points)
 3. Grading Assignments (view submission, score, feedback)
@@ -220,16 +240,19 @@ Ini adalah index lengkap dari semua dokumentasi teknis untuk Platform E-Learning
 6. Viewing Class Gradebook (table view, export Excel)
 
 #### **Admin Flows**:
+
 1. Creating Class (assign tutor, set price, publish)
 2. Managing Users (create, edit, delete, bulk import)
 3. Monitoring Payments (filter, manual verification)
 4. Viewing Analytics Dashboard (KPIs, charts)
 
 #### **Common Flows**:
+
 1. Login Flow (role-based redirect)
 2. Notification Flow (real-time push, bell icon)
 
 #### **Error & Edge Cases**:
+
 1. Payment Failed Flow (retry, contact support)
 2. File Upload Failed Flow (size/type error, retry)
 
@@ -260,12 +283,14 @@ PRD.md (What to build)
 ## 📚 How to Use This Documentation
 
 ### For **Product Owners / Business Stakeholders**:
+
 1. Start with `konsep-awal.md` to understand the vision
 2. Read `PRD.md` for detailed features and success metrics
 3. Review `ROADMAP.md` for timeline and phases
 4. Check `USER_FLOW.md` to see how users will interact
 
 ### For **Developers (Full-stack)**:
+
 1. Read `PRD.md` to understand requirements
 2. Study `TECHNICAL_ARCHITECTURE.md` for tech stack and API design
 3. Reference `SRS.md` for detailed functional requirements
@@ -273,30 +298,35 @@ PRD.md (What to build)
 5. Use `UML_DIAGRAMS.md` for database schema and flow diagrams
 
 ### For **Frontend Developers**:
+
 1. `PRD.md` → User stories and UI requirements
 2. `USER_FLOW.md` → Detailed interaction flows
 3. `TECHNICAL_ARCHITECTURE.md` (Section 3.1) → Frontend stack
 4. `NFR.md` (Section 5.4) → Usability requirements
 
 ### For **Backend Developers**:
+
 1. `SRS.md` → All functional requirements (FR-xxx)
 2. `TECHNICAL_ARCHITECTURE.md` (Section 4) → Database schema (Prisma)
 3. `TECHNICAL_ARCHITECTURE.md` (Section 5) → API endpoints
 4. `UML_DIAGRAMS.md` → Sequence diagrams for API flows
 
 ### For **QA Testers**:
+
 1. `SRS.md` → Test cases based on functional requirements
 2. `NFR.md` → Performance, security, usability test criteria
 3. `USER_FLOW.md` → End-to-end test scenarios
 4. `PRD.md` (Section 12) → Acceptance criteria for launch
 
 ### For **DevOps Engineers**:
+
 1. `TECHNICAL_ARCHITECTURE.md` (Section 8) → Deployment architecture
 2. `HIGH_LEVEL_ARCHITECTURE.md` (Section 5) → Infrastructure
 3. `NFR.md` (Section 3) → Reliability and backup requirements
 4. `HIGH_LEVEL_ARCHITECTURE.md` (Section 8) → Monitoring setup
 
 ### For **UI/UX Designers**:
+
 1. `konsep-awal.md` (Section Rancangan UI/UX) → Design system, colors, layouts
 2. `USER_FLOW.md` → All user interaction flows
 3. `PRD.md` (Section 6) → User stories for empathy
@@ -306,28 +336,30 @@ PRD.md (What to build)
 
 ## ✅ Document Status
 
-| Document | Status | Last Updated | Version |
-|----------|--------|--------------|---------|
-| `konsep-awal.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `PRD.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `SRS.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `NFR.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `TECHNICAL_ARCHITECTURE.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `HIGH_LEVEL_ARCHITECTURE.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `ROADMAP.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `UML_DIAGRAMS.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
-| `USER_FLOW.md` | ✅ Complete | Nov 15, 2025 | 1.0 |
+| Document                     | Status      | Last Updated | Version |
+| ---------------------------- | ----------- | ------------ | ------- |
+| `konsep-awal.md`             | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `PRD.md`                     | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `SRS.md`                     | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `NFR.md`                     | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `TECHNICAL_ARCHITECTURE.md`  | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `HIGH_LEVEL_ARCHITECTURE.md` | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `ROADMAP.md`                 | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `UML_DIAGRAMS.md`            | ✅ Complete | Nov 15, 2025 | 1.0     |
+| `USER_FLOW.md`               | ✅ Complete | Nov 15, 2025 | 1.0     |
 
 ---
 
 ## 🚀 Next Steps
 
 1. **Review & Approval**:
+
    - Product Owner approves `PRD.md`
    - Tech Lead approves `TECHNICAL_ARCHITECTURE.md`
    - Business Owner approves `ROADMAP.md`
 
 2. **Development Kickoff**:
+
    - Start Phase 1 per `ROADMAP.md`
    - Setup project structure per `TECHNICAL_ARCHITECTURE.md`
    - Initialize Supabase project and Prisma schema
@@ -342,6 +374,7 @@ PRD.md (What to build)
 ## 📞 Contact & Support
 
 For questions about this documentation:
+
 - **Product**: Contact Product Owner
 - **Technical**: Contact Tech Lead
 - **Business**: Contact Business Owner
@@ -350,7 +383,7 @@ For questions about this documentation:
 
 **Documentation Version**: 1.0  
 **Generated**: November 15, 2025  
-**Platform**: E-Learning Tutor Nomor Satu  
+**Platform**: E-Learning Tutor Nomor Satu
 
 ---
 

@@ -1,0 +1,275 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  createClassSchema,
+  type CreateClassInput,
+} from "@/lib/validations/class.schema";
+
+interface Tutor {
+  id: string;
+  user: {
+    name: string;
+  };
+}
+
+export default function CreateClassPage() {
+  const router = useRouter();
+  const [tutors, setTutors] = useState<Tutor[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(createClassSchema),
+    defaultValues: {
+      published: false,
+      price: 0,
+      capacity: 20,
+      name: "",
+      description: "",
+      subject: "",
+      gradeLevel: "",
+      schedule: "",
+      tutorId: "",
+      thumbnail: "",
+    },
+  });
+
+  useEffect(() => {
+    fetchTutors();
+  }, []);
+
+  const fetchTutors = async () => {
+    try {
+      const response = await fetch("/api/tutors");
+      const data = await response.json();
+      setTutors(data.tutors || []);
+    } catch (error) {
+      console.error("Error fetching tutors:", error);
+    }
+  };
+
+  const onSubmit = async (data: any) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Gagal membuat kelas");
+      }
+
+      router.push("/admin/classes");
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Buat Kelas Baru</h1>
+        <p className="text-gray-600">
+          Isi form di bawah untuk membuat kelas baru
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Informasi Kelas</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="name">Nama Kelas *</Label>
+              <Input
+                id="name"
+                placeholder="Contoh: Matematika SMA Kelas 12"
+                {...register("name")}
+              />
+              {errors.name && (
+                <p className="text-sm text-red-600">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Deskripsi *</Label>
+              <textarea
+                id="description"
+                rows={4}
+                placeholder="Jelaskan tentang kelas ini..."
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                {...register("description")}
+              />
+              {errors.description && (
+                <p className="text-sm text-red-600">
+                  {errors.description.message}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="subject">Mata Pelajaran *</Label>
+                <Input
+                  id="subject"
+                  placeholder="Contoh: Matematika"
+                  {...register("subject")}
+                />
+                {errors.subject && (
+                  <p className="text-sm text-red-600">
+                    {errors.subject.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gradeLevel">Tingkat Kelas *</Label>
+                <Input
+                  id="gradeLevel"
+                  placeholder="Contoh: SMA Kelas 12"
+                  {...register("gradeLevel")}
+                />
+                {errors.gradeLevel && (
+                  <p className="text-sm text-red-600">
+                    {errors.gradeLevel.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">Harga (Rp) *</Label>
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="500000"
+                  {...register("price", { valueAsNumber: true })}
+                />
+                {errors.price && (
+                  <p className="text-sm text-red-600">{errors.price.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="capacity">Kapasitas Siswa *</Label>
+                <Input
+                  id="capacity"
+                  type="number"
+                  placeholder="20"
+                  {...register("capacity", { valueAsNumber: true })}
+                />
+                {errors.capacity && (
+                  <p className="text-sm text-red-600">
+                    {errors.capacity.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="schedule">Jadwal *</Label>
+              <Input
+                id="schedule"
+                placeholder="Contoh: Senin & Rabu, 19:00-21:00"
+                {...register("schedule")}
+              />
+              {errors.schedule && (
+                <p className="text-sm text-red-600">
+                  {errors.schedule.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tutorId">Tutor *</Label>
+              <select
+                id="tutorId"
+                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                {...register("tutorId")}
+              >
+                <option value="">Pilih Tutor</option>
+                {tutors.map((tutor) => (
+                  <option key={tutor.id} value={tutor.id}>
+                    {tutor.user.name}
+                  </option>
+                ))}
+              </select>
+              {errors.tutorId && (
+                <p className="text-sm text-red-600">{errors.tutorId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="thumbnail">URL Thumbnail (optional)</Label>
+              <Input
+                id="thumbnail"
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                {...register("thumbnail")}
+              />
+              {errors.thumbnail && (
+                <p className="text-sm text-red-600">
+                  {errors.thumbnail.message}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="published"
+                className="w-4 h-4"
+                {...register("published")}
+              />
+              <Label htmlFor="published">
+                Publish kelas (siswa dapat melihat dan mendaftar)
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex gap-4 mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            disabled={isLoading}
+          >
+            Batal
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? "Menyimpan..." : "Buat Kelas"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

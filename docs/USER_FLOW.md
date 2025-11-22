@@ -1,8 +1,9 @@
 # User Flow Diagrams
+
 # Platform E-Learning Tutor Nomor Satu
 
 **Version:** 1.0  
-**Last Updated:** November 15, 2025  
+**Last Updated:** November 15, 2025
 
 ---
 
@@ -474,7 +475,7 @@ flowchart TD
     ActionType -->|Edit| SelectUser1[Select user from list]
     ActionType -->|Delete| SelectUser2[Select user from list]
     ActionType -->|Bulk Import| ClickImport[Click 'Bulk Import']
-    
+
     ClickCreate --> FillForm[Fill user form<br/>Email, Name, Role, Phone]
     FillForm --> SetTempPassword[Set temporary password]
     SetTempPassword --> ClickSave1[Click 'Save']
@@ -482,7 +483,7 @@ flowchart TD
     CreateUser --> SendWelcome[Send welcome email with credentials]
     SendWelcome --> ShowSuccess1[Show 'User created' message]
     ShowSuccess1 --> End1([End])
-    
+
     SelectUser1 --> EditForm[Edit user form]
     EditForm --> UpdateFields[Update name/email/role/status]
     UpdateFields --> ClickSave2[Click 'Save']
@@ -490,7 +491,7 @@ flowchart TD
     UpdateUser --> LogAudit1[Log action in audit_log]
     LogAudit1 --> ShowSuccess2[Show 'User updated' message]
     ShowSuccess2 --> End2([End])
-    
+
     SelectUser2 --> CheckEnrollments{Has active enrollments?}
     CheckEnrollments -->|Yes| ShowWarning[Show 'Cannot delete' warning]
     ShowWarning --> End3([End])
@@ -501,7 +502,7 @@ flowchart TD
     SoftDelete --> LogAudit2[Log action in audit_log]
     LogAudit2 --> ShowSuccess3[Show 'User deleted' message]
     ShowSuccess3 --> End3
-    
+
     ClickImport --> UploadCSV[Upload CSV file]
     UploadCSV --> ValidateCSV{CSV valid?}
     ValidateCSV -->|No| ShowCSVErrors[Show validation errors]

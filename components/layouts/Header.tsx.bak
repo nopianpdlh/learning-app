@@ -1,0 +1,91 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { Bell, Search, LogOut } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+interface HeaderProps {
+  user: {
+    name: string;
+    email: string;
+    avatar?: string | null;
+  };
+}
+
+export function Header({ user }: HeaderProps) {
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <header className="bg-white border-b border-gray-200 shadow-sm">
+      <div className="px-6 py-4 flex items-center justify-between">
+        {/* Left Section - Logo and Search */}
+        <div className="flex items-center gap-6 flex-1">
+
+      <div className="flex items-center gap-4 flex-1 max-w-2xl mx-8">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            type="search"
+            placeholder="Cari..."
+            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button className="relative p-2 hover:bg-white/10 rounded-lg transition-colors">
+          <Bell className="w-5 h-5" />
+          <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            3
+          </span>
+        </button>
+
+        <div className="flex items-center gap-3">
+          <Avatar>
+            <AvatarImage src={user.avatar || undefined} />
+            <AvatarFallback className="bg-blue-800">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="hidden md:block">
+            <p className="text-sm font-medium">{user.name}</p>
+            <p className="text-xs text-blue-200">{user.email}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="text-white hover:bg-white/10"
+          >
+            Logout
+          </Button>
+        </div>
+      </div>
+    </header>
+  );
+}

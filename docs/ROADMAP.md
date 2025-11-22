@@ -1,9 +1,10 @@
 # Development Roadmap
+
 # Platform E-Learning Tutor Nomor Satu
 
 **Version:** 1.0  
 **Last Updated:** November 15, 2025  
-**Timeline:** 6 Months to MVP + Full Feature Set  
+**Timeline:** 6 Months to MVP + Full Feature Set
 
 ---
 
@@ -16,6 +17,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 1: Foundation & Setup (Week 1-2)
 
 ### Goals
+
 - Project setup and infrastructure configuration
 - Database schema finalization
 - Authentication system
@@ -23,6 +25,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ### Tasks
 
 #### Week 1: Project Initialization
+
 - [x] Create Next.js 15 project with App Router
 - [x] Setup TailwindCSS 4 + Shadcn UI
 - [x] Configure TypeScript, ESLint, Prettier
@@ -38,6 +41,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Setup Prisma Client
 
 #### Week 2: Authentication & User Management
+
 - [ ] Implement Supabase Auth integration
   - [ ] Email/password registration
   - [ ] Login with JWT
@@ -52,12 +56,14 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Bulk import via CSV
 
 ### Deliverables
+
 - ✅ Working authentication system
 - ✅ Role-based access control
 - ✅ Admin panel for user management
 - ✅ Database deployed and migrated
 
 ### Success Metrics
+
 - [ ] Users can register and login
 - [ ] Admin can create users with roles
 - [ ] Middleware correctly restricts access by role
@@ -67,6 +73,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 2: Class Management & Payment (Week 3-5)
 
 ### Goals
+
 - Class catalog and enrollment system
 - Payment gateway integration
 - Basic dashboards for all roles
@@ -74,6 +81,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ### Tasks
 
 #### Week 3: Class Management
+
 - [ ] Database models for Class, Enrollment
 - [ ] Admin: Create/Edit/Delete classes
   - [ ] Class form with all fields (title, description, tutor, price, schedule, capacity)
@@ -87,6 +95,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Enrollment flow (select class → create enrollment with PENDING status)
 
 #### Week 4: Payment Integration (Pakasir)
+
 - [ ] Setup Pakasir merchant account
 - [ ] Implement payment API integration
   - [ ] Create payment transaction
@@ -102,6 +111,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Download invoice PDF
 
 #### Week 5: Dashboards
+
 - [ ] Student Dashboard
   - [ ] "My Classes" section (enrolled classes)
   - [ ] Upcoming live classes widget
@@ -120,11 +130,13 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Recent enrollments table
 
 ### Deliverables
+
 - ✅ Functional class catalog
 - ✅ End-to-end enrollment + payment flow
 - ✅ Role-specific dashboards
 
 ### Success Metrics
+
 - [ ] Student can browse, enroll, and pay for class
 - [ ] Payment webhook correctly updates enrollment status
 - [ ] Dashboards display real-time data
@@ -134,12 +146,14 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 3: Learning Materials (Week 6-7)
 
 ### Goals
+
 - Material upload and management system
 - Student material viewing interface
 
 ### Tasks
 
 #### Week 6: Material Upload (Tutor)
+
 - [ ] Database model for Material
 - [ ] File upload to Supabase Storage
   - [ ] Support PDF, DOCX, PPTX (max 50MB)
@@ -156,6 +170,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Drag-and-drop reordering
 
 #### Week 7: Material Viewing (Student)
+
 - [ ] Class materials page (student view)
   - [ ] Display materials organized by session (Pertemuan 1, 2, 3...)
   - [ ] Accordion or tabs UI
@@ -167,10 +182,12 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Middleware/RLS check
 
 ### Deliverables
+
 - ✅ Tutor can upload materials (files + videos)
 - ✅ Student can view and download materials
 
 ### Success Metrics
+
 - [ ] Tutor successfully uploads 10MB PDF
 - [ ] Student sees materials organized by session
 - [ ] Video embeds play correctly
@@ -180,6 +197,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 4: Assignments & Grading (Week 8-10)
 
 ### Goals
+
 - Assignment creation and submission system
 - Grading interface for tutors
 - Gradebook
@@ -187,6 +205,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ### Tasks
 
 #### Week 8: Assignment Creation
+
 - [ ] Database models for Assignment, AssignmentSubmission
 - [ ] Tutor: Create assignment form
   - [ ] Title, description (rich text editor - Tiptap)
@@ -200,6 +219,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] View submission count
 
 #### Week 9: Assignment Submission (Student)
+
 - [ ] Student: View assignments
   - [ ] List all assignments (upcoming, past due)
   - [ ] Assignment detail page
@@ -214,6 +234,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Show score if graded
 
 #### Week 10: Grading & Gradebook
+
 - [ ] Tutor: Grading interface
   - [ ] List all submissions for an assignment
   - [ ] View submitted file in-browser
@@ -231,10 +252,12 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Progress chart (line graph)
 
 ### Deliverables
+
 - ✅ Complete assignment workflow (create → submit → grade)
 - ✅ Functional gradebook for tutor and student
 
 ### Success Metrics
+
 - [ ] Tutor creates assignment with due date
 - [ ] Student submits before deadline
 - [ ] Tutor grades submission, student sees score
@@ -245,12 +268,14 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 5: Quizzes (Week 11-12)
 
 ### Goals
+
 - Online quiz system with auto-grading
 - Multiple question types (MCQ, True/False, Short Answer)
 
 ### Tasks
 
 #### Week 11: Quiz Creation
+
 - [ ] Database models for Quiz, QuizQuestion, QuizAttempt, QuizAnswer
 - [ ] Tutor: Create quiz form
   - [ ] Title, description
@@ -269,6 +294,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 - [ ] Publish/draft toggle
 
 #### Week 12: Taking Quizzes & Results
+
 - [ ] Student: View available quizzes
   - [ ] List quizzes (available, upcoming, past)
   - [ ] Quiz detail page (without answers)
@@ -291,11 +317,13 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] View individual student attempt (for manual grading of short answers)
 
 ### Deliverables
+
 - ✅ Full quiz creation and taking workflow
 - ✅ Auto-grading for MCQ/True-False
 - ✅ Quiz results integrated with gradebook
 
 ### Success Metrics
+
 - [ ] Tutor creates 10-question MCQ quiz
 - [ ] Student completes quiz within time limit
 - [ ] Student sees score immediately after submission
@@ -306,6 +334,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 6: Live Classes, Forum & Notifications (Week 13-16)
 
 ### Goals
+
 - Live class scheduling and reminders
 - Forum discussion system
 - Real-time notifications
@@ -313,6 +342,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ### Tasks
 
 #### Week 13: Live Class Integration
+
 - [ ] Database model for LiveClass
 - [ ] Tutor: Schedule live class
   - [ ] Manual link input (Zoom/Meet URL)
@@ -333,6 +363,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Auto-populate link
 
 #### Week 14: Forum Discussion
+
 - [ ] Database models for ForumThread, ForumPost
 - [ ] Class forum page
   - [ ] List discussion threads
@@ -350,6 +381,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Pin important threads to top
 
 #### Week 15: Notifications
+
 - [ ] Database model for Notification
 - [ ] Notification types
   - [ ] NEW_MATERIAL: "Tutor uploaded new material for [Class]"
@@ -371,6 +403,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Use Supabase email or integrate Resend
 
 #### Week 16: Polish & Bug Fixes
+
 - [ ] UI/UX refinements
   - [ ] Consistent spacing, colors, typography
   - [ ] Mobile responsiveness check (all pages)
@@ -390,12 +423,14 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Load testing (simulate 100 concurrent users)
 
 ### Deliverables
+
 - ✅ Live class scheduling and reminders
 - ✅ Forum discussion system
 - ✅ Real-time in-app notifications
 - ✅ Polished, production-ready platform
 
 ### Success Metrics
+
 - [ ] Student receives live class reminder and joins via dashboard
 - [ ] Users can create and reply to forum threads
 - [ ] Notifications appear in real-time
@@ -406,6 +441,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Phase 7: Beta Testing & Launch Prep (Week 17-20)
 
 ### Goals
+
 - Beta testing with real users
 - Gather feedback and iterate
 - Prepare for production launch
@@ -413,6 +449,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ### Tasks
 
 #### Week 17-18: Beta Testing
+
 - [ ] Recruit beta testers
   - [ ] 3-5 tutors
   - [ ] 20-30 students
@@ -431,6 +468,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Add small feature requests (if feasible)
 
 #### Week 19: Documentation & Training
+
 - [ ] User documentation
   - [ ] Student guide (how to enroll, submit assignments, take quizzes)
   - [ ] Tutor guide (how to create materials, grade assignments, manage classes)
@@ -445,6 +483,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Q&A session
 
 #### Week 20: Production Launch
+
 - [ ] Final pre-launch checklist
   - [ ] Security audit (penetration testing, OWASP Top 10 check)
   - [ ] Performance audit (Lighthouse score > 90)
@@ -462,11 +501,13 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - [ ] Monitor traffic, errors, performance
 
 ### Deliverables
+
 - ✅ Beta testing complete with feedback incorporated
 - ✅ User documentation and training materials
 - ✅ Production-ready platform launched
 
 ### Success Metrics
+
 - [ ] 80% of beta testers successfully complete key workflows
 - [ ] No critical bugs reported in beta
 - [ ] Lighthouse performance score > 90
@@ -477,6 +518,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Post-Launch: Iteration & Feature Enhancements (Month 6+)
 
 ### Short-term Enhancements (1-3 months post-launch)
+
 - [ ] **Analytics Dashboard (Admin)**
   - Revenue trends (monthly, yearly)
   - User growth chart
@@ -497,6 +539,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - Download/email certificate to student
 
 ### Medium-term Enhancements (3-6 months post-launch)
+
 - [ ] **Zoom API Auto-Generation**
   - OAuth integration
   - Create Zoom meetings via platform
@@ -515,6 +558,7 @@ This roadmap outlines the development timeline for the E-Learning platform from 
   - Personalized learning recommendations
 
 ### Long-term Vision (6-12 months post-launch)
+
 - [ ] **Multi-language Support**
   - English, Indonesian
   - i18n implementation
@@ -532,15 +576,15 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 
 ## Milestones Summary
 
-| Phase | Duration | Key Milestone | Completion Date (Estimate) |
-|-------|----------|---------------|----------------------------|
-| Phase 1 | Week 1-2 | Authentication & User Management | Week 2 |
-| Phase 2 | Week 3-5 | Class Management & Payment | Week 5 |
-| Phase 3 | Week 6-7 | Learning Materials | Week 7 |
-| Phase 4 | Week 8-10 | Assignments & Grading | Week 10 |
-| Phase 5 | Week 11-12 | Quizzes | Week 12 |
-| Phase 6 | Week 13-16 | Live Classes, Forum, Notifications | Week 16 |
-| Phase 7 | Week 17-20 | Beta Testing & Launch | Week 20 |
+| Phase   | Duration   | Key Milestone                      | Completion Date (Estimate) |
+| ------- | ---------- | ---------------------------------- | -------------------------- |
+| Phase 1 | Week 1-2   | Authentication & User Management   | Week 2                     |
+| Phase 2 | Week 3-5   | Class Management & Payment         | Week 5                     |
+| Phase 3 | Week 6-7   | Learning Materials                 | Week 7                     |
+| Phase 4 | Week 8-10  | Assignments & Grading              | Week 10                    |
+| Phase 5 | Week 11-12 | Quizzes                            | Week 12                    |
+| Phase 6 | Week 13-16 | Live Classes, Forum, Notifications | Week 16                    |
+| Phase 7 | Week 17-20 | Beta Testing & Launch              | Week 20                    |
 
 **Total Timeline: 20 weeks (~5 months) to launch**
 
@@ -549,11 +593,13 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 ## Resource Allocation
 
 ### Development Team
+
 - **Full-stack Developer (1)**: All features
 - **UI/UX Designer (0.5)**: Part-time, design system and mockups
 - **QA Tester (0.5)**: Part-time, testing during beta phase
 
 ### Estimated Effort
+
 - **Total Development Hours**: ~800 hours
 - **Phase 1**: 80 hours
 - **Phase 2**: 120 hours
@@ -567,19 +613,20 @@ This roadmap outlines the development timeline for the E-Learning platform from 
 
 ## Risk Mitigation
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Payment gateway integration delays | High | Start integration early (Phase 2), use test mode extensively |
-| Scope creep (feature requests) | Medium | Strict adherence to roadmap, defer non-critical features to post-launch |
-| Developer illness/unavailability | High | Buffer time built into estimates, documentation for continuity |
-| Security vulnerability discovered | Critical | Regular security audits, implement all NFRs from PRD |
-| User adoption resistance (tutors) | Medium | Early training, onboarding support, gather feedback |
+| Risk                               | Impact   | Mitigation                                                              |
+| ---------------------------------- | -------- | ----------------------------------------------------------------------- |
+| Payment gateway integration delays | High     | Start integration early (Phase 2), use test mode extensively            |
+| Scope creep (feature requests)     | Medium   | Strict adherence to roadmap, defer non-critical features to post-launch |
+| Developer illness/unavailability   | High     | Buffer time built into estimates, documentation for continuity          |
+| Security vulnerability discovered  | Critical | Regular security audits, implement all NFRs from PRD                    |
+| User adoption resistance (tutors)  | Medium   | Early training, onboarding support, gather feedback                     |
 
 ---
 
 ## Success Criteria (Launch Readiness)
 
 Platform is ready to launch when:
+
 - [x] All Phase 1-6 features implemented and tested
 - [x] Beta testing completed with > 80% positive feedback
 - [x] No P0 (critical) bugs remaining

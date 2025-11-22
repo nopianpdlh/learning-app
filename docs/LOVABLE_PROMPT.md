@@ -9,6 +9,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ## 🎨 Design System
 
 ### Brand Colors
+
 - **Primary**: Blue #2563EB (Tailwind `blue-600`)
 - **Secondary**: Sky Blue #38BDF8 (Tailwind `sky-400`)
 - **Dark**: Navy #1E3A8A (Tailwind `blue-900`)
@@ -17,12 +18,15 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - **Background**: White #FFFFFF
 
 ### Typography
+
 - **Font**: Inter / System UI
 - **Headings**: Bold, Blue-900
 - **Body**: Regular, Gray-700
 
 ### Layout Pattern
+
 **Holy Grail Layout** untuk semua dashboard:
+
 ```
 ┌─────────────────────────────────────────┐
 │         Header (Logo + User Menu)       │
@@ -44,6 +48,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ### 🔐 1. Authentication Pages (NO Holy Grail)
 
 #### `/login` - Login Page
+
 - **Layout**: Center-aligned card, no sidebar
 - **Form Fields**:
   - Email/Phone input
@@ -54,6 +59,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - **Footer**: "Belum punya akun? Daftar"
 
 #### `/register` - Registration Page
+
 - **Layout**: Center-aligned card
 - **Form Fields**:
   - Nama Lengkap
@@ -72,12 +78,14 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 #### `/student/dashboard` - Student Home
 
 **Header:**
+
 - Logo "Tutor Nomor Satu" (kiri)
 - Search bar (tengah)
 - Notification bell icon with badge
 - User avatar + dropdown (kanan)
 
 **Sidebar Kiri:**
+
 - 🏠 Dashboard (active)
 - 📚 Kelas Saya
 - 📄 Materi
@@ -88,7 +96,9 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - ⚙️ Pengaturan
 
 **Main Content:**
+
 1. **Hero Card**: "Live Class Hari Ini" (jika ada)
+
    - Class name, tutor name, time countdown
    - Button: "Gabung Kelas" (green, prominent)
 
@@ -99,6 +109,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
    - **Kuis Terbaru** (list view, score badge)
 
 **Sidebar Kanan (Widgets):**
+
 - **Upcoming Events** (next 3 live classes)
 - **Recent Notifications** (last 5)
 - **Progress This Week** (circular chart: 75%)
@@ -106,6 +117,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/student/classes` - My Classes
+
 - **Layout**: Grid of class cards (3 columns desktop, 1 column mobile)
 - **Each Card**:
   - Thumbnail image
@@ -118,23 +130,21 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/student/classes/[id]` - Class Detail
+
 **Tabs Navigation:**
+
 1. **Materi** (default)
    - Accordion by session (Pertemuan 1, 2, 3...)
    - Each item: PDF icon, video icon, download button
-   
 2. **Tugas**
    - List of assignments with status badges (Not Submitted, Submitted, Graded)
    - Click to open assignment detail modal
-   
 3. **Kuis**
    - List of quizzes with status (Not Started, In Progress, Completed)
    - Score display if completed
-   
 4. **Live Class**
    - Upcoming live classes (card with date/time, join button)
    - Past recordings (if any)
-   
 5. **Forum**
    - Thread list with reply count
    - Button: "Buat Thread Baru"
@@ -142,6 +152,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/student/assignments/[id]` - Assignment Detail
+
 - **Assignment Info Card**:
   - Title, instructions (rich text)
   - Due date countdown (red if < 24h)
@@ -158,6 +169,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/student/quizzes/[id]` - Quiz Taking
+
 - **Quiz Header**:
   - Title, total questions, time limit
   - Timer countdown (sticky top, red when < 5 min)
@@ -176,6 +188,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/student/grades` - Gradebook / Rapor
+
 - **Summary Card**:
   - Overall GPA (large number)
   - Total assignments, quizzes completed
@@ -192,6 +205,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 #### `/tutor/dashboard` - Tutor Home
 
 **Sidebar Kiri:**
+
 - 🏠 Dashboard
 - 📚 Kelas Saya
 - 📄 Materi
@@ -202,7 +216,9 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - 💬 Forum
 
 **Main Content:**
+
 1. **Stats Cards** (Row):
+
    - Total Classes Taught
    - Pending Assignments to Grade (number badge)
    - Total Students
@@ -214,40 +230,39 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
    - **Upcoming Live Classes** (today + this week)
 
 **Sidebar Kanan:**
+
 - Recent student activities
 - Quick actions (+ Upload Material, + Create Assignment)
 
 ---
 
 #### `/tutor/classes/[id]` - Class Management
+
 **Tabs:**
+
 1. **Siswa** (student list table)
    - Name, email, enrollment date, status
    - Actions: View profile, Send message
-   
 2. **Materi** (materials list)
    - Button: "+ Upload Materi"
    - List: Title, session, upload date, actions (edit, delete)
-   
 3. **Tugas** (assignments list)
    - Button: "+ Buat Tugas Baru"
    - List: Title, due date, submissions count / total students, actions
-   
 4. **Kuis** (quizzes list)
    - Button: "+ Buat Kuis Baru"
    - List: Title, status, attempts count, average score
-   
 5. **Live Class**
    - Button: "+ Jadwalkan Live Class"
    - Two modes:
      - **Manual**: Input Zoom/Meet URL + date/time
      - **Auto** (future): Generate via API
-   
 6. **Forum** (same as student view, but with moderation actions)
 
 ---
 
 #### `/tutor/assignments/create` - Create Assignment
+
 - **Form**:
   - Class selection (dropdown)
   - Title (text input)
@@ -262,6 +277,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/tutor/assignments/[id]/submissions` - Grade Submissions
+
 - **Left Panel**: Student submission list
   - Student name, submission date, status badge
   - Click to view submission
@@ -275,6 +291,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/tutor/quizzes/create` - Create Quiz
+
 - **Form**:
   - Title, class selection, session
   - Time limit (minutes)
@@ -299,6 +316,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/tutor/grades/[classId]` - Class Gradebook
+
 - **Table View**:
   - **Columns**: Student Name | Assignment 1 | Assignment 2 | Quiz 1 | Quiz 2 | Total
   - **Rows**: Each student
@@ -313,6 +331,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 #### `/admin/dashboard` - Admin Home
 
 **Sidebar Kiri:**
+
 - 🏠 Dashboard
 - 👥 Kelola User
 - 📚 Kelola Kelas
@@ -321,6 +340,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - ⚙️ Pengaturan
 
 **Main Content:**
+
 - **KPI Cards** (Row of 4):
   - Total Students (number + icon)
   - Total Tutors
@@ -336,6 +356,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/admin/users` - User Management
+
 - **Tabs**: Students | Tutors | Admins
 - **Table** (per tab):
   - Columns: Name, Email, Phone, Role, Status, Join Date, Actions
@@ -346,12 +367,14 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - **Search & Filter**: By name, email, status (Active/Inactive)
 
 **Create/Edit User Modal:**
+
 - Form: Name, Email, Phone, Role (dropdown), Password (if new)
 - Button: "Simpan"
 
 ---
 
 #### `/admin/classes` - Class Management
+
 - **Button**: "+ Buat Kelas Baru"
 - **Table**:
   - Columns: Class Name, Subject, Grade, Tutor, Students Enrolled / Capacity, Price, Status, Actions
@@ -359,6 +382,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - **Filters**: Subject, Grade, Status (Published/Draft)
 
 **Create/Edit Class Modal:**
+
 - Form:
   - Class name, description (textarea)
   - Subject (dropdown: Matematika, Fisika, Kimia, dll)
@@ -374,6 +398,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/admin/payments` - Payment Monitoring
+
 - **Table**:
   - Columns: Student Name, Class, Amount, Payment Method, Status, Date, Actions
   - Status badges: Pending (yellow), Paid (green), Failed (red), Refunded (gray)
@@ -384,6 +409,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/admin/reports` - Analytics & Reports
+
 - **Date Range Picker** (top)
 - **Cards**:
   - Total Revenue (Rp)
@@ -401,6 +427,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ### 🌐 5. Public Pages (NO Holy Grail)
 
 #### `/catalog` - Class Catalog (Public)
+
 - **Header**: Logo, "Masuk", "Daftar" buttons
 - **Hero Section**:
   - Headline: "Belajar Lebih Mudah dengan Tutor Nomor Satu"
@@ -422,6 +449,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ---
 
 #### `/catalog/[id]` - Class Detail (Public)
+
 - **Breadcrumb**: Home > Katalog > Class Name
 - **Hero Section**:
   - Large thumbnail
@@ -440,26 +468,31 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ## 🧩 Reusable Components to Create
 
 ### 1. **Button Component**
+
 - Variants: primary, secondary, outline, ghost, destructive
 - Sizes: sm, md, lg
 - With loading state (spinner)
 
 ### 2. **Card Component**
+
 - Header, body, footer slots
 - Hover effects
 
 ### 3. **Table Component**
+
 - Sortable columns
 - Pagination
 - Row selection (checkbox)
 - Search filter
 
 ### 4. **Modal/Dialog Component**
+
 - Overlay with backdrop
 - Close button (X)
 - Title, content, footer (actions)
 
 ### 5. **Input Components**
+
 - Text input (with label, error message)
 - Select/Dropdown (searchable)
 - Date picker (with time option)
@@ -467,31 +500,38 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 - Rich text editor wrapper
 
 ### 6. **Badge Component**
+
 - Status badges: success (green), warning (yellow), danger (red), info (blue)
 
 ### 7. **Notification/Toast Component**
+
 - Auto-dismiss after 5s
 - Types: success, error, warning, info
 
 ### 8. **Progress Bar Component**
+
 - Percentage-based
 - Color variants
 
 ### 9. **Avatar Component**
+
 - With fallback (initials)
 - Sizes: sm, md, lg
 
 ### 10. **Sidebar Navigation Component**
+
 - Collapsible (hamburger menu on mobile)
 - Active state highlighting
 - Icon + label
 
 ### 11. **Header Component**
+
 - Logo (left)
 - Search bar (center)
 - Notification bell + User menu (right)
 
 ### 12. **Empty State Component**
+
 - Icon, message, CTA button
 - For empty tables/lists
 
@@ -500,6 +540,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ## 📊 Data Structure (Mock Data)
 
 ### User Object
+
 ```json
 {
   "id": "usr_123",
@@ -513,6 +554,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ```
 
 ### Class Object
+
 ```json
 {
   "id": "cls_123",
@@ -534,6 +576,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ```
 
 ### Assignment Object
+
 ```json
 {
   "id": "asg_123",
@@ -547,6 +590,7 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ```
 
 ### Quiz Object
+
 ```json
 {
   "id": "qz_123",
@@ -600,17 +644,20 @@ Buatkan **Platform E-Learning (Learning Management System)** berbasis web untuk 
 ## 📝 Implementation Priority
 
 ### Phase 1 (Core MVP):
+
 1. Auth pages (Login, Register)
 2. Student Dashboard + Class List + Class Detail
 3. Tutor Dashboard + Class Management
 4. Admin Dashboard + User Management + Class Management
 
 ### Phase 2 (Learning Features):
+
 5. Materials view/upload
 6. Assignments create/submit/grade
 7. Quizzes create/take/results
 
 ### Phase 3 (Engagement):
+
 8. Live Class scheduling
 9. Forum discussion
 10. Gradebook/Rapor

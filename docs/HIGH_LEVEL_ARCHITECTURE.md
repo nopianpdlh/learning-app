@@ -1,9 +1,10 @@
 # High-Level Architecture Document
+
 # Platform E-Learning Tutor Nomor Satu
 
 **Version:** 1.0  
 **Last Updated:** November 15, 2025  
-**Document Owner:** Technical Architecture Team  
+**Document Owner:** Technical Architecture Team
 
 ---
 
@@ -12,6 +13,7 @@
 This document provides a high-level overview of the E-Learning Platform architecture, including system components, data flow, infrastructure, and key design decisions.
 
 ### 1.1 Architecture Goals
+
 - **Scalability**: Support growth from 100 to 10,000+ users
 - **Performance**: Fast page loads (< 2s) and API responses (< 500ms)
 - **Security**: Protect user data and prevent unauthorized access
@@ -27,6 +29,7 @@ This document provides a high-level overview of the E-Learning Platform architec
 **Pattern**: **Serverless Monolith** (Single Next.js application with modular structure)
 
 **Rationale**:
+
 - Simplifies deployment and reduces operational complexity
 - Next.js App Router provides clear separation of concerns via route groups
 - Serverless functions auto-scale without manual intervention
@@ -37,7 +40,7 @@ graph TB
     subgraph "Client Layer (Browser)"
         Web[Web Application<br/>Next.js SSR/CSR]
     end
-    
+
     subgraph "Application Layer (Vercel)"
         NextApp[Next.js Application]
         subgraph "Frontend"
@@ -50,19 +53,19 @@ graph TB
             Middleware[Middleware<br/>Auth, RBAC, Rate Limit]
         end
     end
-    
+
     subgraph "Data Layer (Supabase)"
         Auth[Supabase Auth<br/>JWT]
         DB[(PostgreSQL Database)]
         Storage[Supabase Storage<br/>Files]
         Realtime[Supabase Realtime<br/>WebSocket]
     end
-    
+
     subgraph "External Services"
         Pakasir[Pakasir<br/>Payment Gateway]
         Email[Email Service<br/>SMTP]
     end
-    
+
     Web --> NextApp
     Pages --> API
     Pages --> ServerActions
@@ -87,12 +90,14 @@ graph TB
 **Technology**: Next.js 15 App Router, React 19, TailwindCSS, Shadcn UI
 
 **Responsibilities**:
+
 - Render user interfaces (Server Components + Client Components)
 - Handle user interactions
 - Display data from API/Server Actions
 - Client-side state management (minimal, prefer server state)
 
 **Key Components**:
+
 ```
 app/
 ├── (auth)/           # Authentication pages (login, register)
@@ -102,6 +107,7 @@ app/
 ```
 
 **Design Pattern**: **Component-Based Architecture**
+
 - Reusable UI components (Shadcn UI)
 - Feature-specific components (ClassCard, AssignmentForm)
 - Layout components (Holy Grail Layout)
@@ -113,6 +119,7 @@ app/
 **Technology**: Next.js API Routes, Server Actions, Middleware
 
 **Responsibilities**:
+
 - Business logic execution
 - Data validation (Zod schemas)
 - Authentication and authorization (Supabase Auth + Middleware)
@@ -122,6 +129,7 @@ app/
 **Key Components**:
 
 #### 3.2.1 API Routes
+
 ```
 app/api/
 ├── auth/            # Authentication endpoints
@@ -135,13 +143,14 @@ app/api/
 ```
 
 #### 3.2.2 Server Actions
+
 Used for form submissions and mutations (alternative to API routes for better DX)
 
 ```typescript
 // Example: Create assignment server action
-'use server'
+"use server";
 export async function createAssignment(formData: FormData) {
-  const session = await getServerSession()
+  const session = await getServerSession();
   // Authorization check
   // Validate input with Zod
   // Create assignment in database
@@ -150,6 +159,7 @@ export async function createAssignment(formData: FormData) {
 ```
 
 #### 3.2.3 Middleware
+
 ```typescript
 // middleware.ts
 export async function middleware(request: NextRequest) {
@@ -162,6 +172,7 @@ export async function middleware(request: NextRequest) {
 ```
 
 **Design Pattern**: **Layered Architecture**
+
 - Presentation → Application → Data
 - Clear separation of concerns
 - Testable business logic
@@ -173,12 +184,14 @@ export async function middleware(request: NextRequest) {
 **Technology**: Supabase PostgreSQL, Prisma ORM
 
 **Responsibilities**:
+
 - Persistent data storage
 - Data integrity enforcement (constraints, foreign keys)
 - Row-level security (RLS policies)
 - Backup and recovery
 
 **Database Schema**:
+
 ```
 Core Tables:
 - users (authentication via Supabase auth.users)
@@ -210,11 +223,13 @@ Audit Tables:
 **External Services**:
 
 #### 3.4.1 Supabase Auth
+
 - Purpose: User authentication and session management
 - Integration: JWT tokens stored in httpOnly cookies
 - Flow: User login → Supabase Auth → JWT → Middleware validates
 
 #### 3.4.2 Supabase Storage
+
 - Purpose: File storage (materials, submissions, profile pictures)
 - Integration: Direct upload from client or via API route
 - Structure:
@@ -226,6 +241,7 @@ Audit Tables:
   ```
 
 #### 3.4.3 Pakasir Payment Gateway
+
 - Purpose: Process payments (QRIS, Virtual Account, E-Wallet)
 - Integration: REST API + Webhook callback
 - Flow:
@@ -238,6 +254,7 @@ Audit Tables:
   ```
 
 #### 3.4.4 Supabase Realtime
+
 - Purpose: Real-time notifications (WebSocket)
 - Integration: Subscribe to notification channel on client
 - Flow: Backend creates notification → Realtime pushes to client → Update UI
@@ -254,7 +271,7 @@ sequenceDiagram
     participant NextJS
     participant Supabase
     participant Pakasir
-    
+
     Browser->>NextJS: POST /api/enrollments (classId)
     NextJS->>Supabase: Verify JWT & user role
     Supabase-->>NextJS: Authorized
@@ -265,9 +282,9 @@ sequenceDiagram
     NextJS->>Supabase: Save externalId to payment record
     NextJS-->>Browser: Return paymentUrl
     Browser->>Pakasir: Redirect to payment page
-    
+
     Note over Browser,Pakasir: Student completes payment
-    
+
     Pakasir->>NextJS: POST /api/payments/webhook (HMAC signed)
     NextJS->>NextJS: Verify HMAC signature
     NextJS->>Supabase: Update payment (status: PAID, paidAt)
@@ -275,7 +292,7 @@ sequenceDiagram
     NextJS->>Supabase: Create notification (payment success)
     NextJS->>Email: Send confirmation email
     NextJS-->>Pakasir: 200 OK
-    
+
     Browser->>NextJS: GET /api/enrollments/my
     NextJS->>Supabase: Fetch enrollments WHERE studentId = userId
     Supabase-->>NextJS: Return enrollments
@@ -290,12 +307,12 @@ sequenceDiagram
     participant Tutor
     participant NextJS
     participant Supabase
-    
+
     Tutor->>NextJS: POST /api/assignments (classId, title, description, dueDate)
     NextJS->>Supabase: Create assignment
     NextJS->>Supabase: Create notifications for enrolled students
     NextJS-->>Tutor: Success
-    
+
     Student->>NextJS: POST /api/upload (file)
     NextJS->>Supabase Storage: Upload file
     Supabase Storage-->>NextJS: Return fileUrl
@@ -303,12 +320,12 @@ sequenceDiagram
     NextJS->>Supabase: Create submission (status: SUBMITTED)
     NextJS->>Supabase: Create notification for tutor
     NextJS-->>Student: Success
-    
+
     Tutor->>NextJS: GET /api/assignments/:id/submissions
     NextJS->>Supabase: Fetch submissions
     Supabase-->>NextJS: Return submissions
     NextJS-->>Tutor: Display submissions
-    
+
     Tutor->>NextJS: PUT /api/submissions/:id/grade (score, feedback)
     NextJS->>Supabase: Update submission (status: GRADED, score, feedback)
     NextJS->>Supabase: Update gradebook
@@ -327,31 +344,31 @@ graph TB
     subgraph "DNS (Cloudflare - Optional)"
         DNS[belajar.tutornomor1.com]
     end
-    
+
     subgraph "Vercel Edge Network (Global CDN)"
         Edge1[Edge Location 1<br/>Singapore]
         Edge2[Edge Location 2<br/>Jakarta]
         Edge3[Edge Location 3<br/>Tokyo]
     end
-    
+
     subgraph "Vercel Serverless (us-east-1)"
         Lambda1[Function Instance 1]
         Lambda2[Function Instance 2]
         Lambda3[Function Instance N<br/>Auto-scaled]
     end
-    
+
     subgraph "Supabase Cloud (Singapore)"
         DB[(PostgreSQL<br/>Primary)]
         DBReplica[(PostgreSQL<br/>Read Replica)]
         Storage[Object Storage<br/>S3-compatible]
         Auth[Auth Service]
     end
-    
+
     subgraph "External Services"
         Pakasir[Pakasir API<br/>Indonesia]
         Email[Email SMTP]
     end
-    
+
     DNS --> Edge1
     DNS --> Edge2
     DNS --> Edge3
@@ -371,15 +388,18 @@ graph TB
 ### 5.2 Scaling Strategy
 
 **Horizontal Scaling**:
+
 - Vercel automatically scales serverless functions based on traffic
 - Database: Supabase connection pooler handles up to 100 concurrent connections
 - Storage: S3-compatible, scales automatically
 
 **Vertical Scaling** (when needed):
+
 - Upgrade Supabase plan (Pro: $25/month for unlimited DB size, better performance)
 - Upgrade Vercel plan (Pro: $20/month for more bandwidth, execution time)
 
 **Caching Strategy**:
+
 - Static assets: Cached at CDN edge locations (Vercel Edge Network)
 - API responses: Cache-Control headers for public data (class catalog)
 - Database queries: Prisma query result caching (short TTL)
@@ -409,6 +429,7 @@ flowchart LR
 ### 6.2 Authorization Layers
 
 **Layer 1: Middleware (Next.js)**
+
 ```typescript
 // Check if user is authenticated
 // Check if user role matches route requirement
@@ -416,6 +437,7 @@ flowchart LR
 ```
 
 **Layer 2: API Route/Server Action**
+
 ```typescript
 // Verify JWT from cookie
 // Extract user ID and role from JWT claims
@@ -424,6 +446,7 @@ flowchart LR
 ```
 
 **Layer 3: Database (Row Level Security - RLS)**
+
 ```sql
 -- Students can only view their own submissions
 CREATE POLICY "students_view_own_submissions"
@@ -436,19 +459,19 @@ USING (student_id IN (
 
 ### 6.3 Security Measures
 
-| Layer | Security Measure | Implementation |
-|-------|-----------------|----------------|
-| **Transport** | HTTPS/TLS 1.3 | Vercel enforces HTTPS |
-| **Authentication** | JWT tokens | Supabase Auth (bcrypt password hashing) |
-| **Authorization** | RBAC + RLS | Middleware + Database policies |
-| **Input Validation** | Schema validation | Zod schemas for all inputs |
-| **Output Encoding** | XSS prevention | React auto-escapes, DOMPurify for rich text |
-| **CSRF Protection** | Token-based | Next.js built-in |
-| **Rate Limiting** | Request throttling | Upstash Redis (100 req/min per user) |
-| **File Upload** | Type & size validation | Whitelist (PDF, DOCX, JPG), max 50MB |
-| **API Security** | Webhook signature | HMAC-SHA256 verification (Pakasir) |
-| **Session Management** | Secure cookies | httpOnly, secure, sameSite=strict |
-| **Audit Logging** | Action tracking | audit_logs table |
+| Layer                  | Security Measure       | Implementation                              |
+| ---------------------- | ---------------------- | ------------------------------------------- |
+| **Transport**          | HTTPS/TLS 1.3          | Vercel enforces HTTPS                       |
+| **Authentication**     | JWT tokens             | Supabase Auth (bcrypt password hashing)     |
+| **Authorization**      | RBAC + RLS             | Middleware + Database policies              |
+| **Input Validation**   | Schema validation      | Zod schemas for all inputs                  |
+| **Output Encoding**    | XSS prevention         | React auto-escapes, DOMPurify for rich text |
+| **CSRF Protection**    | Token-based            | Next.js built-in                            |
+| **Rate Limiting**      | Request throttling     | Upstash Redis (100 req/min per user)        |
+| **File Upload**        | Type & size validation | Whitelist (PDF, DOCX, JPG), max 50MB        |
+| **API Security**       | Webhook signature      | HMAC-SHA256 verification (Pakasir)          |
+| **Session Management** | Secure cookies         | httpOnly, secure, sameSite=strict           |
+| **Audit Logging**      | Action tracking        | audit_logs table                            |
 
 ---
 
@@ -457,6 +480,7 @@ USING (student_id IN (
 ### 7.1 Frontend Performance
 
 **Optimization Techniques**:
+
 - **Code Splitting**: Automatic with Next.js App Router (route-based)
 - **Lazy Loading**: React.lazy() for heavy components (rich text editor)
 - **Image Optimization**: Next.js `<Image />` component (WebP, responsive)
@@ -464,6 +488,7 @@ USING (student_id IN (
 - **Minification**: CSS and JS minified in production build
 
 **Core Web Vitals Targets**:
+
 - LCP (Largest Contentful Paint): < 2.5s
 - FID (First Input Delay): < 100ms
 - CLS (Cumulative Layout Shift): < 0.1
@@ -471,12 +496,14 @@ USING (student_id IN (
 ### 7.2 Backend Performance
 
 **Optimization Techniques**:
+
 - **Database Indexing**: Index on frequently queried columns (userId, classId, status)
 - **Query Optimization**: Select only needed fields, use pagination
 - **Connection Pooling**: Prisma connection pool (max 10 connections per function)
 - **Caching**: Cache static data (class catalog) with ISR (Incremental Static Regeneration)
 
 **API Response Time Targets**:
+
 - P50: < 200ms
 - P95: < 500ms
 - P99: < 1 second
@@ -484,6 +511,7 @@ USING (student_id IN (
 ### 7.3 Database Performance
 
 **Schema Optimizations**:
+
 ```sql
 -- Indexes for common queries
 CREATE INDEX idx_enrollments_student ON enrollments(student_id);
@@ -495,18 +523,19 @@ CREATE INDEX idx_submissions_student ON assignment_submissions(student_id);
 ```
 
 **Query Optimizations**:
+
 ```typescript
 // Efficient: Select only needed fields
 const classes = await prisma.class.findMany({
   select: { id: true, title: true, price: true },
-  where: { published: true }
-})
+  where: { published: true },
+});
 
 // Pagination
 const classes = await prisma.class.findMany({
   take: 20,
-  skip: (page - 1) * 20
-})
+  skip: (page - 1) * 20,
+});
 ```
 
 ---
@@ -515,23 +544,25 @@ const classes = await prisma.class.findMany({
 
 ### 8.1 Monitoring Stack
 
-| Component | Tool | Purpose |
-|-----------|------|---------|
-| **Application Performance** | Vercel Analytics | Page load times, serverless function execution |
-| **Error Tracking** | Sentry (optional) | Client & server-side errors, stack traces |
-| **Database Performance** | Supabase Dashboard | Query performance, slow queries, connections |
-| **Uptime Monitoring** | UptimeRobot (optional) | Ping endpoints, alert on downtime |
-| **Logs** | Vercel Logs | Serverless function logs, API request logs |
+| Component                   | Tool                   | Purpose                                        |
+| --------------------------- | ---------------------- | ---------------------------------------------- |
+| **Application Performance** | Vercel Analytics       | Page load times, serverless function execution |
+| **Error Tracking**          | Sentry (optional)      | Client & server-side errors, stack traces      |
+| **Database Performance**    | Supabase Dashboard     | Query performance, slow queries, connections   |
+| **Uptime Monitoring**       | UptimeRobot (optional) | Ping endpoints, alert on downtime              |
+| **Logs**                    | Vercel Logs            | Serverless function logs, API request logs     |
 
 ### 8.2 Key Metrics
 
 **Application Metrics**:
+
 - Requests per minute (RPM)
 - Error rate (%)
 - Response time (P50, P95, P99)
 - Serverless function execution time
 
 **Business Metrics**:
+
 - Daily active users (DAU)
 - Enrollment conversion rate (%)
 - Payment success rate (%)
@@ -565,17 +596,20 @@ Alerts:
 ### 9.1 Backup Strategy
 
 **Database Backups**:
+
 - Frequency: Daily at 2 AM WIB (automated by Supabase)
 - Retention: 7 daily, 4 weekly, 1 monthly (30 days total)
 - Storage: Supabase managed backups
 - Test Restore: Monthly (verify backup integrity)
 
 **File Storage Backups**:
+
 - Frequency: Weekly (automated by Supabase)
 - Retention: 30 days
 - Storage: Supabase managed backups
 
 **Code Repository**:
+
 - GitHub repository (version controlled)
 - All code changes tracked with commits
 - Can redeploy any version via Vercel
@@ -583,6 +617,7 @@ Alerts:
 ### 9.2 Disaster Recovery Plan
 
 **Scenario: Database Corruption**
+
 1. Detect issue (alerts, user reports)
 2. Stop write operations (enable maintenance mode)
 3. Restore from latest backup (RTO: 1 hour)
@@ -591,12 +626,14 @@ Alerts:
 6. Post-mortem analysis
 
 **Scenario: Deployment Failure**
+
 1. Detect issue (monitoring alerts)
 2. Rollback to previous deployment (Vercel: 2 minutes)
 3. Investigate root cause
 4. Fix issue and redeploy
 
 **Recovery Metrics**:
+
 - RTO (Recovery Time Objective): < 2 hours
 - RPO (Recovery Point Objective): < 24 hours (daily backups)
 
@@ -622,40 +659,50 @@ flowchart TD
 ## 10. Technology Decision Log (ADR)
 
 ### ADR-001: Why Next.js App Router?
+
 **Decision**: Use Next.js 15 with App Router (not Pages Router)  
 **Rationale**:
+
 - Server Components reduce client-side JavaScript
 - Better data fetching patterns (fetch in RSC)
 - Built-in layouts and loading states
 - Future-proof (Vercel's recommended approach)
 
 ### ADR-002: Why Supabase?
+
 **Decision**: Use Supabase for Auth, Database, and Storage  
 **Rationale**:
+
 - All-in-one solution reduces integration complexity
 - Free tier generous for MVP (500MB DB, 1GB storage)
 - Built-in Row Level Security (RLS) for authorization
 - Easy to scale with paid plans
 
 ### ADR-003: Why Prisma ORM?
+
 **Decision**: Use Prisma instead of Supabase client directly  
 **Rationale**:
+
 - Type-safe database queries (TypeScript)
 - Database migrations versioned and tracked
 - Better developer experience (auto-completion)
 - Can migrate to other PostgreSQL providers if needed
 
 ### ADR-004: Why Pakasir for Payment?
+
 **Decision**: Use Pakasir instead of Stripe/PayPal  
 **Rationale**:
+
 - Supports Indonesian payment methods (QRIS, VA, E-Wallet)
 - Better conversion rate for local users
 - Lower fees for Indonesian transactions
 - Webhook integration straightforward
 
 ### ADR-005: Why Vercel for Hosting?
+
 **Decision**: Deploy on Vercel instead of self-hosted  
 **Rationale**:
+
 - Automatic scaling (serverless)
 - Zero-config deployment (push to Git)
 - Built-in CI/CD
@@ -667,26 +714,32 @@ flowchart TD
 ## 11. Future Architecture Considerations
 
 ### 11.1 When to Microservices?
+
 **Trigger**: When system reaches 10,000+ concurrent users and specific domains (e.g., payment processing) become bottlenecks
 
 **Migration Path**:
+
 1. Extract payment service to separate Lambda/Cloud Run
 2. Extract notification service (real-time) to dedicated WebSocket server
 3. Extract quiz grading to background job processor (Redis Queue)
 
 ### 11.2 When to Add Caching Layer?
+
 **Trigger**: Database query latency > 500ms consistently
 
 **Solution**:
+
 - Add Redis cache (Upstash Redis) for:
   - Class catalog (TTL: 5 minutes)
   - User sessions (TTL: 1 hour)
   - Leaderboards, analytics (TTL: 15 minutes)
 
 ### 11.3 When to Add Search Engine?
+
 **Trigger**: > 1,000 classes, users complain about slow search
 
 **Solution**:
+
 - Integrate Algolia or Meilisearch for full-text search
 - Index: Classes, Materials, Forum posts
 - Sync with PostgreSQL using triggers or scheduled jobs
@@ -705,6 +758,7 @@ This high-level architecture provides a solid foundation for the E-Learning Plat
 ✅ Maintainable (modular, TypeScript, well-documented)
 
 **Next Steps**:
+
 1. Implement Phase 1 (Foundation & Setup) per roadmap
 2. Set up monitoring and alerting from day one
 3. Conduct security audit before production launch

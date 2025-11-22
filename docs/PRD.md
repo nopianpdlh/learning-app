@@ -1,4 +1,5 @@
 # Product Requirements Document (PRD)
+
 # Platform E-Learning Tutor Nomor Satu
 
 **Version:** 1.0  
@@ -11,22 +12,25 @@
 ## 1. Executive Summary
 
 ### 1.1 Product Vision
+
 Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) terpusat yang dirancang untuk menggantikan proses manual dan terfragmentasi dalam pengelolaan bimbingan belajar, dengan mengintegrasikan pendaftaran, pembelajaran, evaluasi, dan pembayaran dalam satu platform web.
 
 ### 1.2 Business Objectives
+
 - **Efisiensi Operasional**: Mengurangi 80% beban administratif manual
 - **Pengalaman Pengguna**: Meningkatkan kepuasan siswa dan tutor melalui centralized platform
 - **Skalabilitas**: Memungkinkan pertumbuhan jumlah siswa tanpa menambah beban admin
 - **Revenue Growth**: Otomasi pembayaran dan pengurangan drop-off saat pendaftaran
 
 ### 1.3 Success Metrics
-| Metric | Target | Timeline |
-|--------|--------|----------|
-| User Adoption Rate | 80% siswa aktif | 3 bulan |
-| Admin Time Reduction | 70% pengurangan waktu admin | 6 bulan |
-| Payment Success Rate | 95% pembayaran otomatis terverifikasi | 1 bulan |
-| Student Satisfaction (NPS) | > 70 | 6 bulan |
-| Assignment Submission Rate | 85% submit tepat waktu | 3 bulan |
+
+| Metric                     | Target                                | Timeline |
+| -------------------------- | ------------------------------------- | -------- |
+| User Adoption Rate         | 80% siswa aktif                       | 3 bulan  |
+| Admin Time Reduction       | 70% pengurangan waktu admin           | 6 bulan  |
+| Payment Success Rate       | 95% pembayaran otomatis terverifikasi | 1 bulan  |
+| Student Satisfaction (NPS) | > 70                                  | 6 bulan  |
+| Assignment Submission Rate | 85% submit tepat waktu                | 3 bulan  |
 
 ---
 
@@ -35,22 +39,27 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 2.1 Current Pain Points
 
 #### 2.1.1 Pendaftaran (WhatsApp)
+
 - **Problem**: Koordinasi manual, data tercecer, rentan human error
 - **Impact**: Admin overload, poor tracking, kehilangan calon siswa
 
 #### 2.1.2 Pembelajaran (Zoom + Google Drive)
+
 - **Problem**: Link tercecer, materi tidak terorganisir
 - **Impact**: Siswa kesulitan akses, waktu terbuang mencari link/materi
 
 #### 2.1.3 Evaluasi (Google Forms)
+
 - **Problem**: Penilaian manual, rekap nilai terpisah
 - **Impact**: Tidak ada tracking progress real-time, feedback terlambat
 
 #### 2.1.4 Komunikasi (WhatsApp Group)
+
 - **Problem**: Informasi penting tenggelam dalam chat sehari-hari
 - **Impact**: Missed announcements, diskusi tidak terstruktur
 
 ### 2.2 Target Users
+
 1. **Admin (1-2 orang)**: Mengelola platform, user, kelas, dan pembayaran
 2. **Tutor/Pengajar (10-50 orang)**: Mengajar, upload materi, buat tugas/kuis
 3. **Siswa (100-1000+ orang)**: Belajar, submit tugas, lihat progress
@@ -62,16 +71,21 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 3.1 User Roles & Permissions
 
 #### 3.1.1 Admin
+
 **Capabilities:**
+
 - CRUD semua user (siswa, tutor, admin)
 - CRUD kelas dan assign tutor
 - Monitor pembayaran dan enrollment
 - Generate laporan (revenue, attendance, grades)
 - Manage platform settings
 - Audit logs access
+- analytics & reports,
 
 #### 3.1.2 Tutor
+
 **Capabilities:**
+
 - View kelas yang diampu
 - CRUD materi pembelajaran
 - CRUD tugas dan kuis
@@ -81,7 +95,9 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 - Input/generate live class link
 
 #### 3.1.3 Siswa
+
 **Capabilities:**
+
 - Browse dan enroll kelas
 - View materi pembelajaran
 - Submit tugas dan mengerjakan kuis
@@ -97,6 +113,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.1 Authentication & Authorization
 
 #### FR-AUTH-001: User Registration
+
 - **Priority:** P0 (Must Have)
 - **Description:** Siswa dapat mendaftar dengan email/phone
 - **Acceptance Criteria:**
@@ -106,6 +123,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Auto-create user profile upon successful registration
 
 #### FR-AUTH-002: Login Multi-Role
+
 - **Priority:** P0
 - **Description:** Login dengan role-based redirect
 - **Acceptance Criteria:**
@@ -115,6 +133,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Session management (JWT via Supabase Auth)
 
 #### FR-AUTH-003: Password Reset
+
 - **Priority:** P1
 - **Description:** Forgot password via email
 - **Acceptance Criteria:**
@@ -127,6 +146,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.2 User Management (Admin)
 
 #### FR-USER-001: Manage Students
+
 - **Priority:** P0
 - **Description:** Admin can create, read, update, delete student accounts
 - **Acceptance Criteria:**
@@ -136,6 +156,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - View student enrollment history
 
 #### FR-USER-002: Manage Tutors
+
 - **Priority:** P0
 - **Description:** Admin can manage tutor accounts
 - **Acceptance Criteria:**
@@ -149,6 +170,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.3 Class Management
 
 #### FR-CLASS-001: Create Class
+
 - **Priority:** P0
 - **Description:** Admin creates class with details
 - **Acceptance Criteria:**
@@ -158,6 +180,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Publish/unpublish toggle
 
 #### FR-CLASS-002: Class Catalog (Public)
+
 - **Priority:** P0
 - **Description:** Siswa dapat browse kelas tersedia
 - **Acceptance Criteria:**
@@ -168,6 +191,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - CTA "Daftar Sekarang"
 
 #### FR-CLASS-003: Enrollment
+
 - **Priority:** P0
 - **Description:** Siswa enroll ke kelas
 - **Acceptance Criteria:**
@@ -181,6 +205,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.4 Payment Integration
 
 #### FR-PAY-001: Payment Gateway Integration (Pakasir)
+
 - **Priority:** P0
 - **Description:** Integrasi Pakasir untuk pembayaran kelas
 - **Acceptance Criteria:**
@@ -191,6 +216,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Send payment receipt via email
 
 #### FR-PAY-002: Payment History
+
 - **Priority:** P1
 - **Description:** Siswa dan admin dapat lihat riwayat pembayaran
 - **Acceptance Criteria:**
@@ -203,6 +229,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.5 Learning Materials
 
 #### FR-MAT-001: Upload Materials
+
 - **Priority:** P0
 - **Description:** Tutor dapat upload materi per pertemuan
 - **Acceptance Criteria:**
@@ -212,6 +239,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Rich text editor untuk deskripsi materi
 
 #### FR-MAT-002: View Materials (Student)
+
 - **Priority:** P0
 - **Description:** Siswa dapat akses materi kelas yang diikuti
 - **Acceptance Criteria:**
@@ -225,6 +253,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.6 Assignments (Tugas)
 
 #### FR-ASG-001: Create Assignment
+
 - **Priority:** P0
 - **Description:** Tutor membuat tugas dengan deadline
 - **Acceptance Criteria:**
@@ -234,6 +263,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Send notification to enrolled students upon publish
 
 #### FR-ASG-002: Submit Assignment
+
 - **Priority:** P0
 - **Description:** Siswa submit tugas sebelum deadline
 - **Acceptance Criteria:**
@@ -244,6 +274,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Show submission confirmation
 
 #### FR-ASG-003: Grade Assignment
+
 - **Priority:** P0
 - **Description:** Tutor menilai tugas siswa
 - **Acceptance Criteria:**
@@ -258,6 +289,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.7 Quizzes (Kuis)
 
 #### FR-QZ-001: Create Quiz
+
 - **Priority:** P0
 - **Description:** Tutor membuat kuis online
 - **Acceptance Criteria:**
@@ -268,6 +300,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Set passing grade (optional)
 
 #### FR-QZ-002: Take Quiz
+
 - **Priority:** P0
 - **Description:** Siswa mengerjakan kuis
 - **Acceptance Criteria:**
@@ -278,6 +311,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Show immediate result for auto-graded questions (MCQ, T/F)
 
 #### FR-QZ-003: Quiz Results
+
 - **Priority:** P0
 - **Description:** Tampilkan hasil kuis
 - **Acceptance Criteria:**
@@ -291,6 +325,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.8 Live Class Integration
 
 #### FR-LIVE-001: Manual Link Input
+
 - **Priority:** P0
 - **Description:** Tutor input link Zoom/Meet manual
 - **Acceptance Criteria:**
@@ -300,6 +335,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Show countdown to class start
 
 #### FR-LIVE-002: Auto-Generate Link (Future)
+
 - **Priority:** P2
 - **Description:** Generate Zoom/Meet link via API
 - **Acceptance Criteria:**
@@ -309,6 +345,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Sync with calendar
 
 #### FR-LIVE-003: Live Class Reminders
+
 - **Priority:** P1
 - **Description:** Reminder notifikasi sebelum kelas
 - **Acceptance Criteria:**
@@ -321,6 +358,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.9 Forum Diskusi
 
 #### FR-FORUM-001: Class Forum
+
 - **Priority:** P1
 - **Description:** Forum diskusi per kelas
 - **Acceptance Criteria:**
@@ -331,6 +369,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Pin important threads (tutor only)
 
 #### FR-FORUM-002: Moderation
+
 - **Priority:** P2
 - **Description:** Tutor can moderate forum
 - **Acceptance Criteria:**
@@ -343,6 +382,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.10 Gradebook / Rapor
 
 #### FR-GRADE-001: Auto-Calculate Grades
+
 - **Priority:** P0
 - **Description:** Sistem otomatis menghitung nilai
 - **Acceptance Criteria:**
@@ -351,6 +391,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Display total score and percentage
 
 #### FR-GRADE-002: Student Gradebook View
+
 - **Priority:** P0
 - **Description:** Siswa lihat rapor sendiri
 - **Acceptance Criteria:**
@@ -359,6 +400,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Display progress chart (line/bar graph)
 
 #### FR-GRADE-003: Tutor Gradebook View
+
 - **Priority:** P0
 - **Description:** Tutor lihat nilai semua siswa di kelasnya
 - **Acceptance Criteria:**
@@ -372,6 +414,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.11 Dashboard
 
 #### FR-DASH-001: Student Dashboard
+
 - **Priority:** P0
 - **Description:** Halaman utama siswa
 - **Components:**
@@ -382,6 +425,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Notifications panel
 
 #### FR-DASH-002: Tutor Dashboard
+
 - **Priority:** P0
 - **Description:** Halaman utama tutor
 - **Components:**
@@ -391,6 +435,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Recent student activities
 
 #### FR-DASH-003: Admin Dashboard
+
 - **Priority:** P0
 - **Description:** Halaman utama admin
 - **Components:**
@@ -405,6 +450,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ### 4.12 Notifications
 
 #### FR-NOTIF-001: In-App Notifications
+
 - **Priority:** P1
 - **Description:** Real-time notifications di platform
 - **Acceptance Criteria:**
@@ -414,6 +460,7 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
   - Notification list (latest 50)
 
 #### FR-NOTIF-002: Email Notifications
+
 - **Priority:** P1
 - **Description:** Email untuk event penting
 - **Acceptance Criteria:**
@@ -427,12 +474,14 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 ## 5. Non-Functional Requirements
 
 ### 5.1 Performance
+
 - **NFR-PERF-001**: Page load time < 2 seconds on 4G connection
 - **NFR-PERF-002**: API response time < 500ms for 95% of requests
 - **NFR-PERF-003**: Support 500 concurrent users without degradation
 - **NFR-PERF-004**: File upload progress indicator for files > 5MB
 
 ### 5.2 Security
+
 - **NFR-SEC-001**: All API endpoints require authentication (JWT)
 - **NFR-SEC-002**: Role-based access control (RBAC) enforced at middleware & database (RLS)
 - **NFR-SEC-003**: File upload validation: type whitelist, size limit, malware scan
@@ -441,24 +490,28 @@ Platform E-Learning Tutor Nomor Satu adalah Learning Management System (LMS) ter
 - **NFR-SEC-006**: HTTPS only, secure cookies, CSRF protection
 
 ### 5.3 Scalability
+
 - **NFR-SCALE-001**: Horizontal scaling via serverless (Vercel)
 - **NFR-SCALE-002**: Database connection pooling (Supabase/Prisma)
 - **NFR-SCALE-003**: CDN for static assets (Vercel Edge Network)
 - **NFR-SCALE-004**: Lazy loading for materials and images
 
 ### 5.4 Usability
+
 - **NFR-USA-001**: Mobile-responsive design (min 375px viewport)
 - **NFR-USA-002**: Accessible (WCAG 2.1 Level AA)
 - **NFR-USA-003**: Support latest 2 versions of Chrome, Firefox, Safari, Edge
 - **NFR-USA-004**: Maximum 3 clicks to reach any feature from dashboard
 
 ### 5.5 Reliability
+
 - **NFR-REL-001**: 99.5% uptime SLA
 - **NFR-REL-002**: Automated daily database backups (retention: 30 days)
 - **NFR-REL-003**: Graceful error handling with user-friendly messages
 - **NFR-REL-004**: Retry logic for payment webhook callbacks
 
 ### 5.6 Maintainability
+
 - **NFR-MAIN-001**: Code coverage > 70% for critical paths
 - **NFR-MAIN-002**: Comprehensive error logging (Sentry or similar)
 - **NFR-MAIN-003**: API documentation (OpenAPI/Swagger)
@@ -534,6 +587,7 @@ The following features are **NOT** included in the first version:
 ## 8. Technical Constraints
 
 ### 8.1 Technology Stack (Must Use)
+
 - **Frontend**: Next.js 15+ App Router, React 19, TailwindCSS, Shadcn UI
 - **Backend**: Next.js API Routes / Server Actions
 - **Database**: Supabase PostgreSQL
@@ -543,12 +597,14 @@ The following features are **NOT** included in the first version:
 - **Deployment**: Vercel
 
 ### 8.2 Browser Support
+
 - Chrome 100+
 - Firefox 100+
 - Safari 15+
 - Edge 100+
 
 ### 8.3 External Dependencies
+
 - Pakasir API for payments
 - Supabase Cloud services
 - Vercel hosting infrastructure
@@ -558,12 +614,14 @@ The following features are **NOT** included in the first version:
 ## 9. Assumptions & Dependencies
 
 ### 9.1 Assumptions
+
 - Users have stable internet connection (min 4G/broadband)
 - Students have email addresses for registration
 - Tutors are computer-literate
 - Admin has basic technical knowledge
 
 ### 9.2 Dependencies
+
 - **Pakasir Account**: Active merchant account required
 - **Supabase Project**: Free tier sufficient for MVP (upgrade for scale)
 - **Vercel Account**: Pro plan for production deployment
@@ -573,31 +631,34 @@ The following features are **NOT** included in the first version:
 
 ## 10. Risks & Mitigation
 
-| Risk | Impact | Probability | Mitigation |
-|------|--------|-------------|------------|
-| Payment gateway downtime | High | Medium | Implement retry logic, manual verification fallback |
-| File storage limit exceeded | Medium | Low | Monitor usage, implement compression, upgrade plan |
-| User adoption resistance | High | Medium | Provide onboarding tutorial, in-person training for tutors |
-| Security breach | Critical | Low | Regular security audits, implement all security NFRs |
-| Scalability issues | Medium | Low | Load testing before launch, serverless architecture |
+| Risk                        | Impact   | Probability | Mitigation                                                 |
+| --------------------------- | -------- | ----------- | ---------------------------------------------------------- |
+| Payment gateway downtime    | High     | Medium      | Implement retry logic, manual verification fallback        |
+| File storage limit exceeded | Medium   | Low         | Monitor usage, implement compression, upgrade plan         |
+| User adoption resistance    | High     | Medium      | Provide onboarding tutorial, in-person training for tutors |
+| Security breach             | Critical | Low         | Regular security audits, implement all security NFRs       |
+| Scalability issues          | Medium   | Low         | Load testing before launch, serverless architecture        |
 
 ---
 
 ## 11. Release Plan
 
 ### Phase 1: MVP (Month 1-2)
+
 - Auth & user management
 - Class catalog & enrollment
 - Payment integration
 - Basic dashboard
 
 ### Phase 2: Core Learning (Month 3-4)
+
 - Materials upload/view
 - Assignments create/submit/grade
 - Quizzes
 - Gradebook
 
 ### Phase 3: Engagement (Month 5-6)
+
 - Live class integration
 - Forum diskusi
 - Notifications
@@ -608,6 +669,7 @@ The following features are **NOT** included in the first version:
 ## 12. Acceptance Criteria (MVP Launch)
 
 **Platform is ready to launch when:**
+
 - [ ] 100% of P0 features implemented and tested
 - [ ] Security audit passed
 - [ ] Load testing: 200 concurrent users without errors
@@ -621,11 +683,11 @@ The following features are **NOT** included in the first version:
 
 ## 13. Approval & Sign-off
 
-| Role | Name | Signature | Date |
-|------|------|-----------|------|
-| Product Owner | - | - | - |
-| Tech Lead | - | - | - |
-| Business Owner | - | - | - |
+| Role           | Name | Signature | Date |
+| -------------- | ---- | --------- | ---- |
+| Product Owner  | -    | -         | -    |
+| Tech Lead      | -    | -         | -    |
+| Business Owner | -    | -         | -    |
 
 ---
 

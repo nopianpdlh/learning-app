@@ -37,21 +37,26 @@ Setup Supabase Storage buckets
 Tutor: Upload materi (PDF, video embed)
 Organize by session (Pertemuan 1, 2, 3...)
 Student: View & download materials
+
 Phase 4: Assignments (Week 8-10)
 Tutor: Create assignments dengan deadline
 Student: Submit files (PDF, DOCX, JPG)
 Tutor: Grading interface + feedback
 Auto-calculate gradebook
-Phase 5: Quizzes (Week 11-13)
-Quiz builder: MCQ, True/False, Short Answer
-Timer functionality
-Auto-grading untuk MCQ
-Results display dengan score
+
+Phase 5: Quizzes (Week 11-13) ✅ COMPLETED
+Quiz builder: MCQ, True/False, Short Answer ✅
+Timer functionality ✅
+Auto-grading untuk MCQ ✅
+Results display dengan score ✅
+Gradebook integration (40% weight) ✅
+
 Phase 6: Live Classes, Forum & Notifications (Week 14-16)
 Live class scheduling (manual link input)
 Forum threads per class
 In-app notifications (Supabase Realtime)
 Email notifications
+
 Phase 7: Testing & Launch (Week 17-20)
 Week 17-18: Testing
 

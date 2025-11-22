@@ -1,9 +1,10 @@
 # Technical Architecture Document
+
 # Platform E-Learning Tutor Nomor Satu
 
 **Version:** 1.0  
 **Last Updated:** November 15, 2025  
-**Document Owner:** Engineering Team  
+**Document Owner:** Engineering Team
 
 ---
 
@@ -63,57 +64,57 @@
 
 ### 2.1 Frontend Stack
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| Framework | Next.js | 15+ | React framework with App Router, Server Components |
-| UI Library | React | 19 | Component-based UI library |
-| Styling | TailwindCSS | 4 | Utility-first CSS framework |
-| Component Library | Shadcn UI | Latest | Pre-built accessible components |
-| Forms | React Hook Form | 7+ | Form validation & management |
-| Schema Validation | Zod | 3+ | TypeScript-first schema validation |
-| State Management | Zustand / React Context | Latest | Client-side state (if needed) |
-| Icons | Lucide React | Latest | Icon library |
-| Rich Text Editor | Tiptap / Lexical | Latest | WYSIWYG editor for materials |
+| Layer             | Technology              | Version | Purpose                                            |
+| ----------------- | ----------------------- | ------- | -------------------------------------------------- |
+| Framework         | Next.js                 | 15+     | React framework with App Router, Server Components |
+| UI Library        | React                   | 19      | Component-based UI library                         |
+| Styling           | TailwindCSS             | 4       | Utility-first CSS framework                        |
+| Component Library | Shadcn UI               | Latest  | Pre-built accessible components                    |
+| Forms             | React Hook Form         | 7+      | Form validation & management                       |
+| Schema Validation | Zod                     | 3+      | TypeScript-first schema validation                 |
+| State Management  | Zustand / React Context | Latest  | Client-side state (if needed)                      |
+| Icons             | Lucide React            | Latest  | Icon library                                       |
+| Rich Text Editor  | Tiptap / Lexical        | Latest  | WYSIWYG editor for materials                       |
 
 ### 2.2 Backend Stack
 
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| Runtime | Node.js | 20+ LTS | JavaScript runtime (via Vercel) |
-| Framework | Next.js App Router | 15+ | API Routes, Server Actions, Middleware |
-| ORM | Prisma | 5+ | Type-safe database client |
-| Validation | Zod | 3+ | Input validation for API endpoints |
-| Authentication | Supabase Auth | Latest | JWT-based auth with RLS |
-| Rate Limiting | Upstash Redis | Latest | Prevent API abuse |
+| Layer          | Technology         | Version | Purpose                                |
+| -------------- | ------------------ | ------- | -------------------------------------- |
+| Runtime        | Node.js            | 20+ LTS | JavaScript runtime (via Vercel)        |
+| Framework      | Next.js App Router | 15+     | API Routes, Server Actions, Middleware |
+| ORM            | Prisma             | 5+      | Type-safe database client              |
+| Validation     | Zod                | 3+      | Input validation for API endpoints     |
+| Authentication | Supabase Auth      | Latest  | JWT-based auth with RLS                |
+| Rate Limiting  | Upstash Redis      | Latest  | Prevent API abuse                      |
 
 ### 2.3 Database & Storage
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
+| Layer            | Technology          | Purpose                                             |
+| ---------------- | ------------------- | --------------------------------------------------- |
 | Primary Database | Supabase PostgreSQL | Relational data (users, classes, assignments, etc.) |
-| File Storage | Supabase Storage | Materials, assignment submissions, profile pictures |
-| Cache | Upstash Redis | Rate limiting, session cache (optional) |
-| ORM | Prisma | Database schema management & queries |
+| File Storage     | Supabase Storage    | Materials, assignment submissions, profile pictures |
+| Cache            | Upstash Redis       | Rate limiting, session cache (optional)             |
+| ORM              | Prisma              | Database schema management & queries                |
 
 ### 2.4 Third-Party Services
 
-| Service | Purpose | Criticality |
-|---------|---------|-------------|
-| Pakasir | Payment gateway (QRIS, VA, E-Wallet) | Critical |
-| Supabase Auth | Authentication & authorization | Critical |
-| Supabase Realtime | Real-time notifications | High |
-| Vercel | Hosting & deployment | Critical |
-| Resend / SendGrid | Transactional emails (optional) | Medium |
+| Service           | Purpose                              | Criticality |
+| ----------------- | ------------------------------------ | ----------- |
+| Pakasir           | Payment gateway (QRIS, VA, E-Wallet) | Critical    |
+| Supabase Auth     | Authentication & authorization       | Critical    |
+| Supabase Realtime | Real-time notifications              | High        |
+| Vercel            | Hosting & deployment                 | Critical    |
+| Resend / SendGrid | Transactional emails (optional)      | Medium      |
 
 ### 2.5 DevOps & Monitoring
 
-| Tool | Purpose |
-|------|---------|
-| GitHub | Version control & CI/CD |
-| Vercel | Automatic deployment from Git |
-| Prisma Migrate | Database migrations |
-| Sentry (optional) | Error tracking & monitoring |
-| Vercel Analytics | Performance monitoring |
+| Tool              | Purpose                       |
+| ----------------- | ----------------------------- |
+| GitHub            | Version control & CI/CD       |
+| Vercel            | Automatic deployment from Git |
+| Prisma Migrate    | Database migrations           |
+| Sentry (optional) | Error tracking & monitoring   |
+| Vercel Analytics  | Performance monitoring        |
 
 ---
 
@@ -303,18 +304,18 @@ model User {
   name      String
   role      Role     @default(STUDENT)
   avatar    String?
-  
+
   // Supabase Auth ID (foreign key to auth.users)
   authId    String   @unique
-  
+
   // Profile extensions
   studentProfile  StudentProfile?
   tutorProfile    TutorProfile?
-  
+
   // Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([email])
   @@index([role])
 }
@@ -323,18 +324,18 @@ model StudentProfile {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   grade     String?  // e.g., "12", "SMA", etc.
   school    String?
   parentName  String?
   parentPhone String?
-  
+
   // Relations
   enrollments     Enrollment[]
   submissions     AssignmentSubmission[]
   quizAttempts    QuizAttempt[]
   forumPosts      ForumPost[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -343,17 +344,17 @@ model TutorProfile {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   bio       String?
   subjects  String[] // e.g., ["Matematika", "Fisika"]
-  
+
   // Relations
   classes   Class[]
   materials Material[]
   assignments Assignment[]
   quizzes   Quiz[]
   forumPosts ForumPost[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -366,29 +367,29 @@ model Class {
   gradeLevel  String   // e.g., "12", "SMA"
   price       Decimal  @db.Decimal(10, 2)
   capacity    Int      @default(30)
-  
+
   // Schedule
   schedule    String?  // e.g., "Senin & Rabu 19:00 - 21:00"
   startDate   DateTime?
   endDate     DateTime?
-  
+
   // Status
   published   Boolean  @default(false)
-  
+
   // Relations
   tutorId     String
   tutor       TutorProfile @relation(fields: [tutorId], references: [id])
-  
+
   enrollments Enrollment[]
   materials   Material[]
   assignments Assignment[]
   quizzes     Quiz[]
   liveClasses LiveClass[]
   forumThreads ForumThread[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([tutorId])
   @@index([published])
   @@index([subject])
@@ -396,21 +397,21 @@ model Class {
 
 model Enrollment {
   id        String   @id @default(cuid())
-  
+
   studentId String
   student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+
   classId   String
   class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   status    EnrollmentStatus @default(PENDING)
-  
+
   // Payment
   payment   Payment?
-  
+
   enrolledAt DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
+
   @@unique([studentId, classId]) // Prevent duplicate enrollment
   @@index([studentId])
   @@index([classId])
@@ -419,79 +420,79 @@ model Enrollment {
 
 model Payment {
   id            String   @id @default(cuid())
-  
+
   enrollmentId  String   @unique
   enrollment    Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  
+
   amount        Decimal  @db.Decimal(10, 2)
   method        String   // "QRIS", "VA_BCA", "EWALLET_OVO", etc.
   status        PaymentStatus @default(PENDING)
-  
+
   // Pakasir data
   externalId    String?  @unique // Pakasir transaction ID
   paymentUrl    String?  // Payment page URL
   paidAt        DateTime?
-  
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
-  
+
   @@index([status])
   @@index([externalId])
 }
 
 model Material {
   id          String   @id @default(cuid())
-  
+
   classId     String
   class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   tutorId     String
   tutor       TutorProfile @relation(fields: [tutorId], references: [id])
-  
+
   title       String
   description String?  @db.Text
   type        String   // "PDF", "VIDEO", "LINK", "DOCUMENT"
   fileUrl     String?  // Supabase Storage URL or YouTube embed URL
   fileName    String?
   fileSize    Int?     // in bytes
-  
+
   session     Int      // Pertemuan ke-1, 2, 3, etc.
   order       Int      @default(0) // For sorting within session
-  
+
   published   Boolean  @default(true)
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([classId])
   @@index([session])
 }
 
 model Assignment {
   id          String   @id @default(cuid())
-  
+
   classId     String
   class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   tutorId     String
   tutor       TutorProfile @relation(fields: [tutorId], references: [id])
-  
+
   title       String
   description String   @db.Text
   maxPoints   Int      @default(100)
   dueDate     DateTime
-  
+
   // Attachments
   attachmentUrl String?
-  
+
   status      AssignmentStatus @default(DRAFT)
-  
+
   // Relations
   submissions AssignmentSubmission[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([classId])
   @@index([status])
   @@index([dueDate])
@@ -499,25 +500,25 @@ model Assignment {
 
 model AssignmentSubmission {
   id          String   @id @default(cuid())
-  
+
   assignmentId String
   assignment  Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  
+
   studentId   String
   student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+
   fileUrl     String   // Supabase Storage URL
   fileName    String
   fileSize    Int
-  
+
   status      SubmissionStatus @default(SUBMITTED)
   score       Int?     // 0 to maxPoints
   feedback    String?  @db.Text
-  
+
   submittedAt DateTime @default(now())
   gradedAt    DateTime?
   updatedAt   DateTime @updatedAt
-  
+
   @@unique([assignmentId, studentId]) // One submission per student
   @@index([assignmentId])
   @@index([studentId])
@@ -526,197 +527,197 @@ model AssignmentSubmission {
 
 model Quiz {
   id          String   @id @default(cuid())
-  
+
   classId     String
   class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   tutorId     String
   tutor       TutorProfile @relation(fields: [tutorId], references: [id])
-  
+
   title       String
   description String?  @db.Text
   timeLimit   Int?     // in minutes
   maxAttempts Int      @default(1)
   passingScore Int?    // percentage (0-100)
-  
+
   // Availability
   startTime   DateTime?
   endTime     DateTime?
-  
+
   status      QuizStatus @default(DRAFT)
-  
+
   // Relations
   questions   QuizQuestion[]
   attempts    QuizAttempt[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([classId])
   @@index([status])
 }
 
 model QuizQuestion {
   id          String   @id @default(cuid())
-  
+
   quizId      String
   quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+
   type        String   // "MULTIPLE_CHOICE", "TRUE_FALSE", "SHORT_ANSWER"
   question    String   @db.Text
   points      Int      @default(1)
   order       Int      // Question order
-  
+
   // For MCQ & T/F
   options     Json?    // { "A": "...", "B": "...", "C": "...", "D": "..." }
   correctAnswer String? // "A", "B", "TRUE", "FALSE", or exact text for short answer
-  
+
   explanation String?  @db.Text
-  
+
   // Relations
   answers     QuizAnswer[]
-  
+
   createdAt   DateTime @default(now())
-  
+
   @@index([quizId])
 }
 
 model QuizAttempt {
   id          String   @id @default(cuid())
-  
+
   quizId      String
   quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  
+
   studentId   String
   student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+
   score       Int?     // Total score
   maxScore    Int?     // Total possible score
   percentage  Int?     // 0-100
-  
+
   startedAt   DateTime @default(now())
   submittedAt DateTime?
-  
+
   // Relations
   answers     QuizAnswer[]
-  
+
   @@index([quizId])
   @@index([studentId])
 }
 
 model QuizAnswer {
   id          String   @id @default(cuid())
-  
+
   attemptId   String
   attempt     QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  
+
   questionId  String
   question    QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  
+
   answer      String   // Student's answer
   isCorrect   Boolean?
   pointsAwarded Int?
-  
+
   createdAt   DateTime @default(now())
-  
+
   @@index([attemptId])
   @@index([questionId])
 }
 
 model LiveClass {
   id          String   @id @default(cuid())
-  
+
   classId     String
   class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   title       String
   meetingUrl  String   // Zoom/Meet link
   scheduledAt DateTime
   duration    Int      // in minutes
-  
+
   // Future: auto-generated via API
   externalMeetingId String?
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([classId])
   @@index([scheduledAt])
 }
 
 model ForumThread {
   id          String   @id @default(cuid())
-  
+
   classId     String
   class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+
   title       String
   isPinned    Boolean  @default(false)
   isLocked    Boolean  @default(false)
-  
+
   // Relations
   posts       ForumPost[]
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([classId])
 }
 
 model ForumPost {
   id          String   @id @default(cuid())
-  
+
   threadId    String
   thread      ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  
+
   authorId    String   // Can be student or tutor
   authorType  Role     // To differentiate
-  
+
   // Relations (polymorphic-ish)
   studentAuthor StudentProfile? @relation(fields: [authorId], references: [id], onDelete: Cascade)
   tutorAuthor   TutorProfile?   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  
+
   content     String   @db.Text
-  
+
   parentId    String?  // For nested replies
   parent      ForumPost? @relation("PostReplies", fields: [parentId], references: [id])
   replies     ForumPost[] @relation("PostReplies")
-  
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([threadId])
   @@index([authorId])
 }
 
 model Notification {
   id          String   @id @default(cuid())
-  
+
   userId      String   // Recipient
   type        String   // "ASSIGNMENT_GRADED", "NEW_MATERIAL", "LIVE_CLASS_REMINDER", etc.
   title       String
   message     String   @db.Text
   link        String?  // URL to navigate when clicked
-  
+
   read        Boolean  @default(false)
-  
+
   createdAt   DateTime @default(now())
-  
+
   @@index([userId])
   @@index([read])
 }
 
 model AuditLog {
   id          String   @id @default(cuid())
-  
+
   userId      String   // Who performed the action
   action      String   // "CREATE_CLASS", "DELETE_USER", "UPDATE_PAYMENT", etc.
   entity      String   // "Class", "User", "Payment", etc.
   entityId    String?  // ID of affected entity
   metadata    Json?    // Additional context
-  
+
   createdAt   DateTime @default(now())
-  
+
   @@index([userId])
   @@index([action])
   @@index([createdAt])
@@ -786,6 +787,7 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 ### 5.2 API Endpoints
 
 #### Authentication
+
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login (handled by Supabase)
 - `POST /api/auth/logout` - Logout
@@ -793,6 +795,7 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `POST /api/auth/verify-email` - Verify email with OTP
 
 #### Users (Admin only)
+
 - `GET /api/users` - List all users (with filters)
 - `POST /api/users` - Create user
 - `GET /api/users/:id` - Get user details
@@ -800,6 +803,7 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `DELETE /api/users/:id` - Delete user (soft delete)
 
 #### Classes
+
 - `GET /api/classes` - List classes (public, filterable)
 - `POST /api/classes` - Create class (admin/tutor)
 - `GET /api/classes/:id` - Get class details
@@ -807,16 +811,19 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `DELETE /api/classes/:id` - Delete class
 
 #### Enrollments
+
 - `POST /api/enrollments` - Enroll in class (creates pending enrollment + payment)
 - `GET /api/enrollments/my` - Get current user's enrollments
 - `GET /api/classes/:classId/enrollments` - Get class enrollments (tutor/admin)
 
 #### Payments
+
 - `POST /api/payments/webhook` - Pakasir webhook callback
 - `GET /api/payments/:id` - Get payment details
 - `GET /api/payments/my` - Get user's payment history
 
 #### Materials
+
 - `GET /api/classes/:classId/materials` - List materials
 - `POST /api/classes/:classId/materials` - Upload material
 - `GET /api/materials/:id` - Get material details
@@ -824,6 +831,7 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `DELETE /api/materials/:id` - Delete material
 
 #### Assignments
+
 - `GET /api/classes/:classId/assignments` - List assignments
 - `POST /api/classes/:classId/assignments` - Create assignment
 - `GET /api/assignments/:id` - Get assignment details
@@ -834,6 +842,7 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `PUT /api/submissions/:id/grade` - Grade submission
 
 #### Quizzes
+
 - `GET /api/classes/:classId/quizzes` - List quizzes
 - `POST /api/classes/:classId/quizzes` - Create quiz
 - `GET /api/quizzes/:id` - Get quiz (with questions for tutor, without answers for student)
@@ -842,12 +851,14 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `GET /api/quizzes/:id/results` - Get quiz results
 
 #### Live Classes
+
 - `GET /api/classes/:classId/live-classes` - List live classes
 - `POST /api/classes/:classId/live-classes` - Create/schedule live class
 - `PUT /api/live-classes/:id` - Update live class
 - `DELETE /api/live-classes/:id` - Delete live class
 
 #### Forum
+
 - `GET /api/classes/:classId/forum` - List forum threads
 - `POST /api/classes/:classId/forum` - Create thread
 - `GET /api/forum/threads/:id` - Get thread with posts
@@ -855,15 +866,18 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 - `DELETE /api/forum/posts/:id` - Delete post
 
 #### Gradebook
+
 - `GET /api/classes/:classId/gradebook` - Get class gradebook (tutor)
 - `GET /api/students/my/grades` - Get student's own grades
 
 #### Notifications
+
 - `GET /api/notifications/my` - Get user's notifications
 - `PUT /api/notifications/:id/read` - Mark as read
 - `PUT /api/notifications/mark-all-read` - Mark all as read
 
 #### File Upload
+
 - `POST /api/upload` - Generic file upload to Supabase Storage
 
 ---
@@ -888,25 +902,27 @@ ForumPost (1) ────→ (*) ForumPost (self-referencing for replies)
 ```typescript
 // middleware.ts
 export async function middleware(request: NextRequest) {
-  const { data: { user } } = await supabase.auth.getUser()
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
-    return NextResponse.redirect('/login')
+    return NextResponse.redirect("/login");
   }
-  
+
   // Check role-based access
-  const path = request.nextUrl.pathname
-  const userRole = user.user_metadata.role
-  
-  if (path.startsWith('/admin') && userRole !== 'ADMIN') {
-    return NextResponse.redirect('/unauthorized')
+  const path = request.nextUrl.pathname;
+  const userRole = user.user_metadata.role;
+
+  if (path.startsWith("/admin") && userRole !== "ADMIN") {
+    return NextResponse.redirect("/unauthorized");
   }
-  
-  if (path.startsWith('/tutor') && !['TUTOR', 'ADMIN'].includes(userRole)) {
-    return NextResponse.redirect('/unauthorized')
+
+  if (path.startsWith("/tutor") && !["TUTOR", "ADMIN"].includes(userRole)) {
+    return NextResponse.redirect("/unauthorized");
   }
-  
-  return NextResponse.next()
+
+  return NextResponse.next();
 }
 ```
 
@@ -943,7 +959,7 @@ All API inputs validated with Zod:
 
 ```typescript
 // lib/validations/assignment.schema.ts
-import { z } from 'zod'
+import { z } from "zod";
 
 export const createAssignmentSchema = z.object({
   classId: z.string().cuid(),
@@ -952,30 +968,30 @@ export const createAssignmentSchema = z.object({
   maxPoints: z.number().int().min(1).max(1000),
   dueDate: z.string().datetime(),
   attachmentUrl: z.string().url().optional(),
-})
+});
 
-export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>
+export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
 ```
 
 ### 6.4 Rate Limiting
 
 ```typescript
 // lib/rate-limit.ts
-import { Ratelimit } from '@upstash/ratelimit'
-import { Redis } from '@upstash/redis'
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 
 export const ratelimit = new Ratelimit({
   redis: Redis.fromEnv(),
-  limiter: Ratelimit.slidingWindow(100, '1 m'), // 100 requests per minute
+  limiter: Ratelimit.slidingWindow(100, "1 m"), // 100 requests per minute
   analytics: true,
-})
+});
 
 // Usage in API route
-const identifier = request.ip ?? 'anonymous'
-const { success } = await ratelimit.limit(identifier)
+const identifier = request.ip ?? "anonymous";
+const { success } = await ratelimit.limit(identifier);
 
 if (!success) {
-  return new Response('Too Many Requests', { status: 429 })
+  return new Response("Too Many Requests", { status: 429 });
 }
 ```
 
@@ -984,23 +1000,25 @@ if (!success) {
 ```typescript
 // lib/upload-validation.ts
 const ALLOWED_MIME_TYPES = {
-  'application/pdf': ['.pdf'],
-  'image/jpeg': ['.jpg', '.jpeg'],
-  'image/png': ['.png'],
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-}
+  "application/pdf": [".pdf"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
+    ".docx",
+  ],
+};
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export function validateFile(file: File) {
   if (!ALLOWED_MIME_TYPES[file.type]) {
-    throw new Error('Invalid file type')
+    throw new Error("Invalid file type");
   }
-  
+
   if (file.size > MAX_FILE_SIZE) {
-    throw new Error('File too large')
+    throw new Error("File too large");
   }
-  
+
   // Additional: virus scan via external API (optional)
 }
 ```
@@ -1039,19 +1057,19 @@ const classes = await prisma.class.findMany({
     tutor: {
       select: {
         user: {
-          select: { name: true }
-        }
-      }
-    }
+          select: { name: true },
+        },
+      },
+    },
   },
-  where: { published: true }
-})
+  where: { published: true },
+});
 
 // Use pagination
 const classes = await prisma.class.findMany({
   take: 20,
   skip: (page - 1) * 20,
-})
+});
 ```
 
 ---
@@ -1126,16 +1144,26 @@ NEXT_PUBLIC_APP_URL="https://belajar.tutornomor1.com"
 // lib/logger.ts
 export const logger = {
   info: (message: string, meta?: any) => {
-    console.log(JSON.stringify({ level: 'info', message, ...meta, timestamp: new Date() }))
+    console.log(
+      JSON.stringify({ level: "info", message, ...meta, timestamp: new Date() })
+    );
   },
   error: (message: string, error?: Error, meta?: any) => {
-    console.error(JSON.stringify({ level: 'error', message, error: error?.stack, ...meta, timestamp: new Date() }))
-  }
-}
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message,
+        error: error?.stack,
+        ...meta,
+        timestamp: new Date(),
+      })
+    );
+  },
+};
 
 // Usage
-logger.info('User enrolled in class', { userId, classId })
-logger.error('Payment webhook failed', error, { enrollmentId })
+logger.info("User enrolled in class", { userId, classId });
+logger.error("Payment webhook failed", error, { enrollmentId });
 ```
 
 ---
@@ -1151,11 +1179,13 @@ logger.error('Payment webhook failed', error, { enrollmentId })
 ### 10.2 Scaling Strategy
 
 **When to scale:**
+
 - Database > 80% capacity → Upgrade Supabase plan
 - > 1,000 concurrent users → Optimize queries, add caching
 - File storage > 1GB → Upgrade or migrate to Cloudflare R2
 
 **Horizontal scaling:**
+
 - Vercel automatically scales serverless functions
 - Database: Supabase connection pooler (built-in)
 

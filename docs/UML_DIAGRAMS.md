@@ -633,7 +633,7 @@ classDiagram
         +DateTime createdAt
         +DateTime updatedAt
     }
-    
+
     class StudentProfile {
         +String id PK
         +String userId FK
@@ -643,7 +643,7 @@ classDiagram
         +String parentPhone
         +DateTime createdAt
     }
-    
+
     class TutorProfile {
         +String id PK
         +String userId FK
@@ -651,7 +651,7 @@ classDiagram
         +String[] subjects
         +DateTime createdAt
     }
-    
+
     class Class {
         +String id PK
         +String title
@@ -667,7 +667,7 @@ classDiagram
         +String tutorId FK
         +DateTime createdAt
     }
-    
+
     class Enrollment {
         +String id PK
         +String studentId FK
@@ -675,7 +675,7 @@ classDiagram
         +EnrollmentStatus status
         +DateTime enrolledAt
     }
-    
+
     class Payment {
         +String id PK
         +String enrollmentId FK
@@ -685,7 +685,7 @@ classDiagram
         +String externalId
         +DateTime paidAt
     }
-    
+
     class Material {
         +String id PK
         +String classId FK
@@ -698,7 +698,7 @@ classDiagram
         +Int order
         +Boolean published
     }
-    
+
     class Assignment {
         +String id PK
         +String classId FK
@@ -709,7 +709,7 @@ classDiagram
         +DateTime dueDate
         +AssignmentStatus status
     }
-    
+
     class AssignmentSubmission {
         +String id PK
         +String assignmentId FK
@@ -721,7 +721,7 @@ classDiagram
         +DateTime submittedAt
         +DateTime gradedAt
     }
-    
+
     class Quiz {
         +String id PK
         +String classId FK
@@ -733,7 +733,7 @@ classDiagram
         +DateTime endTime
         +QuizStatus status
     }
-    
+
     class QuizQuestion {
         +String id PK
         +String quizId FK
@@ -744,7 +744,7 @@ classDiagram
         +Json options
         +String correctAnswer
     }
-    
+
     class QuizAttempt {
         +String id PK
         +String quizId FK
@@ -754,7 +754,7 @@ classDiagram
         +DateTime startedAt
         +DateTime submittedAt
     }
-    
+
     class LiveClass {
         +String id PK
         +String classId FK
@@ -763,7 +763,7 @@ classDiagram
         +DateTime scheduledAt
         +Int duration
     }
-    
+
     class ForumThread {
         +String id PK
         +String classId FK
@@ -771,7 +771,7 @@ classDiagram
         +Boolean isPinned
         +Boolean isLocked
     }
-    
+
     class ForumPost {
         +String id PK
         +String threadId FK
@@ -781,7 +781,7 @@ classDiagram
         +String parentId FK
         +DateTime createdAt
     }
-    
+
     class Notification {
         +String id PK
         +String userId
@@ -792,7 +792,7 @@ classDiagram
         +Boolean read
         +DateTime createdAt
     }
-    
+
     User "1" --> "0..1" StudentProfile
     User "1" --> "0..1" TutorProfile
     TutorProfile "1" --> "*" Class
