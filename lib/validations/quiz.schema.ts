@@ -123,9 +123,47 @@ export const createQuizSchema = z
     }
   );
 
-export const updateQuizSchema = createQuizSchema
-  .partial()
-  .omit({ classId: true });
+export const updateQuizSchema = z
+  .object({
+    title: z
+      .string()
+      .min(3, "Title must be at least 3 characters")
+      .max(200, "Title must not exceed 200 characters")
+      .optional(),
+    description: z
+      .string()
+      .min(10, "Description must be at least 10 characters")
+      .max(2000, "Description must not exceed 2000 characters")
+      .optional(),
+    timeLimit: z
+      .number()
+      .int()
+      .min(1, "Time limit must be at least 1 minute")
+      .max(180, "Time limit must not exceed 180 minutes")
+      .optional(),
+    startDate: z.string().datetime().optional(),
+    endDate: z.string().datetime().optional(),
+    passingGrade: z
+      .number()
+      .int()
+      .min(0, "Passing grade must be at least 0")
+      .max(100, "Passing grade must not exceed 100")
+      .optional(),
+    status: QuizStatusEnum.optional(),
+  })
+  .refine(
+    (data) => {
+      // If both dates provided, endDate must be after startDate
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate) > new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: "End date must be after start date",
+      path: ["endDate"],
+    }
+  );
 
 export type CreateQuizInput = z.infer<typeof createQuizSchema>;
 export type UpdateQuizInput = z.infer<typeof updateQuizSchema>;
