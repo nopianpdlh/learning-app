@@ -211,7 +211,21 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: CreateQuizInput = await request.json();
-    const validatedData = createQuizSchema.parse(body);
+
+    // Validate data
+    const validation = createQuizSchema.safeParse(body);
+    if (!validation.success) {
+      const errors = validation.error.errors.map((err) => ({
+        field: err.path.join("."),
+        message: err.message,
+      }));
+      return NextResponse.json(
+        { error: "Validation failed", details: errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validation.data;
 
     // Verify class exists
     const classData = await prisma.class.findUnique({
@@ -307,8 +321,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(quiz, { status: 201 });
   } catch (error: any) {
     console.error("Error creating quiz:", error);
+
+    // Handle Prisma errors
+    if (error.code === "P2002") {
+      return NextResponse.json(
+        { error: "A quiz with this information already exists" },
+        { status: 409 }
+      );
+    }
+
+    if (error.code === "P2025") {
+      return NextResponse.json(
+        { error: "Related record not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: error.message || "Failed to create quiz" },
       { status: 500 }
     );
   }
