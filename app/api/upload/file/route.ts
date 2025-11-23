@@ -1,6 +1,6 @@
 /**
- * File Upload API
- * POST /api/upload - Upload file to Supabase Storage
+ * Simple File Upload API
+ * POST /api/upload/file - Upload file to Supabase Storage (without creating material record)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,11 +13,10 @@ import {
   ALLOWED_MATERIAL_TYPES,
   MAX_MATERIAL_SIZE_MB,
 } from "@/lib/storage";
-import { fileUploadSchema } from "@/lib/validations/material.schema";
 
 /**
- * POST /api/upload
- * Upload file and create material record
+ * POST /api/upload/file
+ * Upload file and return URL only (no database record)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -56,42 +55,12 @@ export async function POST(request: NextRequest) {
     // Parse form data
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
-    const classId = formData.get("classId") as string;
-    const session = formData.get("session") as string;
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string | null;
+    const bucket = (formData.get("bucket") as string) || "materials";
+    const folder = (formData.get("folder") as string) || "uploads";
 
     // Validate required fields
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    // Validate metadata
-    const validatedData = fileUploadSchema.parse({
-      classId,
-      session,
-      title,
-      description: description || null,
-    });
-
-    // Verify class exists and user has access
-    const classData = await prisma.class.findUnique({
-      where: { id: validatedData.classId },
-    });
-
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
-    }
-
-    // Check if tutor owns the class
-    if (
-      dbUser.role === "TUTOR" &&
-      classData.tutorId !== dbUser.tutorProfile?.id
-    ) {
-      return NextResponse.json(
-        { error: "You can only upload files to your own classes" },
-        { status: 403 }
-      );
     }
 
     // Validate file type
@@ -114,21 +83,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine file type
-    const fileType = file.type.startsWith("image/")
-      ? "IMAGE"
-      : file.type === "application/pdf"
-      ? "PDF"
-      : "DOCUMENT";
-
-    // Upload to Supabase Storage (dengan authenticated client context)
-    const folder = `${validatedData.classId}/session-${validatedData.session}`;
+    // Upload to Supabase Storage with authenticated client
     const uploadResult = await uploadFile({
-      bucket: "materials",
+      bucket: bucket as "materials" | "assignments" | "avatars",
       folder,
       file,
       fileName: file.name,
-      supabaseClient: supabase,
+      supabaseClient: supabase, // Pass authenticated client for RLS
     });
 
     if (!uploadResult.success) {
@@ -138,44 +99,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create material record in database
-    // Store path instead of publicUrl for private bucket (will generate signed URL on download)
-    const material = await prisma.material.create({
-      data: {
-        classId: validatedData.classId,
-        title: validatedData.title,
-        description: validatedData.description,
-        session: validatedData.session,
-        fileType,
-        fileUrl: uploadResult.path || uploadResult.publicUrl,
-      },
-      include: {
-        class: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
-
     return NextResponse.json(
       {
         success: true,
-        data: material,
+        data: {
+          publicUrl: uploadResult.publicUrl,
+          path: uploadResult.path,
+        },
         message: "File uploaded successfully",
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error("POST /api/upload error:", error);
-
-    if (error instanceof Error && error.name === "ZodError") {
-      return NextResponse.json(
-        { error: "Validation error", details: error },
-        { status: 400 }
-      );
-    }
-
+    console.error("POST /api/upload/file error:", error);
     return NextResponse.json(
       { error: "Failed to upload file" },
       { status: 500 }

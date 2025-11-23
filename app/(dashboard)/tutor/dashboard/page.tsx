@@ -108,154 +108,146 @@ const recentActivity = [
 
 export default function TutorDashboard() {
   return (
-    
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Dashboard Tutor
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Selamat datang kembali, Prof. John Doe
-          </p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Dashboard Tutor</h1>
+        <p className="text-muted-foreground mt-1">
+          Selamat datang kembali, Prof. John Doe
+        </p>
+      </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.trend}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Upcoming Classes */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Kelas Mendatang</CardTitle>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/tutor/live-classes">Lihat Semua</Link>
-                </Button>
-              </div>
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat) => (
+          <Card key={stat.title}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="space-y-4">
-              {upcomingClasses.map((cls) => (
-                <div
-                  key={cls.id}
-                  className="flex items-start gap-4 p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex-shrink-0">
-                    <Calendar className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-sm">{cls.title}</h4>
-                      <Badge variant="outline">{cls.type}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {cls.date} • {cls.time}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {cls.students} siswa terdaftar
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <CardContent>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <p className="text-xs text-muted-foreground mt-1">{stat.trend}</p>
             </CardContent>
           </Card>
+        ))}
+      </div>
 
-          {/* Pending Grading */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Perlu Dinilai</CardTitle>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/tutor/grading">Lihat Semua</Link>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {pendingGrading.map((item) => (
-                <div
-                  key={item.id}
-                  className="p-3 rounded-lg bg-muted/50 space-y-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-semibold text-sm">
-                        {item.assignment}
-                      </h4>
-                      <p className="text-xs text-muted-foreground">
-                        {item.class}
-                      </p>
-                    </div>
-                    <Badge variant="secondary">
-                      {item.submitted}/{item.total}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">
-                      Deadline:{" "}
-                      {new Date(item.deadline).toLocaleDateString("id-ID")}
-                    </span>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href="/tutor/grading">Nilai</Link>
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Activity */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Upcoming Classes */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Aktivitas Terbaru</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-lg">Kelas Mendatang</CardTitle>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/tutor/live-classes">Lihat Semua</Link>
+              </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-4 pb-4 border-b last:border-0"
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{activity.student}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.action}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">
-                        {activity.class}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {activity.time}
-                      </span>
-                    </div>
-                  </div>
+          <CardContent className="space-y-4">
+            {upcomingClasses.map((cls) => (
+              <div
+                key={cls.id}
+                className="flex items-start gap-4 p-3 rounded-lg bg-muted/50"
+              >
+                <div className="shrink-0">
+                  <Calendar className="h-5 w-5 text-primary" />
                 </div>
-              ))}
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-sm">{cls.title}</h4>
+                    <Badge variant="outline">{cls.type}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {cls.date} • {cls.time}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {cls.students} siswa terdaftar
+                  </p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Pending Grading */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Perlu Dinilai</CardTitle>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/tutor/grading">Lihat Semua</Link>
+              </Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pendingGrading.map((item) => (
+              <div
+                key={item.id}
+                className="p-3 rounded-lg bg-muted/50 space-y-2"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h4 className="font-semibold text-sm">{item.assignment}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {item.class}
+                    </p>
+                  </div>
+                  <Badge variant="secondary">
+                    {item.submitted}/{item.total}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    Deadline:{" "}
+                    {new Date(item.deadline).toLocaleDateString("id-ID")}
+                  </span>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href="/tutor/grading">Nilai</Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       </div>
-    
+
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Aktivitas Terbaru</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {recentActivity.map((activity) => (
+              <div
+                key={activity.id}
+                className="flex items-start gap-4 pb-4 border-b last:border-0"
+              >
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{activity.student}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {activity.action}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs">
+                      {activity.class}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {activity.time}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
