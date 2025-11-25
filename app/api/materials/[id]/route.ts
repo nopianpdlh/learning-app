@@ -17,9 +17,10 @@ import { deleteFile, extractPathFromUrl } from "@/lib/storage";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -103,6 +104,18 @@ export async function GET(
     }
     // Admin can access all materials
 
+    // Increment view count (only for students viewing the material)
+    if (dbUser.role === "STUDENT") {
+      await prisma.material.update({
+        where: { id: params.id },
+        data: {
+          viewCount: {
+            increment: 1,
+          },
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: material,
@@ -122,9 +135,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -241,9 +255,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const params = await context.params;
     const supabase = await createClient();
 
     // Get authenticated user

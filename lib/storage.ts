@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type StorageBucket = "materials" | "assignments" | "avatars";
 
@@ -12,6 +13,7 @@ export interface UploadOptions {
   folder: string;
   file: File;
   fileName?: string;
+  supabaseClient?: SupabaseClient; // Optional: untuk server-side upload dengan auth context
 }
 
 export interface UploadResult {
@@ -23,12 +25,13 @@ export interface UploadResult {
 
 /**
  * Upload file to Supabase Storage
+ * Gunakan supabaseClient parameter untuk server-side upload dengan auth context
  */
 export async function uploadFile(
   options: UploadOptions
 ): Promise<UploadResult> {
-  const { bucket, folder, file, fileName } = options;
-  const supabase = createClient();
+  const { bucket, folder, file, fileName, supabaseClient } = options;
+  const supabase = supabaseClient || createClient();
 
   try {
     // Generate unique filename
