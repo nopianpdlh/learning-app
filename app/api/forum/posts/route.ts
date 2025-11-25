@@ -70,7 +70,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     } else if (profile.role === "TUTOR") {
-      if (thread.class.tutorId !== user.id) {
+      // Get tutor profile to compare with class tutorId
+      const tutorProfile = await prisma.tutorProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!tutorProfile || thread.class.tutorId !== tutorProfile.id) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
