@@ -12,8 +12,9 @@ import { updateThreadSchema } from "@/lib/validations/forum.schema";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: threadId } = await params;
   try {
     // Auth check
     const supabase = await createClient();
@@ -40,7 +41,7 @@ export async function GET(
 
     // Fetch thread with posts
     const thread = await prisma.forumThread.findUnique({
-      where: { id: params.id },
+      where: { id: threadId },
       include: {
         class: {
           select: {
@@ -69,9 +70,21 @@ export async function GET(
 
     // Verify access to class
     if (profile.role === "STUDENT") {
+      // Get student profile
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!studentProfile) {
+        return NextResponse.json(
+          { error: "Student profile not found" },
+          { status: 404 }
+        );
+      }
+
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          studentId: user.id,
+          studentId: studentProfile.id,
           classId: thread.classId,
           status: { in: ["PAID", "ACTIVE"] },
         },
@@ -149,8 +162,9 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: threadId } = await params;
   try {
     // Auth check
     const supabase = await createClient();
@@ -177,7 +191,7 @@ export async function PUT(
 
     // Fetch existing thread
     const existingThread = await prisma.forumThread.findUnique({
-      where: { id: params.id },
+      where: { id: threadId },
       include: {
         class: {
           select: {
@@ -222,7 +236,7 @@ export async function PUT(
 
     // Update thread
     const thread = await prisma.forumThread.update({
-      where: { id: params.id },
+      where: { id: threadId },
       data: updateData,
     });
 
@@ -246,8 +260,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: threadId } = await params;
   try {
     // Auth check
     const supabase = await createClient();
@@ -274,7 +289,7 @@ export async function DELETE(
 
     // Fetch existing thread
     const existingThread = await prisma.forumThread.findUnique({
-      where: { id: params.id },
+      where: { id: threadId },
       include: {
         class: {
           select: {
@@ -302,7 +317,7 @@ export async function DELETE(
 
     // Delete thread (cascades to posts)
     await prisma.forumThread.delete({
-      where: { id: params.id },
+      where: { id: threadId },
     });
 
     return NextResponse.json({ message: "Thread deleted successfully" });

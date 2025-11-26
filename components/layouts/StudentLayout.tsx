@@ -64,7 +64,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
+      <header className="sticky top-0 z-50 w-full border-b bg-white shadow-sm">
         <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
           {/* Mobile menu button */}
           <Button
@@ -173,7 +173,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
         <aside
           className={`
             fixed lg:sticky top-16 left-0 z-40 h-[calc(100vh-4rem)]
-            w-64 border-r bg-sidebar transition-transform duration-300
+            w-64 border-r bg-white transition-transform duration-300
             ${
               sidebarOpen
                 ? "translate-x-0"
@@ -213,7 +213,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
         {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 top-16 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}

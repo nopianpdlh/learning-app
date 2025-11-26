@@ -55,9 +55,21 @@ export async function GET(request: NextRequest) {
 
     // Verify access to class
     if (profile.role === "STUDENT") {
+      // Get student profile
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!studentProfile) {
+        return NextResponse.json(
+          { error: "Student profile not found" },
+          { status: 404 }
+        );
+      }
+
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          studentId: user.id,
+          studentId: studentProfile.id,
           classId: filters.classId,
           status: { in: ["PAID", "ACTIVE"] },
         },
@@ -200,9 +212,21 @@ export async function POST(request: NextRequest) {
 
     // Verify access to class
     if (profile.role === "STUDENT") {
+      // Get student profile
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!studentProfile) {
+        return NextResponse.json(
+          { error: "Student profile not found" },
+          { status: 404 }
+        );
+      }
+
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          studentId: user.id,
+          studentId: studentProfile.id,
           classId: data.classId,
           status: { in: ["PAID", "ACTIVE"] },
         },
@@ -244,15 +268,23 @@ export async function POST(request: NextRequest) {
       where: {
         classId: data.classId,
         status: { in: ["PAID", "ACTIVE"] },
-        studentId: { not: user.id },
       },
-      select: { studentId: true },
+      include: {
+        student: {
+          select: { userId: true },
+        },
+      },
     });
 
-    if (enrollments.length > 0) {
+    // Filter out the thread author
+    const otherStudents = enrollments.filter(
+      (e) => e.student.userId !== user.id
+    );
+
+    if (otherStudents.length > 0) {
       await prisma.notification.createMany({
-        data: enrollments.map((enrollment) => ({
-          userId: enrollment.studentId,
+        data: otherStudents.map((enrollment) => ({
+          userId: enrollment.student.userId,
           title: "New Forum Thread",
           message: `"${data.title}" thread created in ${
             classData?.name || "your class"
