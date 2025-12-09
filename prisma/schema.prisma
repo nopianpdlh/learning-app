@@ -93,6 +93,7 @@ model StudentProfile {
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
   materialBookmarks     MaterialBookmark[]
+  liveClassAttendances  LiveClassAttendance[]
 
   @@index([userId])
 }
@@ -318,19 +319,41 @@ model QuizAnswer {
 }
 
 model LiveClass {
-  id          String   @id @default(cuid())
-  classId     String
-  title       String
-  meetingUrl  String
-  scheduledAt DateTime
-  duration    Int      // Minutes
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  classId         String
+  title           String
+  description     String?   @db.Text
+  meetingUrl      String
+  scheduledAt     DateTime
+  duration        Int       // Minutes
+  maxParticipants Int?
+  recordingUrl    String?
+  status          String    @default("SCHEDULED") // SCHEDULED, LIVE, COMPLETED, CANCELLED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class       Class                 @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendances LiveClassAttendance[]
 
   @@index([classId])
   @@index([scheduledAt])
+  @@index([status])
+}
+
+model LiveClassAttendance {
+  id          String   @id @default(cuid())
+  liveClassId String
+  studentId   String
+  joinedAt    DateTime @default(now())
+  leftAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  liveClass LiveClass      @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+
+  @@unique([liveClassId, studentId])
+  @@index([liveClassId])
+  @@index([studentId])
 }
 
 model ForumThread {
