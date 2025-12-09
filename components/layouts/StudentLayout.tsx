@@ -33,6 +33,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
+import NotificationCenter from "@/components/features/notifications/NotificationCenter";
 
 interface StudentLayoutProps {
   children: ReactNode;
@@ -113,12 +114,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
 
           {/* Right side - Notification & User */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-destructive text-[10px]">
-                3
-              </Badge>
-            </Button>
+            <NotificationCenter />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
