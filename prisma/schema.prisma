@@ -7,7 +7,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") 
 }
 
 // ============================================
@@ -91,6 +92,7 @@ model StudentProfile {
   enrollments           Enrollment[]
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
+  materialBookmarks     MaterialBookmark[]
 
   @@index([userId])
 }
@@ -186,12 +188,14 @@ model Material {
   fileType      String   // PDF, VIDEO, LINK, DOCUMENT, IMAGE
   fileUrl       String?
   videoUrl      String?  // YouTube/Vimeo/Drive embed
+  thumbnail     String?  // Thumbnail image URL
   viewCount     Int      @default(0)
   downloadCount Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class     Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  bookmarks MaterialBookmark[]
 
   @@index([classId])
   @@index([session])
@@ -376,6 +380,20 @@ model Notification {
 
   @@index([userId])
   @@index([read])
+}
+
+model MaterialBookmark {
+  id         String   @id @default(cuid())
+  studentId  String
+  materialId String
+  createdAt  DateTime @default(now())
+
+  student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  material Material       @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, materialId])
+  @@index([studentId])
+  @@index([materialId])
 }
 
 model AuditLog {
