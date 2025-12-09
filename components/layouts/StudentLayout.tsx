@@ -33,6 +33,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
+import NotificationCenter from "@/components/features/notifications/NotificationCenter";
 
 interface StudentLayoutProps {
   children: ReactNode;
@@ -64,7 +65,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
   return (
     <div className="min-h-screen flex flex-col bg-muted/30">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background shadow-sm">
+      <header className="sticky top-0 z-50 w-full border-b bg-white shadow-sm">
         <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
           {/* Mobile menu button */}
           <Button
@@ -113,12 +114,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
 
           {/* Right side - Notification & User */}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-destructive text-[10px]">
-                3
-              </Badge>
-            </Button>
+            <NotificationCenter />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -173,7 +169,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
         <aside
           className={`
             fixed lg:sticky top-16 left-0 z-40 h-[calc(100vh-4rem)]
-            w-64 border-r bg-sidebar transition-transform duration-300
+            w-64 border-r bg-white transition-transform duration-300
             ${
               sidebarOpen
                 ? "translate-x-0"
@@ -213,7 +209,7 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
         {/* Overlay for mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-30 bg-background/80 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 top-16 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}

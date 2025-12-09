@@ -55,7 +55,7 @@ export const updateLiveClassSchema = createLiveClassSchema
  */
 export const liveClassFilterSchema = z.object({
   classId: z.string().cuid().optional(),
-  upcoming: z.enum(["true", "false"]).optional(),
+  upcoming: z.enum(["true", "false"]).nullable().optional(),
   page: z.string().regex(/^\d+$/).optional().default("1"),
   limit: z.string().regex(/^\d+$/).optional().default("20"),
 });

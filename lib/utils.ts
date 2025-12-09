@@ -13,3 +13,13 @@ export function formatCurrency(amount: number): string {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
+export function formatDate(
+  date: Date | string,
+  format: string = "PPP"
+): string {
+  const dateObj = typeof date === "string" ? new Date(date) : date;
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "long",
+  }).format(dateObj);
+}
