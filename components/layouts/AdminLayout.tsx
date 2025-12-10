@@ -12,6 +12,10 @@ import {
   LogOut,
   Menu,
   X,
+  Layers,
+  ClipboardList,
+  Calendar,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,8 +38,18 @@ interface SidebarProps {
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
   { icon: Users, label: "User Management", path: "/admin/users" },
-  { icon: GraduationCap, label: "Class Management", path: "/admin/classes" },
+  { icon: BookOpen, label: "Programs", path: "/admin/programs" },
+  { icon: Layers, label: "Sections", path: "/admin/sections" },
+  { icon: ClipboardList, label: "Waiting List", path: "/admin/waiting-list" },
+  {
+    icon: Clock,
+    label: "Tutor Availability",
+    path: "/admin/tutor-availability",
+  },
+  { icon: Calendar, label: "Schedule", path: "/admin/schedule" },
+  { icon: GraduationCap, label: "Classes (Legacy)", path: "/admin/classes" },
   { icon: DollarSign, label: "Payments", path: "/admin/payments" },
+  { icon: FileText, label: "Invoices", path: "/admin/invoices" },
   { icon: FileText, label: "Reports", path: "/admin/reports" },
   { icon: Settings, label: "Settings", path: "/admin/settings" },
   { icon: Shield, label: "Audit Logs", path: "/admin/auditLogs" },
