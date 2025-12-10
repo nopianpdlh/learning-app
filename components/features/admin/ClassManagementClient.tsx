@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -39,7 +39,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { BookOpen, Users, Search, Plus, Edit, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  Users,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  ImagePlus,
+  X,
+  Loader2,
+} from "lucide-react";
 
 interface ClassData {
   id: string;
@@ -99,6 +109,10 @@ export function ClassManagementClient({
     published: false,
   });
   const [editingClass, setEditingClass] = useState<ClassData | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Initialize Supabase client for auth
   const supabase = createClient(
@@ -106,11 +120,96 @@ export function ClassManagementClient({
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
+  // Handle thumbnail file selection
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      toast.error(
+        "Format file tidak didukung. Gunakan JPG, PNG, GIF, atau WebP."
+      );
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Ukuran file melebihi 5MB");
+      return;
+    }
+
+    setThumbnailFile(file);
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setThumbnailPreview(previewUrl);
+  };
+
+  // Upload thumbnail to Supabase storage
+  const uploadThumbnail = async (): Promise<string | null> => {
+    if (!thumbnailFile) return formData.thumbnail || null;
+
+    setIsUploading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", thumbnailFile);
+      uploadFormData.append("folder", "class-thumbnails");
+
+      const headers: HeadersInit = {};
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
+      const response = await fetch("/api/upload/file", {
+        method: "POST",
+        headers,
+        body: uploadFormData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+
+      const result = await response.json();
+      return result.data?.publicUrl || null;
+    } catch (error) {
+      console.error("Thumbnail upload error:", error);
+      toast.error("Gagal upload thumbnail");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Reset thumbnail state
+  const resetThumbnailState = () => {
+    setThumbnailFile(null);
+    setThumbnailPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleAddClass = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      // Upload thumbnail if file is selected
+      let thumbnailUrl = formData.thumbnail;
+      if (thumbnailFile) {
+        const uploadedUrl = await uploadThumbnail();
+        if (uploadedUrl) {
+          thumbnailUrl = uploadedUrl;
+        }
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -122,7 +221,7 @@ export function ClassManagementClient({
       const response = await fetch("/api/admin/classes", {
         method: "POST",
         headers,
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, thumbnail: thumbnailUrl }),
       });
 
       if (!response.ok) {
@@ -134,6 +233,7 @@ export function ClassManagementClient({
       const newClass = await response.json();
       setClasses([newClass, ...classes]);
       setIsAddDialogOpen(false);
+      resetThumbnailState();
       setFormData({
         name: "",
         description: "",
@@ -161,6 +261,15 @@ export function ClassManagementClient({
     setIsLoading(true);
 
     try {
+      // Upload thumbnail if file is selected
+      let thumbnailUrl = formData.thumbnail;
+      if (thumbnailFile) {
+        const uploadedUrl = await uploadThumbnail();
+        if (uploadedUrl) {
+          thumbnailUrl = uploadedUrl;
+        }
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -172,7 +281,7 @@ export function ClassManagementClient({
       const response = await fetch(`/api/admin/classes/${editingClass.id}`, {
         method: "PUT",
         headers,
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, thumbnail: thumbnailUrl }),
       });
 
       if (!response.ok) {
@@ -187,6 +296,7 @@ export function ClassManagementClient({
       );
       setIsEditDialogOpen(false);
       setEditingClass(null);
+      resetThumbnailState();
       setFormData({
         name: "",
         description: "",
@@ -257,6 +367,11 @@ export function ClassManagementClient({
 
   const openEditDialog = (cls: ClassData) => {
     setEditingClass(cls);
+    resetThumbnailState();
+    // Set preview if existing thumbnail
+    if (cls.thumbnail) {
+      setThumbnailPreview(cls.thumbnail);
+    }
     setFormData({
       name: cls.name,
       description: cls.description,
@@ -439,15 +554,82 @@ export function ClassManagementClient({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="thumbnail">Thumbnail URL (Optional)</Label>
-                  <Input
-                    id="thumbnail"
-                    placeholder="Enter image URL"
-                    value={formData.thumbnail}
-                    onChange={(e) =>
-                      setFormData({ ...formData, thumbnail: e.target.value })
-                    }
-                  />
+                  <Label>Thumbnail (Optional)</Label>
+                  <div className="space-y-3">
+                    {/* Preview */}
+                    {(thumbnailPreview || formData.thumbnail) && (
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={thumbnailPreview || formData.thumbnail}
+                          alt="Thumbnail preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-6 w-6"
+                          onClick={() => {
+                            resetThumbnailState();
+                            setFormData({ ...formData, thumbnail: "" });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    {/* Upload button */}
+                    <div className="flex gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        onChange={handleThumbnailChange}
+                        className="hidden"
+                        id="thumbnail-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex-1"
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <ImagePlus className="h-4 w-4 mr-2" />
+                            Upload Image
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {/* URL input fallback */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        Or enter URL:
+                      </p>
+                      <Input
+                        id="thumbnail"
+                        placeholder="https://example.com/image.jpg"
+                        value={formData.thumbnail}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            thumbnail: e.target.value,
+                          });
+                          if (e.target.value) {
+                            setThumbnailPreview(e.target.value);
+                            setThumbnailFile(null);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <input
@@ -589,17 +771,85 @@ export function ClassManagementClient({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-thumbnail">
-                    Thumbnail URL (Optional)
-                  </Label>
-                  <Input
-                    id="edit-thumbnail"
-                    placeholder="Enter image URL"
-                    value={formData.thumbnail}
-                    onChange={(e) =>
-                      setFormData({ ...formData, thumbnail: e.target.value })
-                    }
-                  />
+                  <Label>Thumbnail (Optional)</Label>
+                  <div className="space-y-3">
+                    {/* Preview */}
+                    {(thumbnailPreview || formData.thumbnail) && (
+                      <div className="relative w-full h-32 rounded-lg overflow-hidden bg-muted">
+                        <img
+                          src={thumbnailPreview || formData.thumbnail}
+                          alt="Thumbnail preview"
+                          className="w-full h-full object-cover"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 h-6 w-6"
+                          onClick={() => {
+                            resetThumbnailState();
+                            setFormData({ ...formData, thumbnail: "" });
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    {/* Upload button */}
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        onChange={handleThumbnailChange}
+                        className="hidden"
+                        id="edit-thumbnail-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                          document
+                            .getElementById("edit-thumbnail-upload")
+                            ?.click()
+                        }
+                        className="flex-1"
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <ImagePlus className="h-4 w-4 mr-2" />
+                            Upload Image
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {/* URL input fallback */}
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">
+                        Or enter URL:
+                      </p>
+                      <Input
+                        id="edit-thumbnail"
+                        placeholder="https://example.com/image.jpg"
+                        value={formData.thumbnail}
+                        onChange={(e) => {
+                          setFormData({
+                            ...formData,
+                            thumbnail: e.target.value,
+                          });
+                          if (e.target.value) {
+                            setThumbnailPreview(e.target.value);
+                            setThumbnailFile(null);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <input

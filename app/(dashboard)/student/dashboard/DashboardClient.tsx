@@ -115,7 +115,7 @@ export default function DashboardClient({
 
       {/* Live Class Hero Card */}
       {upcomingLiveClass && (
-        <Card className="bg-gradient-to-r from-primary to-secondary text-white border-0 shadow-lg">
+        <Card className="bg-linear-to-r from-primary to-secondary text-white border-0 shadow-lg">
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -257,7 +257,7 @@ export default function DashboardClient({
                       key={classItem.id}
                       className="overflow-hidden hover:shadow-md transition-shadow"
                     >
-                      <div className="h-32 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
+                      <div className="h-32 bg-linear-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
                         <BookOpen className="h-12 w-12 text-primary" />
                       </div>
                       <CardContent className="p-4">
