@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/tutor/students
- * Fetch all students enrolled in tutor's classes with progress metrics
+ * Fetch all students enrolled in tutor's sections with progress metrics
+ * Uses section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -20,11 +21,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with sections
     const dbUser = await db.user.findUnique({
       where: { id: user.id },
       include: {
-        tutorProfile: true,
+        tutorProfile: {
+          include: {
+            sections: {
+              select: {
+                id: true,
+                sectionLabel: true,
+                template: { select: { name: true, subject: true } },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -35,21 +46,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(req.url);
-    const classFilter = searchParams.get("classId"); // Optional: filter by specific class
+    const tutorSections = dbUser.tutorProfile.sections;
 
-    // Get all classes owned by tutor
-    const tutorClasses = await db.class.findMany({
-      where: { tutorId: dbUser.tutorProfile.id },
-      select: {
-        id: true,
-        name: true,
-        subject: true,
-      },
-    });
-
-    if (tutorClasses.length === 0) {
+    if (tutorSections.length === 0) {
       return NextResponse.json({
         students: [],
         stats: {
@@ -62,15 +61,20 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const classIds = tutorClasses.map((c) => c.id);
+    const sectionIds = tutorSections.map((s) => s.id);
+
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const sectionFilter =
+      searchParams.get("classId") || searchParams.get("sectionId");
 
     // Build where clause for enrollments
     const enrollmentWhere: any = {
-      classId: classFilter || { in: classIds },
-      status: { in: ["PAID", "ACTIVE", "COMPLETED"] },
+      sectionId: sectionFilter || { in: sectionIds },
+      status: { in: ["ACTIVE", "EXPIRED"] },
     };
 
-    // Fetch all enrollments for tutor's classes
+    // Fetch all enrollments for tutor's sections
     const enrollments = await db.enrollment.findMany({
       where: enrollmentWhere,
       include: {
@@ -85,15 +89,22 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: { select: { name: true, subject: true } },
           },
         },
       },
     });
+
+    // Transform sections for client compatibility
+    const classes = tutorSections.map((s) => ({
+      id: s.id,
+      name: `${s.template.name} - ${s.sectionLabel}`,
+      subject: s.template.subject,
+    }));
 
     if (enrollments.length === 0) {
       return NextResponse.json({
@@ -104,32 +115,32 @@ export async function GET(req: NextRequest) {
           avgCompletionRate: 0,
           totalAssignmentsCompleted: 0,
         },
-        classes: tutorClasses,
+        classes,
       });
     }
 
-    // Get all assignments for the classes
+    // Get all assignments for the sections
     const assignments = await db.assignment.findMany({
       where: {
-        classId: { in: classIds },
+        sectionId: { in: sectionIds },
         status: "PUBLISHED",
       },
       select: {
         id: true,
-        classId: true,
+        sectionId: true,
         maxPoints: true,
       },
     });
 
-    // Get all quizzes for the classes
+    // Get all quizzes for the sections
     const quizzes = await db.quiz.findMany({
       where: {
-        classId: { in: classIds },
+        sectionId: { in: sectionIds },
         status: "PUBLISHED",
       },
       select: {
         id: true,
-        classId: true,
+        sectionId: true,
       },
     });
 
@@ -188,28 +199,30 @@ export async function GET(req: NextRequest) {
     // Process each enrollment to calculate metrics
     const studentsData = enrollments.map((enrollment) => {
       const studentId = enrollment.studentId;
-      const classId = enrollment.classId;
+      const sectionId = enrollment.sectionId;
 
-      // Get assignments and quizzes for this class
-      const classAssignments = assignments.filter((a) => a.classId === classId);
-      const classQuizzes = quizzes.filter((q) => q.classId === classId);
+      // Get assignments and quizzes for this section
+      const sectionAssignments = assignments.filter(
+        (a) => a.sectionId === sectionId
+      );
+      const sectionQuizzes = quizzes.filter((q) => q.sectionId === sectionId);
 
       // Get student's submissions and attempts
       const studentSubmissions = submissionsByStudent.get(studentId) || [];
       const studentAttempts = attemptsByStudent.get(studentId) || [];
 
-      // Filter submissions for this class
-      const classSubmissions = studentSubmissions.filter((sub) =>
-        classAssignments.some((a) => a.id === sub.assignmentId)
+      // Filter submissions for this section
+      const sectionSubmissions = studentSubmissions.filter((sub) =>
+        sectionAssignments.some((a) => a.id === sub.assignmentId)
       );
 
-      // Filter attempts for this class
-      const classAttempts = studentAttempts.filter((att) =>
-        classQuizzes.some((q) => q.id === att.quizId)
+      // Filter attempts for this section
+      const sectionAttempts = studentAttempts.filter((att) =>
+        sectionQuizzes.some((q) => q.id === att.quizId)
       );
 
       // Calculate average score
-      const gradedSubmissions = classSubmissions.filter(
+      const gradedSubmissions = sectionSubmissions.filter(
         (sub) => sub.score !== null && sub.status === "GRADED"
       );
 
@@ -225,7 +238,7 @@ export async function GET(req: NextRequest) {
       });
 
       // Add quiz scores (already 0-100)
-      classAttempts.forEach((att) => {
+      sectionAttempts.forEach((att) => {
         if (att.score !== null) {
           scores.push(att.score);
         }
@@ -237,19 +250,19 @@ export async function GET(req: NextRequest) {
           : null;
 
       // Calculate completion rate
-      const totalItems = classAssignments.length + classQuizzes.length;
+      const totalItems = sectionAssignments.length + sectionQuizzes.length;
       const completedItems =
-        classSubmissions.filter(
+        sectionSubmissions.filter(
           (sub) => sub.status === "SUBMITTED" || sub.status === "GRADED"
-        ).length + classAttempts.length; // Quiz attempts count as completed
+        ).length + sectionAttempts.length;
 
       const completionRate =
         totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
       // Find latest activity
       const allActivities = [
-        ...classSubmissions.map((s) => s.submittedAt),
-        ...classAttempts
+        ...sectionSubmissions.map((s) => s.submittedAt),
+        ...sectionAttempts
           .map((a) => a.submittedAt)
           .filter((d): d is Date => d !== null),
       ].sort((a, b) => b.getTime() - a.getTime());
@@ -261,14 +274,14 @@ export async function GET(req: NextRequest) {
         name: enrollment.student.user.name,
         avatar: enrollment.student.user.avatar,
         email: enrollment.student.user.email,
-        classId: enrollment.classId,
-        className: enrollment.class.name,
-        classSubject: enrollment.class.subject,
+        classId: enrollment.sectionId,
+        className: `${enrollment.section.template.name} - ${enrollment.section.sectionLabel}`,
+        classSubject: enrollment.section.template.subject,
         avgScore,
         completionRate,
         assignments: {
-          total: classAssignments.length,
-          completed: classSubmissions.filter(
+          total: sectionAssignments.length,
+          completed: sectionSubmissions.filter(
             (sub) => sub.status === "SUBMITTED" || sub.status === "GRADED"
           ).length,
           avgScore:
@@ -284,16 +297,16 @@ export async function GET(req: NextRequest) {
               : null,
         },
         quizzes: {
-          total: classQuizzes.length,
-          attempted: classAttempts.length,
+          total: sectionQuizzes.length,
+          attempted: sectionAttempts.length,
           avgScore:
-            classAttempts.length > 0 &&
-            classAttempts.some((a) => a.score !== null)
+            sectionAttempts.length > 0 &&
+            sectionAttempts.some((a) => a.score !== null)
               ? Math.round(
-                  classAttempts
+                  sectionAttempts
                     .filter((a) => a.score !== null)
                     .reduce((sum, att) => sum + (att.score || 0), 0) /
-                    classAttempts.filter((a) => a.score !== null).length
+                    sectionAttempts.filter((a) => a.score !== null).length
                 )
               : null,
         },
@@ -335,7 +348,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       students: studentsData,
       stats,
-      classes: tutorClasses,
+      classes,
     });
   } catch (error) {
     console.error("GET /api/tutor/students error:", error);

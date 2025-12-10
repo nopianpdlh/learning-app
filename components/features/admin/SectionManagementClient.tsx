@@ -112,6 +112,9 @@ export default function SectionManagementClient({
   const [editingSection, setEditingSection] = useState<ClassSection | null>(
     null
   );
+  const [deletingSection, setDeletingSection] = useState<ClassSection | null>(
+    null
+  );
   const [selectedProgramId, setSelectedProgramId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -299,25 +302,29 @@ export default function SectionManagementClient({
     }
   };
 
-  const handleDeleteSection = async (section: ClassSection) => {
-    if (section.currentEnrollments > 0) {
+  const handleDeleteSection = async () => {
+    if (!deletingSection) return;
+
+    if (deletingSection.currentEnrollments > 0) {
       toast.error("Tidak bisa menghapus section dengan enrollment aktif");
+      setDeletingSection(null);
       return;
     }
 
-    if (!confirm(`Hapus Section ${section.sectionLabel}?`)) return;
-
     try {
-      const response = await fetch(`/api/admin/sections/${section.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/sections/${deletingSection.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to delete section");
 
       setPrograms(
         programs.map((p) => ({
           ...p,
-          sections: p.sections.filter((s) => s.id !== section.id),
+          sections: p.sections.filter((s) => s.id !== deletingSection.id),
         }))
       );
 
@@ -325,6 +332,8 @@ export default function SectionManagementClient({
     } catch (error) {
       console.error(error);
       toast.error("Gagal menghapus section");
+    } finally {
+      setDeletingSection(null);
     }
   };
 
@@ -461,14 +470,16 @@ export default function SectionManagementClient({
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => {
                   setShowSuggestion(false);
                   setSuggestionProgram(null);
                 }}
               >
                 Nanti
-              </AlertDialogCancel>
+              </Button>
               <AlertDialogAction
                 className="bg-[#FFB800] hover:bg-[#e6a600] text-black"
                 onClick={() => {
@@ -745,7 +756,7 @@ export default function SectionManagementClient({
                                       variant="ghost"
                                       size="icon"
                                       onClick={() =>
-                                        handleDeleteSection(section)
+                                        setDeletingSection(section)
                                       }
                                       className="text-red-500 hover:text-red-700"
                                       disabled={section.currentEnrollments > 0}
@@ -778,6 +789,32 @@ export default function SectionManagementClient({
           <SectionForm onSubmit={handleEditSection} isEditing={true} />
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deletingSection}
+        onOpenChange={(open) => !open && setDeletingSection(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Section</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus{" "}
+              <strong>Section {deletingSection?.sectionLabel}</strong>? Tindakan
+              ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSection}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

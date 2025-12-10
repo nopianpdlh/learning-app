@@ -47,7 +47,7 @@ const menuItems = [
     path: "/admin/tutor-availability",
   },
   { icon: Calendar, label: "Schedule", path: "/admin/schedule" },
-  { icon: GraduationCap, label: "Classes (Legacy)", path: "/admin/classes" },
+  // { icon: GraduationCap, label: "Classes (Legacy)", path: "/admin/classes" },
   { icon: DollarSign, label: "Payments", path: "/admin/payments" },
   { icon: FileText, label: "Invoices", path: "/admin/invoices" },
   { icon: FileText, label: "Reports", path: "/admin/reports" },

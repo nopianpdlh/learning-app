@@ -12,6 +12,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -84,6 +94,7 @@ export default function TutorAvailabilityManagementClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTutor, setSelectedTutor] = useState<Tutor | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [deletingSlotId, setDeletingSlotId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -179,14 +190,16 @@ export default function TutorAvailabilityManagementClient({
     }
   };
 
-  const handleDeleteSlot = async (slotId: string) => {
-    if (!selectedTutor) return;
-    if (!confirm("Hapus slot ini?")) return;
+  const handleDeleteSlot = async () => {
+    if (!selectedTutor || !deletingSlotId) return;
 
     try {
-      const response = await fetch(`/api/admin/tutor-availability/${slotId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/tutor-availability/${deletingSlotId}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to delete slot");
 
@@ -196,7 +209,9 @@ export default function TutorAvailabilityManagementClient({
           t.id === selectedTutor.id
             ? {
                 ...t,
-                availability: t.availability.filter((a) => a.id !== slotId),
+                availability: t.availability.filter(
+                  (a) => a.id !== deletingSlotId
+                ),
               }
             : t
         )
@@ -205,13 +220,17 @@ export default function TutorAvailabilityManagementClient({
       // Update selected tutor
       setSelectedTutor({
         ...selectedTutor,
-        availability: selectedTutor.availability.filter((a) => a.id !== slotId),
+        availability: selectedTutor.availability.filter(
+          (a) => a.id !== deletingSlotId
+        ),
       });
 
       toast.success("Slot berhasil dihapus");
     } catch (error) {
       console.error(error);
       toast.error("Gagal menghapus slot");
+    } finally {
+      setDeletingSlotId(null);
     }
   };
 
@@ -248,7 +267,7 @@ export default function TutorAvailabilityManagementClient({
                     {formatTime(slot.startTime)}-{formatTime(slot.endTime)}
                   </span>
                   <button
-                    onClick={() => handleDeleteSlot(slot.id)}
+                    onClick={() => setDeletingSlotId(slot.id)}
                     className="text-red-500 hover:text-red-700"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -527,6 +546,31 @@ export default function TutorAvailabilityManagementClient({
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Slot Confirmation Dialog */}
+      <AlertDialog
+        open={!!deletingSlotId}
+        onOpenChange={(open) => !open && setDeletingSlotId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Slot</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus slot ketersediaan ini? Tindakan
+              ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSlot}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

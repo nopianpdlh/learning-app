@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/tutor/submissions
- * Get all submissions for tutor's classes with optional filters
+ * Get all submissions for tutor's sections with optional filters
+ * Uses section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -20,11 +21,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with sections
     const dbUser = await db.user.findUnique({
       where: { id: user.id },
       include: {
-        tutorProfile: true,
+        tutorProfile: {
+          include: {
+            sections: { select: { id: true } },
+          },
+        },
       },
     });
 
@@ -35,18 +40,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const sectionIds = dbUser.tutorProfile.sections.map((s) => s.id);
+
+    if (sectionIds.length === 0) {
+      return NextResponse.json({
+        submissions: [],
+        stats: { total: 0, pending: 0, graded: 0, avgScore: 0 },
+      });
+    }
+
     // Get query parameters for filtering
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status"); // 'pending', 'graded', 'all'
-    const classId = searchParams.get("classId");
+    const sectionId =
+      searchParams.get("classId") || searchParams.get("sectionId");
     const assignmentId = searchParams.get("assignmentId");
 
     // Build where clause
     const where: any = {
       assignment: {
-        class: {
-          tutorId: dbUser.tutorProfile.id,
-        },
+        sectionId: sectionId || { in: sectionIds },
       },
     };
 
@@ -57,14 +70,6 @@ export async function GET(req: NextRequest) {
       } else if (status === "graded") {
         where.status = "GRADED";
       }
-    }
-
-    // Add class filter
-    if (classId) {
-      where.assignment = {
-        ...where.assignment,
-        classId,
-      };
     }
 
     // Add assignment filter
@@ -93,11 +98,11 @@ export async function GET(req: NextRequest) {
             title: true,
             maxPoints: true,
             dueDate: true,
-            class: {
+            section: {
               select: {
                 id: true,
-                name: true,
-                subject: true,
+                sectionLabel: true,
+                template: { select: { name: true, subject: true } },
               },
             },
           },
@@ -108,6 +113,19 @@ export async function GET(req: NextRequest) {
         { submittedAt: "desc" }, // Then by submission date
       ],
     });
+
+    // Transform to include class compatibility
+    const transformedSubmissions = submissions.map((s) => ({
+      ...s,
+      assignment: {
+        ...s.assignment,
+        class: {
+          id: s.assignment.section.id,
+          name: `${s.assignment.section.template.name} - ${s.assignment.section.sectionLabel}`,
+          subject: s.assignment.section.template.subject,
+        },
+      },
+    }));
 
     // Calculate statistics
     const stats = {
@@ -126,7 +144,7 @@ export async function GET(req: NextRequest) {
     };
 
     return NextResponse.json({
-      submissions,
+      submissions: transformedSubmissions,
       stats,
     });
   } catch (error) {

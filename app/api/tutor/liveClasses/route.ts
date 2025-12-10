@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/tutor/liveClasses
- * Fetch all scheduled live classes for tutor's classes (read-only)
+ * Fetch all scheduled live classes for tutor's sections (read-only)
+ * Uses section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -20,11 +21,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with sections
     const dbUser = await db.user.findUnique({
       where: { id: user.id },
       include: {
-        tutorProfile: true,
+        tutorProfile: {
+          include: {
+            sections: {
+              select: {
+                id: true,
+                sectionLabel: true,
+                template: { select: { name: true, subject: true } },
+                enrollments: {
+                  where: { status: { in: ["ACTIVE", "EXPIRED"] } },
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -35,22 +50,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(req.url);
-    const statusFilter = searchParams.get("status"); // 'all' | 'upcoming' | 'completed'
-    const classFilter = searchParams.get("classId");
+    const sections = dbUser.tutorProfile.sections;
 
-    // Get all classes owned by tutor
-    const tutorClasses = await db.class.findMany({
-      where: { tutorId: dbUser.tutorProfile.id },
-      select: {
-        id: true,
-        name: true,
-        subject: true,
-      },
-    });
-
-    if (tutorClasses.length === 0) {
+    if (sections.length === 0) {
       return NextResponse.json({
         liveClasses: [],
         stats: {
@@ -63,28 +65,32 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const classIds = tutorClasses.map((c) => c.id);
+    const sectionIds = sections.map((s) => s.id);
+
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const statusFilter = searchParams.get("status"); // 'all' | 'upcoming' | 'completed'
+    const sectionFilter =
+      searchParams.get("classId") || searchParams.get("sectionId");
 
     // Build where clause
     const where: any = {
-      classId: classFilter || { in: classIds },
+      sectionId: sectionFilter || { in: sectionIds },
     };
 
     // Fetch all live classes
     const liveClasses = await db.liveClass.findMany({
       where,
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: { select: { name: true, subject: true } },
             _count: {
               select: {
                 enrollments: {
-                  where: {
-                    status: { in: ["PAID", "ACTIVE"] },
-                  },
+                  where: { status: { in: ["ACTIVE", "EXPIRED"] } },
                 },
               },
             },
@@ -109,10 +115,10 @@ export async function GET(req: NextRequest) {
         meetingUrl: lc.meetingUrl,
         scheduledAt: lc.scheduledAt.toISOString(),
         duration: lc.duration,
-        classId: lc.classId,
-        className: lc.class.name,
-        classSubject: lc.class.subject,
-        enrollmentCount: lc.class._count.enrollments,
+        classId: lc.sectionId, // For client compatibility
+        className: `${lc.section.template.name} - ${lc.section.sectionLabel}`,
+        classSubject: lc.section.template.subject,
+        enrollmentCount: lc.section._count.enrollments,
         status: isUpcoming ? "upcoming" : "completed",
         createdAt: lc.createdAt.toISOString(),
         updatedAt: lc.updatedAt.toISOString(),
@@ -140,10 +146,17 @@ export async function GET(req: NextRequest) {
       ),
     };
 
+    // Transform sections to classes for client compatibility
+    const classes = sections.map((s) => ({
+      id: s.id,
+      name: `${s.template.name} - ${s.sectionLabel}`,
+      subject: s.template.subject,
+    }));
+
     return NextResponse.json({
       liveClasses: filteredClasses,
       stats,
-      classes: tutorClasses,
+      classes,
     });
   } catch (error) {
     console.error("GET /api/tutor/liveClasses error:", error);

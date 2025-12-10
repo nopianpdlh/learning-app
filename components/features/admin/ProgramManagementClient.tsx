@@ -18,6 +18,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +90,14 @@ export default function ProgramManagementClient({
   const [editingProgram, setEditingProgram] = useState<ClassTemplate | null>(
     null
   );
+  const [deletingProgram, setDeletingProgram] = useState<ClassTemplate | null>(
+    null
+  );
+  const [forceDeleteConfirm, setForceDeleteConfirm] = useState<{
+    program: ClassTemplate;
+    sections: number;
+    enrollments: number;
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -309,21 +327,76 @@ export default function ProgramManagementClient({
     }
   };
 
-  const handleDeleteProgram = async (program: ClassTemplate) => {
-    if (!confirm(`Hapus program "${program.name}"?`)) return;
+  const handleDeleteProgram = async () => {
+    if (!deletingProgram) return;
 
     try {
-      const response = await fetch(`/api/admin/programs/${program.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/programs/${deletingProgram.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
-      if (!response.ok) throw new Error("Failed to delete program");
+      if (!response.ok) {
+        const errorData = await response.json();
+        // If can force delete, show force delete confirmation
+        if (errorData.canForceDelete) {
+          setDeletingProgram(null);
+          setForceDeleteConfirm({
+            program: deletingProgram,
+            sections: errorData.details?.sections || 0,
+            enrollments: errorData.details?.enrollments || 0,
+          });
+          return;
+        }
+        throw new Error(errorData.error || "Failed to delete program");
+      }
 
-      setPrograms(programs.filter((p) => p.id !== program.id));
+      setPrograms(programs.filter((p) => p.id !== deletingProgram.id));
       toast.success("Program berhasil dihapus");
     } catch (error) {
       console.error(error);
-      toast.error("Gagal menghapus program");
+      const errorMessage =
+        error instanceof Error ? error.message : "Gagal menghapus program";
+      toast.error(errorMessage);
+    } finally {
+      setDeletingProgram(null);
+    }
+  };
+
+  const handleForceDeleteProgram = async () => {
+    if (!forceDeleteConfirm) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `/api/admin/programs/${forceDeleteConfirm.program.id}?force=true`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to force delete program");
+      }
+
+      const result = await response.json();
+      setPrograms(
+        programs.filter((p) => p.id !== forceDeleteConfirm.program.id)
+      );
+      toast.success(
+        `Program berhasil dihapus beserta ${result.deletedSections} section dan ${result.deletedEnrollments} enrollment`
+      );
+    } catch (error) {
+      console.error(error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Gagal menghapus program";
+      toast.error(errorMessage);
+    } finally {
+      setForceDeleteConfirm(null);
+      setIsLoading(false);
     }
   };
 
@@ -809,7 +882,7 @@ export default function ProgramManagementClient({
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteProgram(program)}
+                          onClick={() => setDeletingProgram(program)}
                           className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -823,6 +896,75 @@ export default function ProgramManagementClient({
           </Table>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deletingProgram}
+        onOpenChange={(open) => !open && setDeletingProgram(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Program</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus program{" "}
+              <strong>"{deletingProgram?.name}"</strong>? Tindakan ini tidak
+              dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProgram}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Force Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!forceDeleteConfirm}
+        onOpenChange={(open) => !open && setForceDeleteConfirm(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600">
+              ⚠️ Peringatan: Hapus Paksa
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Program <strong>"{forceDeleteConfirm?.program.name}"</strong>{" "}
+                memiliki data aktif yang akan ikut dihapus:
+              </p>
+              <ul className="list-disc list-inside bg-red-50 p-3 rounded-md text-red-700">
+                <li>
+                  <strong>{forceDeleteConfirm?.sections}</strong> section(s)
+                </li>
+                <li>
+                  <strong>{forceDeleteConfirm?.enrollments}</strong>{" "}
+                  enrollment(s) aktif
+                </li>
+              </ul>
+              <p className="text-red-600 font-semibold">
+                Semua data termasuk pembayaran, invoice, dan riwayat kehadiran
+                akan dihapus permanen!
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleForceDeleteProgram}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isLoading}
+            >
+              {isLoading ? "Menghapus..." : "Hapus Paksa"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

@@ -1,6 +1,7 @@
 /**
  * Student Dashboard Page - Server Component
  * Fetches dashboard data and passes to client component
+ * Uses section-based enrollments only
  */
 
 import { redirect } from "next/navigation";
@@ -35,15 +36,16 @@ export default async function StudentDashboardPage() {
     select: { name: true },
   });
 
-  // Get enrolled classes
+  // Get enrolled sections
   const enrollments = await prisma.enrollment.findMany({
     where: {
       studentId: studentProfile.id,
-      status: { in: ["ACTIVE", "PAID"] },
+      status: { in: ["ACTIVE", "EXPIRED"] },
     },
     include: {
-      class: {
+      section: {
         include: {
+          template: { select: { name: true, subject: true, thumbnail: true } },
           tutor: {
             include: { user: { select: { name: true } } },
           },
@@ -55,35 +57,35 @@ export default async function StudentDashboardPage() {
     },
   });
 
-  const classIds = enrollments.map((e) => e.class.id);
+  const sectionIds = enrollments.map((e) => e.sectionId);
 
-  // Calculate progress for each class
+  // Calculate progress for each section
   const submittedAssignments = await prisma.assignmentSubmission.findMany({
     where: {
       studentId: studentProfile.id,
-      assignment: { classId: { in: classIds } },
+      assignment: { sectionId: { in: sectionIds } },
     },
-    select: { assignmentId: true, assignment: { select: { classId: true } } },
+    select: { assignmentId: true, assignment: { select: { sectionId: true } } },
   });
 
   const completedQuizzes = await prisma.quizAttempt.findMany({
     where: {
       studentId: studentProfile.id,
       submittedAt: { not: null },
-      quiz: { classId: { in: classIds } },
+      quiz: { sectionId: { in: sectionIds } },
     },
-    select: { quizId: true, quiz: { select: { classId: true } } },
+    select: { quizId: true, quiz: { select: { sectionId: true } } },
   });
 
   const myClasses = enrollments.slice(0, 4).map((enrollment) => {
-    const cls = enrollment.class;
-    const totalItems = cls.assignments.length + cls.quizzes.length;
+    const section = enrollment.section;
+    const totalItems = section.assignments.length + section.quizzes.length;
 
     const completedAssigns = submittedAssignments.filter(
-      (s) => s.assignment.classId === cls.id
+      (s) => s.assignment.sectionId === section.id
     ).length;
     const completedQuiz = completedQuizzes.filter(
-      (q) => q.quiz.classId === cls.id
+      (q) => q.quiz.sectionId === section.id
     ).length;
 
     const completedItems = completedAssigns + completedQuiz;
@@ -91,22 +93,30 @@ export default async function StudentDashboardPage() {
       totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
     return {
-      id: cls.id,
-      name: cls.name,
-      subject: cls.subject,
-      tutorName: cls.tutor.user.name,
+      id: section.id,
+      name: `${section.template.name} - Section ${section.sectionLabel}`,
+      subject: section.template.subject,
+      tutorName: section.tutor.user.name,
       progress,
-      thumbnail: cls.thumbnail,
+      thumbnail: section.template.thumbnail,
     };
   });
 
   // Get pending assignments
   const allAssignments = await prisma.assignment.findMany({
     where: {
-      classId: { in: classIds },
+      sectionId: { in: sectionIds },
       dueDate: { gte: new Date() },
+      status: "PUBLISHED",
     },
-    include: { class: { select: { name: true } } },
+    include: {
+      section: {
+        select: {
+          sectionLabel: true,
+          template: { select: { name: true } },
+        },
+      },
+    },
     orderBy: { dueDate: "asc" },
   });
 
@@ -124,7 +134,7 @@ export default async function StudentDashboardPage() {
       return {
         id: a.id,
         title: a.title,
-        className: a.class.name,
+        className: `${a.section.template.name} - ${a.section.sectionLabel}`,
         dueDate:
           diffDays === 0
             ? "Hari ini"
@@ -143,7 +153,16 @@ export default async function StudentDashboardPage() {
       score: { not: null },
     },
     include: {
-      quiz: { include: { class: { select: { name: true } } } },
+      quiz: {
+        include: {
+          section: {
+            select: {
+              sectionLabel: true,
+              template: { select: { name: true } },
+            },
+          },
+        },
+      },
     },
     orderBy: { submittedAt: "desc" },
     take: 5,
@@ -152,7 +171,7 @@ export default async function StudentDashboardPage() {
   const recentQuizzes = recentQuizAttempts.map((attempt) => ({
     id: attempt.quiz.id,
     title: attempt.quiz.title,
-    className: attempt.quiz.class.name,
+    className: `${attempt.quiz.section.template.name} - ${attempt.quiz.section.sectionLabel}`,
     score: attempt.score!,
     maxScore: 100,
   }));
@@ -161,12 +180,12 @@ export default async function StudentDashboardPage() {
   const now = new Date();
   const upcomingLiveClasses = await prisma.liveClass.findMany({
     where: {
-      classId: { in: classIds },
+      sectionId: { in: sectionIds },
       scheduledAt: { gte: now },
       status: { not: "CANCELLED" },
     },
     include: {
-      class: {
+      section: {
         include: { tutor: { include: { user: { select: { name: true } } } } },
       },
     },
@@ -226,7 +245,7 @@ export default async function StudentDashboardPage() {
     upcomingLiveClass = {
       id: nextLiveClass.id,
       title: nextLiveClass.title,
-      tutorName: nextLiveClass.class.tutor.user.name,
+      tutorName: nextLiveClass.section.tutor.user.name,
       time: `${scheduledAt.toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit",

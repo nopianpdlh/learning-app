@@ -101,20 +101,24 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const forceDelete = searchParams.get("force") === "true";
 
-    // Check if program has sections with enrollments
+    // Check if program exists and get related data
     const program = await prisma.classTemplate.findUnique({
       where: { id },
       include: {
         sections: {
           include: {
-            _count: {
-              select: {
-                enrollments: true,
+            enrollments: {
+              include: {
+                payment: true,
+                invoices: true,
               },
             },
           },
         },
+        waitingList: true,
       },
     });
 
@@ -122,24 +126,81 @@ export async function DELETE(
       return NextResponse.json({ error: "Program not found" }, { status: 404 });
     }
 
-    // Check if any section has enrollments
-    const hasEnrollments = program.sections.some(
-      (section) => section._count.enrollments > 0
+    // Count total enrollments
+    const totalEnrollments = program.sections.reduce(
+      (acc: number, section) => acc + section.enrollments.length,
+      0
     );
 
-    if (hasEnrollments) {
+    // If has enrollments and not force delete, return error with details
+    if (totalEnrollments > 0 && !forceDelete) {
       return NextResponse.json(
-        { error: "Cannot delete program with active enrollments" },
+        {
+          error: "Cannot delete program with active enrollments",
+          details: {
+            sections: program.sections.length,
+            enrollments: totalEnrollments,
+          },
+          canForceDelete: true,
+        },
         { status: 400 }
       );
     }
 
-    // Delete program (will cascade delete sections)
+    // Force delete - cascade delete all related data
+    if (forceDelete && totalEnrollments > 0) {
+      // Delete in correct order to respect foreign key constraints
+      for (const section of program.sections) {
+        // Delete invoices and payments for each enrollment
+        for (const enrollment of section.enrollments) {
+          // Delete attendance records
+          await prisma.meetingAttendance.deleteMany({
+            where: { enrollmentId: enrollment.id },
+          });
+          // Delete invoices
+          await prisma.invoice.deleteMany({
+            where: { enrollmentId: enrollment.id },
+          });
+          // Payment is one-to-one, delete if exists
+          if (enrollment.payment) {
+            await prisma.payment.delete({
+              where: { id: enrollment.payment.id },
+            });
+          }
+        }
+
+        // Delete all enrollments for this section
+        await prisma.enrollment.deleteMany({
+          where: { sectionId: section.id },
+        });
+
+        // Delete scheduled meetings (and their attendance via cascade)
+        await prisma.scheduledMeeting.deleteMany({
+          where: { sectionId: section.id },
+        });
+      }
+
+      // Delete sections - cascade will handle materials, assignments, quizzes, etc.
+      await prisma.classSection.deleteMany({
+        where: { templateId: id },
+      });
+    }
+
+    // Delete waiting list entries
+    await prisma.waitingList.deleteMany({
+      where: { templateId: id },
+    });
+
+    // Finally delete the program
     await prisma.classTemplate.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      deletedEnrollments: totalEnrollments,
+      deletedSections: program.sections.length,
+    });
   } catch (error) {
     console.error("Failed to delete program:", error);
     return NextResponse.json(

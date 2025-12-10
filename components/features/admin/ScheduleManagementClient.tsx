@@ -17,6 +17,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,6 +110,8 @@ export default function ScheduleManagementClient({
   const [editingMeeting, setEditingMeeting] = useState<ScheduledMeeting | null>(
     null
   );
+  const [cancellingMeeting, setCancellingMeeting] =
+    useState<ScheduledMeeting | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [conflictCheck, setConflictCheck] = useState<{
     valid: boolean;
@@ -303,21 +315,26 @@ export default function ScheduleManagementClient({
     }
   };
 
-  const handleCancelMeeting = async (meeting: ScheduledMeeting) => {
-    if (!confirm(`Batalkan meeting "${meeting.title}"?`)) return;
+  const handleCancelMeeting = async () => {
+    if (!cancellingMeeting) return;
 
     try {
-      const response = await fetch(`/api/admin/schedule/${meeting.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "CANCELLED" }),
-      });
+      const response = await fetch(
+        `/api/admin/schedule/${cancellingMeeting.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "CANCELLED" }),
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to cancel meeting");
 
       setMeetings(
         meetings.map((m) =>
-          m.id === meeting.id ? { ...m, status: "CANCELLED" as const } : m
+          m.id === cancellingMeeting.id
+            ? { ...m, status: "CANCELLED" as const }
+            : m
         )
       );
 
@@ -325,6 +342,8 @@ export default function ScheduleManagementClient({
     } catch (error) {
       console.error(error);
       toast.error("Gagal membatalkan meeting");
+    } finally {
+      setCancellingMeeting(null);
     }
   };
 
@@ -726,7 +745,7 @@ export default function ScheduleManagementClient({
                               size="sm"
                               variant="ghost"
                               className="text-red-500 hover:text-red-700"
-                              onClick={() => handleCancelMeeting(meeting)}
+                              onClick={() => setCancellingMeeting(meeting)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -751,6 +770,32 @@ export default function ScheduleManagementClient({
           <MeetingForm onSubmit={handleEditMeeting} isEditing={true} />
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Meeting Confirmation Dialog */}
+      <AlertDialog
+        open={!!cancellingMeeting}
+        onOpenChange={(open) => !open && setCancellingMeeting(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan Meeting</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin membatalkan meeting{" "}
+              <strong>"{cancellingMeeting?.title}"</strong>? Tindakan ini tidak
+              dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Tidak</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelMeeting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Batalkan Meeting
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

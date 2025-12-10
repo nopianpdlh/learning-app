@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +89,9 @@ export default function InvoiceManagementClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [cancellingInvoice, setCancellingInvoice] = useState<Invoice | null>(
+    null
+  );
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -162,19 +175,24 @@ export default function InvoiceManagementClient({
     }
   };
 
-  const handleCancelInvoice = async (invoice: Invoice) => {
-    if (!confirm(`Batalkan invoice ${invoice.invoiceNumber}?`)) return;
+  const handleCancelInvoice = async () => {
+    if (!cancellingInvoice) return;
 
     try {
-      const response = await fetch(`/api/admin/invoices/${invoice.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/invoices/${cancellingInvoice.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) throw new Error("Failed to cancel invoice");
 
       setInvoices(
         invoices.map((i) =>
-          i.id === invoice.id ? { ...i, status: "CANCELLED" as const } : i
+          i.id === cancellingInvoice.id
+            ? { ...i, status: "CANCELLED" as const }
+            : i
         )
       );
       toast.success("Invoice dibatalkan");
@@ -182,6 +200,8 @@ export default function InvoiceManagementClient({
     } catch (error) {
       console.error(error);
       toast.error("Gagal membatalkan invoice");
+    } finally {
+      setCancellingInvoice(null);
     }
   };
 
@@ -458,7 +478,7 @@ export default function InvoiceManagementClient({
                   <Button
                     variant="outline"
                     className="flex-1"
-                    onClick={() => handleCancelInvoice(selectedInvoice)}
+                    onClick={() => setCancellingInvoice(selectedInvoice)}
                   >
                     <XCircle className="h-4 w-4 mr-2" />
                     Batalkan
@@ -482,6 +502,32 @@ export default function InvoiceManagementClient({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Invoice Confirmation Dialog */}
+      <AlertDialog
+        open={!!cancellingInvoice}
+        onOpenChange={(open) => !open && setCancellingInvoice(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan Invoice</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin membatalkan invoice{" "}
+              <strong>{cancellingInvoice?.invoiceNumber}</strong>? Tindakan ini
+              tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Tidak</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelInvoice}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Batalkan Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

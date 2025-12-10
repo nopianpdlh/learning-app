@@ -151,46 +151,19 @@ model TutorProfile {
   updatedAt   DateTime @updatedAt
 
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  classes      Class[]            // Legacy: existing classes
-  sections     ClassSection[]     // NEW: Class sections
-  availability TutorAvailability[] // NEW: Availability slots
+  sections     ClassSection[]     // Class sections
+  availability TutorAvailability[] // Availability slots
 
   @@index([userId])
 }
 
-model Class {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @db.Text
-  subject     String
-  gradeLevel  String
-  price       Int
-  capacity    Int
-  schedule    String   // e.g., "Senin & Rabu, 19:00-21:00"
-  thumbnail   String?
-  published   Boolean  @default(false)
-  tutorId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tutor         TutorProfile  @relation(fields: [tutorId], references: [id])
-  enrollments   Enrollment[]
-  materials     Material[]
-  assignments   Assignment[]
-  quizzes       Quiz[]
-  liveClasses   LiveClass[]
-  forumThreads  ForumThread[]
-
-  @@index([tutorId])
-  @@index([subject])
-  @@index([published])
-}
+// NOTE: Legacy Class model has been removed
+// All content now uses ClassSection (sectionId)
 
 model Enrollment {
   id         String           @id @default(cuid())
   studentId  String
-  classId    String?          // Legacy: Made optional for migration
-  sectionId  String?          // NEW: Section-based enrollment
+  sectionId  String           // Section-based enrollment (required)
   status     EnrollmentStatus @default(PENDING)
   
   // Subscription Period (Rolling 30 days)
@@ -201,6 +174,8 @@ model Enrollment {
   // Meeting Quota Tracking
   meetingsAllowed   Int   @default(8)
   meetingsAttended  Int   @default(0)
+  meetingsRemaining Int   @default(8)
+  totalMeetings     Int   @default(8)
   
   enrolledAt  DateTime         @default(now())
   completedAt DateTime?
@@ -208,15 +183,13 @@ model Enrollment {
   updatedAt   DateTime         @updatedAt
 
   student    StudentProfile      @relation(fields: [studentId], references: [id])
-  class      Class?              @relation(fields: [classId], references: [id])
-  section    ClassSection?       @relation(fields: [sectionId], references: [id])
+  section    ClassSection        @relation(fields: [sectionId], references: [id])
   payment    Payment?
   attendance MeetingAttendance[]
   invoices   Invoice[]
 
-  @@unique([studentId, classId])
+  @@unique([studentId, sectionId])
   @@index([studentId])
-  @@index([classId])
   @@index([sectionId])
   @@index([status])
   @@index([expiryDate])
@@ -299,7 +272,7 @@ model Invoice {
 
 model Material {
   id            String   @id @default(cuid())
-  classId       String
+  sectionId     String   // Required: Section-based content
   title         String
   description   String?  @db.Text
   session       Int      // Pertemuan ke-
@@ -312,16 +285,16 @@ model Material {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  class     Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section   ClassSection       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   bookmarks MaterialBookmark[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([session])
 }
 
 model Assignment {
   id           String           @id @default(cuid())
-  classId      String
+  sectionId    String           // Required: Section-based content
   title        String
   instructions String           @db.Text
   dueDate      DateTime
@@ -331,10 +304,10 @@ model Assignment {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  class       Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section     ClassSection           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   submissions AssignmentSubmission[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([dueDate])
   @@index([status])
 }
@@ -363,7 +336,7 @@ model AssignmentSubmission {
 
 model Quiz {
   id            String     @id @default(cuid())
-  classId       String
+  sectionId     String     // Required: Section-based content
   title         String
   description   String?    @db.Text
   timeLimit     Int?       // Minutes
@@ -374,11 +347,11 @@ model Quiz {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  class     Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section   ClassSection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
   attempts  QuizAttempt[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([status])
 }
 
@@ -437,7 +410,7 @@ model QuizAnswer {
 
 model LiveClass {
   id              String    @id @default(cuid())
-  classId         String
+  sectionId       String    // Required: Section-based content
   title           String
   description     String?   @db.Text
   meetingUrl      String
@@ -449,10 +422,10 @@ model LiveClass {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  class       Class                 @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section     ClassSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   attendances LiveClassAttendance[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([scheduledAt])
   @@index([status])
 }
@@ -475,17 +448,17 @@ model LiveClassAttendance {
 
 model ForumThread {
   id        String   @id @default(cuid())
-  classId   String
+  sectionId String   // Section-based forum
   authorId  String
   title     String
   isPinned  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  class Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
-  posts ForumPost[]
+  section ClassSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  posts   ForumPost[]
 
-  @@index([classId])
+  @@index([sectionId])
 }
 
 model ForumPost {
@@ -595,6 +568,13 @@ model ClassSection {
   tutor       TutorProfile       @relation(fields: [tutorId], references: [id])
   enrollments Enrollment[]
   meetings    ScheduledMeeting[]
+  
+  // Content relations
+  materials    Material[]
+  assignments  Assignment[]
+  quizzes      Quiz[]
+  liveClasses  LiveClass[]
+  forumThreads ForumThread[]
 
   @@unique([templateId, sectionLabel])
   @@index([templateId])

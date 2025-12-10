@@ -14,12 +14,12 @@ import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
 
 async function getAdminStats() {
-  // Get counts
-  const [totalStudents, totalTutors, totalClasses, payments, enrollments] =
+  // Get counts - using sections instead of legacy classes
+  const [totalStudents, totalTutors, totalSections, payments, enrollments] =
     await Promise.all([
       db.user.count({ where: { role: "STUDENT" } }),
       db.user.count({ where: { role: "TUTOR" } }),
-      db.class.count({ where: { published: true } }),
+      db.classSection.count({ where: { status: "ACTIVE" } }),
       db.payment.findMany({
         where: { status: "PAID" },
         select: { amount: true, createdAt: true },
@@ -70,7 +70,7 @@ async function getAdminStats() {
   return {
     totalStudents,
     totalTutors,
-    totalClasses,
+    totalClasses: totalSections,
     totalRevenue,
     revenueData,
     enrollmentData,
@@ -78,41 +78,48 @@ async function getAdminStats() {
 }
 
 async function getRecentActivities() {
-  const [recentEnrollments, recentPayments, recentClasses] = await Promise.all([
-    db.enrollment.findMany({
-      take: 5,
-      orderBy: { enrolledAt: "desc" },
-      include: {
-        student: { include: { user: true } },
-        class: true,
-      },
-    }),
-    db.payment.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        enrollment: {
-          include: {
-            student: { include: { user: true } },
-            class: true,
+  const [recentEnrollments, recentPayments, recentSections] = await Promise.all(
+    [
+      db.enrollment.findMany({
+        take: 5,
+        orderBy: { enrolledAt: "desc" },
+        include: {
+          student: { include: { user: true } },
+          section: {
+            include: {
+              template: true,
+            },
           },
         },
-      },
-    }),
-    db.class.findMany({
-      take: 3,
-      orderBy: { createdAt: "desc" },
-      include: {
-        tutor: { include: { user: true } },
-      },
-    }),
-  ]);
+      }),
+      db.payment.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: {
+          enrollment: {
+            include: {
+              student: { include: { user: true } },
+              section: { include: { template: true } },
+            },
+          },
+        },
+      }),
+      db.classSection.findMany({
+        take: 3,
+        orderBy: { createdAt: "desc" },
+        include: {
+          tutor: { include: { user: true } },
+          template: true,
+        },
+      }),
+    ]
+  );
 
   const activities = [
     ...recentEnrollments.map((e) => ({
       type: "enrollment",
       user: e.student.user.name,
-      action: `enrolled in ${e.class.name}`,
+      action: `enrolled in ${e.section.template.name} - Section ${e.section.sectionLabel}`,
       time: formatDistanceToNow(e.enrolledAt, { addSuffix: true, locale: id }),
       date: e.enrolledAt,
     })),
@@ -120,17 +127,17 @@ async function getRecentActivities() {
       type: "payment",
       user: p.enrollment.student.user.name,
       action: `paid Rp ${p.amount.toLocaleString("id-ID")} for ${
-        p.enrollment.class.name
+        p.enrollment.section.template.name
       }`,
       time: formatDistanceToNow(p.createdAt, { addSuffix: true, locale: id }),
       date: p.createdAt,
     })),
-    ...recentClasses.map((c) => ({
+    ...recentSections.map((s) => ({
       type: "class",
-      user: c.tutor.user.name,
-      action: `created new class: ${c.name}`,
-      time: formatDistanceToNow(c.createdAt, { addSuffix: true, locale: id }),
-      date: c.createdAt,
+      user: s.tutor.user.name,
+      action: `assigned to section: ${s.template.name} - ${s.sectionLabel}`,
+      time: formatDistanceToNow(s.createdAt, { addSuffix: true, locale: id }),
+      date: s.createdAt,
     })),
   ];
 
@@ -159,7 +166,7 @@ export default async function AdminDashboard() {
       trend: "up",
     },
     {
-      title: "Active Classes",
+      title: "Active Sections",
       value: stats.totalClasses.toLocaleString(),
       icon: GraduationCap,
       change: "+8%",
