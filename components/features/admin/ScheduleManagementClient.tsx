@@ -577,7 +577,151 @@ export default function ScheduleManagementClient({
             <DialogHeader>
               <DialogTitle>Jadwalkan Meeting Baru</DialogTitle>
             </DialogHeader>
-            <MeetingForm onSubmit={handleAddMeeting} isEditing={false} />
+            <form onSubmit={handleAddMeeting} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Section *</Label>
+                <Select
+                  value={formData.sectionId}
+                  onValueChange={(value) =>
+                    handleFormChange("sectionId", value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih section" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white max-h-[300px]">
+                    {sections.map((section) => (
+                      <SelectItem key={section.id} value={section.id}>
+                        {section.template.name} - Section {section.sectionLabel}{" "}
+                        ({section.tutor.user.name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Judul Meeting *</Label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  placeholder="Pertemuan ke-1: Introduction"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Deskripsi</Label>
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Materi yang akan dibahas..."
+                  rows={2}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tanggal *</Label>
+                  <Input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => handleFormChange("date", e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Waktu *</Label>
+                  <Input
+                    type="time"
+                    value={formData.time}
+                    onChange={(e) => handleFormChange("time", e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Durasi (menit)</Label>
+                  <Select
+                    value={formData.duration}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, duration: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="60">60 menit</SelectItem>
+                      <SelectItem value="90">90 menit</SelectItem>
+                      <SelectItem value="120">120 menit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Meeting URL</Label>
+                  <Input
+                    value={formData.meetingUrl}
+                    onChange={(e) =>
+                      setFormData({ ...formData, meetingUrl: e.target.value })
+                    }
+                    placeholder="https://zoom.us/..."
+                  />
+                </div>
+              </div>
+
+              {/* Conflict Check Result */}
+              {conflictCheck && (
+                <div
+                  className={`p-3 rounded-lg flex items-start gap-2 ${
+                    conflictCheck.valid
+                      ? "bg-green-50 border border-green-200"
+                      : "bg-red-50 border border-red-200"
+                  }`}
+                >
+                  {conflictCheck.valid ? (
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                  )}
+                  <p
+                    className={`text-sm ${
+                      conflictCheck.valid ? "text-green-800" : "text-red-800"
+                    }`}
+                  >
+                    {conflictCheck.message}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setIsAddDialogOpen(false);
+                    resetForm();
+                  }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-[#FFB800] hover:bg-[#e6a600] text-black"
+                  disabled={isLoading || !conflictCheck?.valid}
+                >
+                  {isLoading ? "Loading..." : "Jadwalkan Meeting"}
+                </Button>
+              </div>
+            </form>
           </DialogContent>
         </Dialog>
       </div>

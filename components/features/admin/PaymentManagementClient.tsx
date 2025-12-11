@@ -68,8 +68,10 @@ interface PaymentData {
         name: string;
       };
     };
-    class: {
-      name: string;
+    section: {
+      template: {
+        name: string;
+      };
     };
   };
 }
@@ -93,7 +95,7 @@ export function PaymentManagementClient({
     const csvData = filteredPayments.map((payment) => ({
       "Payment ID": payment.id,
       Student: payment.enrollment.student.user.name,
-      Class: payment.enrollment.class.name,
+      Class: payment.enrollment.section.template.name,
       Amount: payment.amount,
       Method: payment.paymentMethod,
       Status: payment.status,
@@ -110,7 +112,7 @@ export function PaymentManagementClient({
     const excelData = filteredPayments.map((payment) => ({
       "Payment ID": payment.id,
       Student: payment.enrollment.student.user.name,
-      Class: payment.enrollment.class.name,
+      Class: payment.enrollment.section.template.name,
       Amount: payment.amount,
       Method: payment.paymentMethod,
       Status: payment.status,
@@ -160,7 +162,7 @@ export function PaymentManagementClient({
     const tableData = filteredPayments.map((payment) => [
       payment.id.slice(0, 8) + "...",
       payment.enrollment.student.user.name,
-      payment.enrollment.class.name,
+      payment.enrollment.section.template.name,
       `Rp ${payment.amount.toLocaleString("id-ID")}`,
       payment.paymentMethod,
       payment.status,
@@ -194,7 +196,7 @@ export function PaymentManagementClient({
       payment.enrollment.student.user.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      payment.enrollment.class.name
+      payment.enrollment.section.template.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       payment.id.toLowerCase().includes(searchQuery.toLowerCase());
@@ -378,7 +380,9 @@ export function PaymentManagementClient({
                   {payment.id.slice(0, 8)}...
                 </TableCell>
                 <TableCell>{payment.enrollment.student.user.name}</TableCell>
-                <TableCell>{payment.enrollment.class.name}</TableCell>
+                <TableCell>
+                  {payment.enrollment.section.template.name}
+                </TableCell>
                 <TableCell suppressHydrationWarning>
                   Rp {payment.amount.toLocaleString("id-ID")}
                 </TableCell>
