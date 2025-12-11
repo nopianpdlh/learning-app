@@ -122,6 +122,7 @@ export default function SectionManagementClient({
   const [suggestionProgram, setSuggestionProgram] =
     useState<ClassTemplate | null>(null);
   const [showSuggestion, setShowSuggestion] = useState(false);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
 
   const [formData, setFormData] = useState({
     sectionLabel: "",
@@ -130,6 +131,9 @@ export default function SectionManagementClient({
 
   // Check for sections at 90% capacity
   useEffect(() => {
+    // Don't show if user already dismissed
+    if (suggestionDismissed) return;
+
     const programsNeedingSections = programs.filter((program) => {
       const latestSection = program.sections
         .filter((s) => s.status === "ACTIVE")
@@ -148,7 +152,7 @@ export default function SectionManagementClient({
       setSuggestionProgram(programsNeedingSections[0]);
       setShowSuggestion(true);
     }
-  }, [programs, suggestionProgram]);
+  }, [programs, suggestionProgram, suggestionDismissed]);
 
   // Filter programs by search
   const filteredPrograms = programs.filter(
@@ -476,6 +480,7 @@ export default function SectionManagementClient({
                 onClick={() => {
                   setShowSuggestion(false);
                   setSuggestionProgram(null);
+                  setSuggestionDismissed(true); // Prevent dialog from reappearing
                 }}
               >
                 Nanti

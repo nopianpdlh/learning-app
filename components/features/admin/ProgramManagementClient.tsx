@@ -824,13 +824,27 @@ export default function ProgramManagementClient({
                   <TableRow key={program.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        {program.thumbnail && (
-                          <img
-                            src={program.thumbnail}
-                            alt={program.name}
-                            className="h-10 w-10 rounded object-cover"
-                          />
-                        )}
+                        <div className="h-10 w-10 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                          {program.thumbnail ? (
+                            <img
+                              src={program.thumbnail}
+                              alt={program.name}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                // Hide broken image and show fallback
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  parent.innerHTML =
+                                    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>';
+                                }
+                              }}
+                            />
+                          ) : (
+                            <BookOpen className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
                         <div>
                           <p className="font-medium">{program.name}</p>
                           <p className="text-sm text-muted-foreground">
