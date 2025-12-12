@@ -17,6 +17,7 @@ import {
   IconLogout,
   IconDotsVertical,
   IconUserCircle,
+  IconSearch,
 } from "@tabler/icons-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -50,7 +51,8 @@ const menuGroups = [
     label: "Menu Utama",
     items: [
       { icon: IconHome, label: "Dashboard", path: "/student/dashboard" },
-      { icon: IconBook, label: "Kelas Saya", path: "/student/classes" },
+      { icon: IconBook, label: "Kelas Saya", path: "/student/sections" },
+      { icon: IconSearch, label: "Cari Program", path: "/student/programs" },
     ],
   },
   {

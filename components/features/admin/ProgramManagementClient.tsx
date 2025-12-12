@@ -165,7 +165,8 @@ export default function ProgramManagementClient({
 
       const uploadFormData = new FormData();
       uploadFormData.append("file", thumbnailFile);
-      uploadFormData.append("folder", "program-thumbnails");
+      uploadFormData.append("bucket", "thumbnails");
+      uploadFormData.append("folder", "programs");
 
       const headers: HeadersInit = {};
       if (session?.access_token) {

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { db as prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import StudentSectionsClient from "./StudentSectionsClient";
@@ -13,48 +13,44 @@ export default async function StudentSectionsPage() {
     redirect("/login");
   }
 
-  // Get student profile with enrollments
-  const dbUser = await prisma.user.findUnique({
-    where: { email: user.email! },
-    include: {
-      studentProfile: {
-        include: {
-          enrollments: {
-            where: {
-              sectionId: { not: null },
-              status: { in: ["ACTIVE", "EXPIRED", "PENDING"] },
-            },
-            include: {
-              section: {
-                include: {
-                  template: true,
-                  tutor: {
-                    include: { user: { select: { name: true, avatar: true } } },
-                  },
-                  _count: {
-                    select: {
-                      materials: true,
-                      assignments: true,
-                      quizzes: true,
-                    },
-                  },
-                },
-              },
-              payment: true,
-            },
-            orderBy: { createdAt: "desc" },
-          },
-        },
-      },
-    },
+  // Get student profile
+  const studentProfile = await prisma.studentProfile.findUnique({
+    where: { userId: user.id },
   });
 
-  if (!dbUser?.studentProfile) {
+  if (!studentProfile) {
     redirect("/login");
   }
 
+  // Get enrollments with sections
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      studentId: studentProfile.id,
+      status: { in: ["ACTIVE", "EXPIRED", "PENDING"] },
+    },
+    include: {
+      section: {
+        include: {
+          template: true,
+          tutor: {
+            include: { user: { select: { name: true, avatar: true } } },
+          },
+          _count: {
+            select: {
+              materials: true,
+              assignments: true,
+              quizzes: true,
+            },
+          },
+        },
+      },
+      payment: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   // Transform data for client
-  const enrolledSections = dbUser.studentProfile.enrollments
+  const enrolledSections = enrollments
     .filter((e) => e.section)
     .map((enrollment) => {
       const section = enrollment.section!;

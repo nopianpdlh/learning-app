@@ -6,7 +6,12 @@
 import { createClient } from "@/lib/supabase/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type StorageBucket = "materials" | "assignments" | "avatars";
+export type StorageBucket =
+  | "materials"
+  | "assignments"
+  | "avatars"
+  | "thumbnails"
+  | "submissions";
 
 export interface UploadOptions {
   bucket: StorageBucket;

@@ -19,7 +19,8 @@ import NotificationCenter from "@/components/features/notifications/Notification
 // Map paths to page titles
 const pageTitles: Record<string, string> = {
   "/student/dashboard": "Dashboard",
-  "/student/classes": "Kelas Saya",
+  "/student/sections": "Kelas Saya",
+  "/student/programs": "Cari Program",
   "/student/materials": "Materi",
   "/student/assignments": "Tugas",
   "/student/quizzes": "Kuis",
