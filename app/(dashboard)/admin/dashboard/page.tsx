@@ -7,8 +7,10 @@ import {
   Activity,
   UserCheck,
 } from "lucide-react";
-import { RevenueChart } from "@/components/charts/RevenueChart";
-import { EnrollmentChart } from "@/components/charts/EnrollmentChart";
+import {
+  RevenueEnrollmentChart,
+  ChartDataPoint,
+} from "@/components/charts/RevenueEnrollmentChart";
 import { db } from "@/lib/db";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
@@ -33,47 +35,58 @@ async function getAdminStats() {
   // Calculate revenue
   const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
-  // Get revenue by month (last 6 months)
+  // Get daily data for last 90 days (for the new chart)
   const now = new Date();
-  const monthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  const revenueByMonth = payments
-    .filter((p) => p.createdAt >= monthsAgo)
-    .reduce((acc, p) => {
-      const month = p.createdAt.toLocaleDateString("en-US", { month: "short" });
-      acc[month] = (acc[month] || 0) + p.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  const ninetyDaysAgo = new Date(now);
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const revenueData = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    return { month, revenue: revenueByMonth[month] || 0 };
-  });
+  // Process payments into daily data
+  const dailyData: Record<string, { revenue: number; enrollments: number }> =
+    {};
 
-  // Get enrollment by month (last 6 months)
-  const enrollmentByMonth = enrollments
-    .filter((e) => e.enrolledAt >= monthsAgo)
-    .reduce((acc, e) => {
-      const month = e.enrolledAt.toLocaleDateString("en-US", {
-        month: "short",
-      });
-      acc[month] = (acc[month] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  // Initialize all days with 0
+  for (let i = 0; i < 90; i++) {
+    const date = new Date(ninetyDaysAgo);
+    date.setDate(date.getDate() + i);
+    const dateKey = date.toISOString().split("T")[0];
+    dailyData[dateKey] = { revenue: 0, enrollments: 0 };
+  }
 
-  const enrollmentData = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    return { month, students: enrollmentByMonth[month] || 0 };
-  });
+  // Fill in payment data
+  payments
+    .filter((p) => p.createdAt >= ninetyDaysAgo)
+    .forEach((p) => {
+      const dateKey = p.createdAt.toISOString().split("T")[0];
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].revenue += p.amount;
+      }
+    });
+
+  // Fill in enrollment data
+  enrollments
+    .filter((e) => e.enrolledAt >= ninetyDaysAgo)
+    .forEach((e) => {
+      const dateKey = e.enrolledAt.toISOString().split("T")[0];
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].enrollments += 1;
+      }
+    });
+
+  // Convert to array for chart
+  const chartData: ChartDataPoint[] = Object.entries(dailyData)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, data]) => ({
+      date,
+      revenue: data.revenue,
+      enrollments: data.enrollments,
+    }));
 
   return {
     totalStudents,
     totalTutors,
     totalClasses: totalSections,
     totalRevenue,
-    revenueData,
-    enrollmentData,
+    chartData,
   };
 }
 
@@ -215,26 +228,8 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Overview (Last 6 Months)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RevenueChart data={stats.revenueData} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Enrollment (Last 6 Months)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EnrollmentChart data={stats.enrollmentData} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Combined Chart */}
+      <RevenueEnrollmentChart data={stats.chartData} />
 
       {/* Recent Activities */}
       <Card>

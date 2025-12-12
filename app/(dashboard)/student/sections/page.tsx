@@ -1,4 +1,5 @@
 import { db as prisma } from "@/lib/db";
+// import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import StudentSectionsClient from "./StudentSectionsClient";

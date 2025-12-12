@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { db as prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import StudentSectionDetailClient from "./StudentSectionDetailClient";
@@ -151,7 +151,15 @@ export default async function StudentSectionDetailPage({
         questionsCount: q._count.questions,
         timeLimit: q.timeLimit,
         passingGrade: q.passingGrade,
-        lastAttempt: q.attempts[0] || null,
+        lastAttempt: q.attempts[0]
+          ? {
+              id: q.attempts[0].id,
+              score: q.attempts[0].score,
+              submittedAt: q.attempts[0].submittedAt
+                ? q.attempts[0].submittedAt.toISOString()
+                : null,
+            }
+          : null,
       }))}
       meetings={meetings.map((m) => ({
         id: m.id,
