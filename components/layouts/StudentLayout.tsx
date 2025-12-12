@@ -28,6 +28,9 @@ const pageTitles: Record<string, string> = {
   "/student/grades": "Rapor/Nilai",
   "/student/settings": "Pengaturan",
   "/student/profile": "Profil Saya",
+  "/student/payments": "Riwayat Pembayaran",
+  "/student/payment": "Pembayaran",
+  "/student/invoice": "Invoice",
 };
 
 interface StudentLayoutProps {

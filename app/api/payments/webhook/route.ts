@@ -42,10 +42,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Find payment by order ID (transaction ID)
+    // Find payment by order ID (which is the invoice number we sent to Midtrans)
     const payment = await db.payment.findFirst({
       where: {
-        OR: [{ transactionId: order_id }, { enrollmentId: order_id }],
+        OR: [
+          { orderId: order_id },
+          { transactionId: order_id },
+          { enrollmentId: order_id },
+        ],
       },
       include: {
         enrollment: {

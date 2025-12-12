@@ -18,6 +18,7 @@ import {
   IconDotsVertical,
   IconUserCircle,
   IconSearch,
+  IconCreditCard,
 } from "@tabler/icons-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,6 +69,7 @@ const menuGroups = [
     items: [
       { icon: IconVideo, label: "Live Class", path: "/student/liveClasses" },
       { icon: IconChartBar, label: "Rapor/Nilai", path: "/student/grades" },
+      { icon: IconCreditCard, label: "Pembayaran", path: "/student/payments" },
     ],
   },
   {
