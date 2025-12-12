@@ -101,15 +101,33 @@ export default function DashboardClient({
     }
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "Good morning";
+    if (hour >= 12 && hour < 17) return "Good afternoon";
+    if (hour >= 17 && hour < 21) return "Good evening";
+    return "Good night";
+  };
+
+  const getEmoji = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "☀️";
+    if (hour >= 12 && hour < 17) return "🌤️";
+    if (hour >= 17 && hour < 21) return "🌆";
+    return "🌙";
+  };
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold text-dark mb-2">
-          Halo, {studentName.split(" ")[0]}! 👋
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <span>{getGreeting()},</span>
+          <span className="text-primary">{studentName.split(" ")[0]}</span>
+          <span>{getEmoji()}</span>
         </h1>
-        <p className="text-muted-foreground">
-          Selamat datang kembali. Mari lanjutkan pembelajaran Anda hari ini.
+        <p className="text-muted-foreground mt-1">
+          Ready to continue your learning journey?
         </p>
       </div>
 

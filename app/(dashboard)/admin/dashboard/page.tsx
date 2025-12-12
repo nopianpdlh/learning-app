@@ -12,8 +12,13 @@ import {
   ChartDataPoint,
 } from "@/components/charts/RevenueEnrollmentChart";
 import { db } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
+import {
+  AdminDashboardHeader,
+  AdminDashboardCalendar,
+} from "./DashboardWidgets";
 
 async function getAdminStats() {
   // Get counts - using sections instead of legacy classes
@@ -159,9 +164,74 @@ async function getRecentActivities() {
     .slice(0, 5);
 }
 
+// Get upcoming live class
+async function getUpcomingLiveClass() {
+  const now = new Date();
+  const nextMeeting = await db.scheduledMeeting.findFirst({
+    where: {
+      scheduledAt: {
+        gt: now,
+      },
+    },
+    orderBy: {
+      scheduledAt: "asc",
+    },
+    include: {
+      section: {
+        include: {
+          template: true,
+          tutor: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!nextMeeting) return null;
+
+  // Calculate end time based on scheduledAt + duration (duration is in minutes)
+  const endTime = new Date(
+    nextMeeting.scheduledAt.getTime() + nextMeeting.duration * 60000
+  );
+
+  return {
+    id: nextMeeting.id,
+    title: nextMeeting.section.template.name,
+    sectionLabel: nextMeeting.section.sectionLabel,
+    tutorName: nextMeeting.section.tutor.user.name,
+    startTime: nextMeeting.scheduledAt.toISOString(),
+    endTime: endTime.toISOString(),
+    meetingUrl: nextMeeting.meetingUrl || undefined,
+  };
+}
+
+// Get current admin user name
+async function getAdminUserName() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return "Admin";
+
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { name: true },
+  });
+
+  return dbUser?.name || user.email?.split("@")[0] || "Admin";
+}
+
 export default async function AdminDashboard() {
-  const stats = await getAdminStats();
-  const activities = await getRecentActivities();
+  const [stats, activities, upcomingLiveClass, userName] = await Promise.all([
+    getAdminStats(),
+    getRecentActivities(),
+    getUpcomingLiveClass(),
+    getAdminUserName(),
+  ]);
 
   const statsCards = [
     {
@@ -195,12 +265,12 @@ export default async function AdminDashboard() {
   ];
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
-          Monitor platform performance and key metrics
-        </p>
-      </div>
+      {/* Welcome Message + LiveClass Banner */}
+      <AdminDashboardHeader
+        userName={userName}
+        upcomingLiveClass={upcomingLiveClass}
+        calendarEvents={[]}
+      />
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

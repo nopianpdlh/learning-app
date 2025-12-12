@@ -79,11 +79,11 @@ export default function TutorDashboardClient() {
       if (response.ok) {
         setData(result);
       } else {
-        toast.error(result.error || "Gagal memuat dashboard");
+        toast.error(result.error || "Failed to load dashboard");
       }
     } catch (error) {
       console.error("Error fetching dashboard:", error);
-      toast.error("Terjadi kesalahan saat memuat data");
+      toast.error("An error occurred while loading data");
     } finally {
       setLoading(false);
     }
@@ -111,9 +111,9 @@ export default function TutorDashboardClient() {
       tomorrow.getDate()
     );
 
-    if (dateOnly.getTime() === todayOnly.getTime()) return "Hari ini";
-    if (dateOnly.getTime() === tomorrowOnly.getTime()) return "Besok";
-    return format(date, "dd MMM", { locale: localeId });
+    if (dateOnly.getTime() === todayOnly.getTime()) return "Today";
+    if (dateOnly.getTime() === tomorrowOnly.getTime()) return "Tomorrow";
+    return format(date, "MMM dd", { locale: localeId });
   };
 
   if (loading) {
@@ -128,46 +128,66 @@ export default function TutorDashboardClient() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
-        <p className="text-muted-foreground">Gagal memuat data dashboard</p>
-        <Button onClick={fetchDashboardData}>Coba Lagi</Button>
+        <p className="text-muted-foreground">Failed to load dashboard data</p>
+        <Button onClick={fetchDashboardData}>Try Again</Button>
       </div>
     );
   }
 
   const statsConfig = [
     {
-      title: "Total Kelas",
+      title: "Total Classes",
       value: data.stats.totalClasses.toString(),
       icon: BookOpen,
-      trend: `${data.stats.totalClasses} kelas aktif`,
+      trend: `${data.stats.totalClasses} active classes`,
     },
     {
-      title: "Total Siswa",
+      title: "Total Students",
       value: data.stats.totalStudents.toString(),
       icon: Users,
-      trend: `Terdaftar aktif`,
+      trend: `Actively enrolled`,
     },
     {
-      title: "Tugas Pending",
+      title: "Pending Grading",
       value: data.stats.pendingGrading.toString(),
       icon: ClipboardList,
-      trend: "Perlu dinilai",
+      trend: "Needs grading",
     },
     {
-      title: "Kuis Aktif",
+      title: "Active Quizzes",
       value: data.stats.activeQuizzes.toString(),
       icon: FileQuestion,
-      trend: "Sedang berjalan",
+      trend: "Currently running",
     },
   ];
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "Good morning";
+    if (hour >= 12 && hour < 17) return "Good afternoon";
+    if (hour >= 17 && hour < 21) return "Good evening";
+    return "Good night";
+  };
+
+  const getEmoji = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return "☀️";
+    if (hour >= 12 && hour < 17) return "🌤️";
+    if (hour >= 17 && hour < 21) return "🌆";
+    return "🌙";
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard Tutor</h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          <span>{getGreeting()},</span>
+          <span className="text-primary">{data.tutorName.split(" ")[0]}</span>
+          <span>{getEmoji()}</span>
+        </h1>
         <p className="text-muted-foreground mt-1">
-          Selamat datang kembali, {data.tutorName}
+          Manage your classes and help your students succeed
         </p>
       </div>
 
