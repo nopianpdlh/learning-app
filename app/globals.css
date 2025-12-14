@@ -26,6 +26,11 @@
 }
 
 @layer base {
+  html {
+    /* Prevent layout shift when scrollbar appears/disappears */
+    scrollbar-gutter: stable;
+  }
+
   :root {
     /* Tutor Nomor Satu Brand Colors */
     --background: 0 0% 100%;
