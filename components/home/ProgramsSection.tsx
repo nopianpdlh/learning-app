@@ -84,12 +84,12 @@ export function ProgramsSection() {
             >
               <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                 {/* Thumbnail */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative aspect-4/3 overflow-hidden bg-gray-100">
                   <Image
                     src={program.thumbnail}
                     alt={program.name}
                     fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                    className="object-cover object-top group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
                   <Badge className="absolute top-3 left-3">

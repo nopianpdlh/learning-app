@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -226,11 +227,12 @@ export default function StudentSectionsClient({ enrolledSections }: Props) {
             >
               {/* Thumbnail */}
               {item.section.template.thumbnail && (
-                <div className="h-32 overflow-hidden rounded-t-lg">
-                  <img
+                <div className="relative aspect-4/3 overflow-hidden rounded-t-lg bg-gray-100">
+                  <Image
                     src={item.section.template.thumbnail}
                     alt={item.section.template.name}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover object-top"
                   />
                 </div>
               )}

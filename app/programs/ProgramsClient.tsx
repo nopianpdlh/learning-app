@@ -210,13 +210,13 @@ export function ProgramsClient({ programs }: ProgramsClientProps) {
                 >
                   <Card className="group overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                     {/* Thumbnail */}
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative aspect-4/3 overflow-hidden bg-gray-100">
                       {program.thumbnail ? (
                         <Image
                           src={program.thumbnail}
                           alt={program.name}
                           fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="object-cover object-top group-hover:scale-110 transition-transform duration-500"
                         />
                       ) : (
                         <div className="w-full h-full bg-linear-to-br from-primary/20 to-indigo-100 flex items-center justify-center">

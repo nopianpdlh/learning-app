@@ -136,13 +136,13 @@ export function ProgramDetailClient({ program }: ProgramDetailClientProps) {
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <div className="relative aspect-video rounded-2xl overflow-hidden shadow-xl">
+              <div className="relative aspect-4/3 rounded-2xl overflow-hidden shadow-xl bg-gray-100">
                 {program.thumbnail ? (
                   <Image
                     src={program.thumbnail}
                     alt={program.name}
                     fill
-                    className="object-cover"
+                    className="object-cover object-top"
                     priority
                   />
                 ) : (

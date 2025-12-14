@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,11 +164,12 @@ export default function TutorSectionDetailClient({
         <CardContent className="p-6">
           <div className="flex gap-6">
             {section.template.thumbnail && (
-              <div className="w-32 h-32 rounded-lg overflow-hidden shrink-0">
-                <img
+              <div className="relative w-32 h-32 rounded-lg overflow-hidden shrink-0 bg-gray-100">
+                <Image
                   src={section.template.thumbnail}
                   alt={section.template.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover object-top"
                 />
               </div>
             )}
