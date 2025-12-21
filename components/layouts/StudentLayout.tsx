@@ -80,7 +80,8 @@ export const StudentLayout = ({ children }: StudentLayoutProps) => {
         {/* Footer */}
         <footer className="border-t py-4 px-6">
           <p className="text-center text-sm text-muted-foreground">
-            © 2024 Tutor Nomor Satu. Student Portal - All rights reserved.
+            © 2022-{new Date().getFullYear()} Tutor Nomor Satu. Student Portal -
+            All rights reserved.
           </p>
         </footer>
       </SidebarInset>

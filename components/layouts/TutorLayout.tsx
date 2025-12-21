@@ -78,7 +78,8 @@ export function TutorLayout({ children }: TutorLayoutProps) {
         {/* Footer */}
         <footer className="border-t py-4 px-6">
           <p className="text-center text-sm text-muted-foreground">
-            © 2024 Tutor Nomor Satu. Tutor Panel - All rights reserved.
+            © 2022-{new Date().getFullYear()} Tutor Nomor Satu. Tutor Panel -
+            All rights reserved.
           </p>
         </footer>
       </SidebarInset>
