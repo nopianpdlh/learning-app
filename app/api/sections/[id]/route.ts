@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 
 // GET section detail with enrollment status for current student

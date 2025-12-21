@@ -65,7 +65,7 @@ export async function POST(
     }
 
     // Extract path (handle both formats)
-    let filePath = material.fileUrl;
+    const filePath = material.fileUrl;
 
     // Try to generate signed URL with server-side client
     const { data, error } = await supabase.storage

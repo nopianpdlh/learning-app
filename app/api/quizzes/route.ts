@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Build where clause based on role
-    let where: any = {};
+    const where: any = {};
 
     // If classId provided, filter by class
     if (params.classId) {

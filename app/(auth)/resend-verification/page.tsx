@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -24,8 +24,9 @@ import {
   AlertCircle,
   ArrowLeft,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function ResendVerificationPage() {
+function ResendVerificationForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const emailFromParams = searchParams.get("email") || "";
@@ -199,5 +200,34 @@ export default function ResendVerificationPage() {
         </CardFooter>
       </form>
     </Card>
+  );
+}
+
+function ResendVerificationSkeleton() {
+  return (
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <div className="flex justify-center mb-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-8 w-64 mx-auto mb-2" />
+        <Skeleton className="h-4 w-80 mx-auto" />
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </CardContent>
+      <CardFooter>
+        <Skeleton className="h-10 w-full" />
+      </CardFooter>
+    </Card>
+  );
+}
+
+export default function ResendVerificationPage() {
+  return (
+    <Suspense fallback={<ResendVerificationSkeleton />}>
+      <ResendVerificationForm />
+    </Suspense>
   );
 }
