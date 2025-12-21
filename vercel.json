@@ -1,32 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/live-class-reminders",
+      "path": "/api/cron/daily",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/assignment-reminders",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/subscription-expiry",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/grace-period",
-      "schedule": "0 1 * * *"
-    },
-    {
-      "path": "/api/cron/renewal-reminder",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/payment-expiry",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/meeting-reminder",
-      "schedule": "0 5 * * *"
     }
   ]
 }
