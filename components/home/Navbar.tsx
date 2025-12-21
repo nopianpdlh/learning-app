@@ -9,11 +9,11 @@ import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { href: "/programs", label: "Programs" },
-  { href: "#features", label: "Features" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#testimonials", label: "Testimonials" },
-  { href: "#faq", label: "FAQ" },
-  { href: "#contact", label: "Contact" },
+  { href: "/#features", label: "Features" },
+  // { href: "/#pricing", label: "Pricing" },
+  { href: "/#testimonials", label: "Testimonials" },
+  { href: "/#faq", label: "FAQ" },
+  { href: "/#contact", label: "Contact" },
 ];
 
 export function Navbar() {

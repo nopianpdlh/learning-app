@@ -146,7 +146,8 @@ export function Footer() {
         {/* Bottom */}
         <div className="border-t border-gray-800 mt-10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-gray-500">
-            © {new Date().getFullYear()} Tutor Nomor Satu. All rights reserved.
+            © 2022-{new Date().getFullYear()} Tutor Nomor Satu. All rights
+            reserved.
           </p>
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <button
