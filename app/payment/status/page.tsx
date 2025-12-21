@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PaymentStatus {
   enrollment: {
@@ -26,7 +27,7 @@ interface PaymentStatus {
   };
 }
 
-export default function PaymentStatusPage() {
+function PaymentStatusContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const enrollmentId = searchParams.get("enrollmentId");
@@ -35,6 +36,25 @@ export default function PaymentStatusPage() {
   const [status, setStatus] = useState<PaymentStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+
+  const fetchPaymentStatus = async (silent = false) => {
+    if (!silent) setLoading(true);
+
+    try {
+      const response = await fetch(
+        `/api/payments/status?enrollmentId=${enrollmentId}`
+      );
+      if (!response.ok) throw new Error("Gagal mengambil status pembayaran");
+
+      const data = await response.json();
+      setStatus(data);
+    } catch (err: unknown) {
+      if (!silent)
+        setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (enrollmentId) {
@@ -50,25 +70,8 @@ export default function PaymentStatusPage() {
       setError("ID enrollment tidak ditemukan");
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enrollmentId]);
-
-  const fetchPaymentStatus = async (silent = false) => {
-    if (!silent) setLoading(true);
-
-    try {
-      const response = await fetch(
-        `/api/payments/status?enrollmentId=${enrollmentId}`
-      );
-      if (!response.ok) throw new Error("Gagal mengambil status pembayaran");
-
-      const data = await response.json();
-      setStatus(data);
-    } catch (err: any) {
-      if (!silent) setError(err.message);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
 
   const handleCheckStatus = async () => {
     setChecking(true);
@@ -295,5 +298,37 @@ export default function PaymentStatusPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function PaymentStatusSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-2xl mx-auto">
+        <Card className="p-8 mb-6">
+          <div className="text-center">
+            <Skeleton className="h-16 w-16 rounded-full mx-auto mb-4" />
+            <Skeleton className="h-8 w-64 mx-auto mb-2" />
+            <Skeleton className="h-4 w-80 mx-auto" />
+          </div>
+        </Card>
+        <Card className="p-6 mb-6">
+          <Skeleton className="h-6 w-48 mb-4" />
+          <div className="space-y-4">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function PaymentStatusPage() {
+  return (
+    <Suspense fallback={<PaymentStatusSkeleton />}>
+      <PaymentStatusContent />
+    </Suspense>
   );
 }
