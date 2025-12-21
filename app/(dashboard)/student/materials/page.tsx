@@ -15,10 +15,7 @@ export default async function StudentMaterialsPage() {
   }
 
   // Fetch materials from API (server-side)
-  const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
   try {
-    // For server-side, we fetch directly from the database instead of calling API
     const { prisma } = await import("@/lib/db");
 
     // Get student profile
@@ -30,28 +27,43 @@ export default async function StudentMaterialsPage() {
       redirect("/");
     }
 
-    // Get enrolled class IDs
+    // Get enrolled section IDs
     const enrollments = await prisma.enrollment.findMany({
       where: {
         studentId: studentProfile.id,
-        status: { in: ["PAID", "ACTIVE", "COMPLETED"] },
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
-      select: { classId: true },
+      select: { sectionId: true },
     });
 
-    const enrolledClassIds = enrollments.map((e) => e.classId);
+    const enrolledSectionIds = enrollments.map((e) => e.sectionId);
 
-    // Fetch materials with class info and bookmark status
+    // Handle no enrollments
+    if (enrolledSectionIds.length === 0) {
+      return (
+        <MaterialsClient
+          initialMaterials={[]}
+          initialStats={{ total: 0, byType: {}, byClass: {} }}
+        />
+      );
+    }
+
+    // Fetch materials with section info and bookmark status
     const materials = await prisma.material.findMany({
       where: {
-        classId: { in: enrolledClassIds },
+        sectionId: { in: enrolledSectionIds },
       },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
           },
         },
         bookmarks: {
@@ -65,10 +77,16 @@ export default async function StudentMaterialsPage() {
     // Format materials
     const formattedMaterials = materials.map((material) => ({
       ...material,
+      class: {
+        id: material.section.id,
+        name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
+        subject: material.section.template.subject,
+      },
       createdAt: material.createdAt,
       updatedAt: material.updatedAt,
       bookmarked: material.bookmarks.length > 0,
-      bookmarks: undefined, // Remove from client props
+      bookmarks: undefined,
+      section: undefined,
     }));
 
     // Calculate stats
@@ -78,7 +96,7 @@ export default async function StudentMaterialsPage() {
       byClass: {} as Record<string, number>,
     };
 
-    materials.forEach((material) => {
+    formattedMaterials.forEach((material) => {
       stats.byType[material.fileType] =
         (stats.byType[material.fileType] || 0) + 1;
       stats.byClass[material.class.name] =

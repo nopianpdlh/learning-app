@@ -1,6 +1,7 @@
 /**
  * Student Quizzes Page - Server Component
  * Fetches quizzes data from database and passes to client component
+ * Uses section-based enrollments only
  */
 
 import { redirect } from "next/navigation";
@@ -21,15 +22,15 @@ export default async function StudentQuizzesPage() {
     redirect("/login");
   }
 
-  // Get student profile with enrollments
+  // Get student profile with section enrollments
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
     include: {
       enrollments: {
         where: {
-          status: { in: ["ACTIVE", "PAID"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
-        select: { classId: true },
+        select: { sectionId: true },
       },
     },
   });
@@ -38,10 +39,11 @@ export default async function StudentQuizzesPage() {
     redirect("/login");
   }
 
-  const enrolledClassIds = studentProfile.enrollments.map((e) => e.classId);
+  // Collect section IDs
+  const enrolledSectionIds = studentProfile.enrollments.map((e) => e.sectionId);
 
   // Handle no enrollments
-  if (enrolledClassIds.length === 0) {
+  if (enrolledSectionIds.length === 0) {
     return (
       <QuizzesClient
         initialQuizzes={[]}
@@ -56,18 +58,23 @@ export default async function StudentQuizzesPage() {
     );
   }
 
-  // Fetch all PUBLISHED quizzes from enrolled classes
+  // Fetch PUBLISHED quizzes from sections
   const quizzes = await prisma.quiz.findMany({
     where: {
-      classId: { in: enrolledClassIds },
+      sectionId: { in: enrolledSectionIds },
       status: "PUBLISHED",
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
         },
       },
       questions: {
@@ -124,7 +131,11 @@ export default async function StudentQuizzesPage() {
       endDate: quiz.endDate?.toISOString() || null,
       passingGrade: quiz.passingGrade || 70,
       createdAt: quiz.createdAt.toISOString(),
-      class: quiz.class,
+      class: {
+        id: quiz.section.id,
+        name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+        subject: quiz.section.template.subject,
+      },
       questionCount: quiz.questions.length,
       attemptCount,
       maxAttempts,

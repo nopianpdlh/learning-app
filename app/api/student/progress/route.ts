@@ -1,6 +1,7 @@
 /**
  * Student Progress API
  * GET /api/student/progress - Get comprehensive progress data for student
+ * Uses section-based enrollments only
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -33,19 +34,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all enrollments with related data
+    // Get all section enrollments with related data
     const enrollments = await prisma.enrollment.findMany({
       where: {
         studentId: student.id,
-        status: { in: ["PAID", "ACTIVE", "COMPLETED"] },
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
-            gradeLevel: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+                gradeLevel: true,
+              },
+            },
             tutor: {
               select: {
                 user: {
@@ -60,12 +66,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const classIds = enrollments.map((e) => e.classId);
+    const sectionIds = enrollments.map((e) => e.sectionId);
 
-    // Get all assignments for enrolled classes
+    // Get all assignments for enrolled sections
     const assignments = await prisma.assignment.findMany({
       where: {
-        classId: { in: classIds },
+        sectionId: { in: sectionIds },
         status: "PUBLISHED",
       },
       include: {
@@ -77,10 +83,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Get all quizzes for enrolled classes
+    // Get all quizzes for enrolled sections
     const quizzes = await prisma.quiz.findMany({
       where: {
-        classId: { in: classIds },
+        sectionId: { in: sectionIds },
         status: "PUBLISHED",
       },
       include: {
@@ -99,7 +105,7 @@ export async function GET(request: NextRequest) {
     // Get all live classes
     const liveClasses = await prisma.liveClass.findMany({
       where: {
-        classId: { in: classIds },
+        sectionId: { in: sectionIds },
       },
       orderBy: {
         scheduledAt: "desc",
@@ -110,8 +116,7 @@ export async function GET(request: NextRequest) {
     const progressData = {
       overview: {
         totalClasses: enrollments.length,
-        completedClasses: enrollments.filter((e) => e.status === "COMPLETED")
-          .length,
+        completedClasses: 0, // No COMPLETED status in new system
         activeClasses: enrollments.filter((e) => e.status === "ACTIVE").length,
       },
       assignments: {
@@ -154,27 +159,28 @@ export async function GET(request: NextRequest) {
           .length,
       },
       classSummaries: enrollments.map((enrollment) => {
-        const classAssignments = assignments.filter(
-          (a) => a.classId === enrollment.classId
+        const sectionAssignments = assignments.filter(
+          (a) => a.sectionId === enrollment.sectionId
         );
-        const classQuizzes = quizzes.filter(
-          (q) => q.classId === enrollment.classId
+        const sectionQuizzes = quizzes.filter(
+          (q) => q.sectionId === enrollment.sectionId
         );
 
         return {
-          classId: enrollment.classId,
-          className: enrollment.class.name,
-          subject: enrollment.class.subject,
-          gradeLevel: enrollment.class.gradeLevel,
-          tutorName: enrollment.class.tutor.user.name,
+          classId: enrollment.sectionId,
+          className: `${enrollment.section.template.name} - Section ${enrollment.section.sectionLabel}`,
+          subject: enrollment.section.template.subject,
+          gradeLevel: enrollment.section.template.gradeLevel,
+          tutorName: enrollment.section.tutor.user.name,
           enrollmentStatus: enrollment.status,
           enrolledAt: enrollment.enrolledAt,
           assignments: {
-            total: classAssignments.length,
-            submitted: classAssignments.filter((a) => a.submissions.length > 0)
-              .length,
+            total: sectionAssignments.length,
+            submitted: sectionAssignments.filter(
+              (a) => a.submissions.length > 0
+            ).length,
             averageScore: calculateAverageScore(
-              classAssignments
+              sectionAssignments
                 .filter(
                   (a) =>
                     a.submissions.length > 0 && a.submissions[0].score !== null
@@ -186,10 +192,11 @@ export async function GET(request: NextRequest) {
             ),
           },
           quizzes: {
-            total: classQuizzes.length,
-            attempted: classQuizzes.filter((q) => q.attempts.length > 0).length,
+            total: sectionQuizzes.length,
+            attempted: sectionQuizzes.filter((q) => q.attempts.length > 0)
+              .length,
             averageScore: calculateQuizAverageScore(
-              classQuizzes
+              sectionQuizzes
                 .filter(
                   (q) => q.attempts.length > 0 && q.attempts[0].score !== null
                 )
@@ -198,7 +205,7 @@ export async function GET(request: NextRequest) {
           },
         };
       }),
-      recentActivity: await getRecentActivity(student.id, classIds),
+      recentActivity: await getRecentActivity(student.id, sectionIds),
     };
 
     return NextResponse.json(progressData);
@@ -233,19 +240,21 @@ function calculateQuizAverageScore(scores: number[]): number | null {
 }
 
 // Helper function to get recent activity
-async function getRecentActivity(studentId: string, classIds: string[]) {
+async function getRecentActivity(studentId: string, sectionIds: string[]) {
   // Get recent submissions
   const recentSubmissions = await prisma.assignmentSubmission.findMany({
     where: {
       studentId,
+      assignment: { sectionId: { in: sectionIds } },
     },
     include: {
       assignment: {
         select: {
           title: true,
-          class: {
+          section: {
             select: {
-              name: true,
+              sectionLabel: true,
+              template: { select: { name: true } },
             },
           },
         },
@@ -261,14 +270,16 @@ async function getRecentActivity(studentId: string, classIds: string[]) {
   const recentAttempts = await prisma.quizAttempt.findMany({
     where: {
       studentId,
+      quiz: { sectionId: { in: sectionIds } },
     },
     include: {
       quiz: {
         select: {
           title: true,
-          class: {
+          section: {
             select: {
-              name: true,
+              sectionLabel: true,
+              template: { select: { name: true } },
             },
           },
         },
@@ -285,7 +296,7 @@ async function getRecentActivity(studentId: string, classIds: string[]) {
     ...recentSubmissions.map((sub) => ({
       type: "assignment" as const,
       title: sub.assignment.title,
-      className: sub.assignment.class.name,
+      className: `${sub.assignment.section.template.name} - ${sub.assignment.section.sectionLabel}`,
       date: sub.submittedAt,
       status: sub.status,
       score: sub.score,
@@ -293,7 +304,7 @@ async function getRecentActivity(studentId: string, classIds: string[]) {
     ...recentAttempts.map((att) => ({
       type: "quiz" as const,
       title: att.quiz.title,
-      className: att.quiz.class.name,
+      className: `${att.quiz.section.template.name} - ${att.quiz.section.sectionLabel}`,
       date: att.submittedAt || att.startedAt,
       score: att.score,
     })),

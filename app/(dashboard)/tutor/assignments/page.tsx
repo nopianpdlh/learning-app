@@ -19,7 +19,17 @@ export default async function TutorAssignmentsPage() {
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     include: {
-      tutorProfile: true,
+      tutorProfile: {
+        include: {
+          sections: {
+            select: {
+              id: true,
+              sectionLabel: true,
+              template: { select: { name: true, subject: true } },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -27,40 +37,31 @@ export default async function TutorAssignmentsPage() {
     redirect("/");
   }
 
-  // Get tutor's classes
-  const classes = await prisma.class.findMany({
-    where: {
-      tutorId: dbUser.tutorProfile.id,
-    },
-    select: {
-      id: true,
-      name: true,
-      subject: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
+  const sectionIds = dbUser.tutorProfile.sections.map((s) => s.id);
 
-  // Get all assignments for tutor's classes
+  // Transform sections for client (compatibility with existing component)
+  const classes = dbUser.tutorProfile.sections.map((s) => ({
+    id: s.id,
+    name: `${s.template.name} - Section ${s.sectionLabel}`,
+    subject: s.template.subject,
+  }));
+
+  // Get all assignments for tutor's sections
   const assignments = await prisma.assignment.findMany({
     where: {
-      class: {
-        tutorId: dbUser.tutorProfile.id,
-      },
+      sectionId: { in: sectionIds },
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
+          sectionLabel: true,
+          template: { select: { name: true } },
           enrollments: {
             where: {
-              status: { in: ["PAID", "ACTIVE"] },
+              status: { in: ["ACTIVE", "EXPIRED"] },
             },
-            select: {
-              id: true,
-            },
+            select: { id: true },
           },
         },
       },
@@ -83,7 +84,7 @@ export default async function TutorAssignmentsPage() {
 
   // Transform assignments data with submission counts
   const assignmentsData = assignments.map((assignment) => {
-    const totalStudents = assignment.class.enrollments.length;
+    const totalStudents = assignment.section.enrollments.length;
     const submittedCount = assignment.submissions.filter(
       (s) => s.status === "SUBMITTED" || s.status === "GRADED"
     ).length;
@@ -102,8 +103,8 @@ export default async function TutorAssignmentsPage() {
       createdAt: assignment.createdAt.toISOString(),
       updatedAt: assignment.updatedAt.toISOString(),
       class: {
-        id: assignment.class.id,
-        name: assignment.class.name,
+        id: assignment.section.id,
+        name: `${assignment.section.template.name} - ${assignment.section.sectionLabel}`,
       },
       _count: {
         submissions: assignment._count.submissions,

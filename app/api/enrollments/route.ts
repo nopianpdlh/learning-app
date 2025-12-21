@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { createEnrollmentSchema } from "@/lib/validations/enrollment.schema";
 import { createClient } from "@/lib/supabase/server";
-import { createPayment, PaymentMethod } from "@/lib/pakasir";
+import { createSnapTransaction, generateInvoiceNumber } from "@/lib/midtrans";
 import { sendEnrollmentConfirmationEmail } from "@/lib/email";
 
-// POST /api/enrollments - Create enrollment (Student only)
+// POST /api/enrollments - Create enrollment (Student only) - Section based with Midtrans
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -33,49 +32,62 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const data = createEnrollmentSchema.parse(body);
+    const sectionId = body.sectionId || body.classId; // Support both for compatibility
 
-    // Check if class exists and is published
-    const classData = await db.class.findUnique({
-      where: { id: data.classId },
+    if (!sectionId) {
+      return NextResponse.json(
+        { error: "sectionId is required" },
+        { status: 400 }
+      );
+    }
+
+    // Check if section exists and is active
+    const section = await db.classSection.findUnique({
+      where: { id: sectionId },
+      include: {
+        template: true,
+      },
     });
 
-    if (!classData) {
+    if (!section) {
       return NextResponse.json(
-        { error: "Kelas tidak ditemukan" },
+        { error: "Section tidak ditemukan" },
         { status: 404 }
       );
     }
 
-    if (!classData.published) {
+    if (section.status !== "ACTIVE") {
       return NextResponse.json(
-        { error: "Kelas belum dipublish" },
+        { error: "Section tidak aktif" },
         { status: 400 }
       );
     }
 
     // Check capacity
     const enrollmentCount = await db.enrollment.count({
-      where: { classId: data.classId },
+      where: { sectionId },
     });
 
-    if (enrollmentCount >= classData.capacity) {
-      return NextResponse.json({ error: "Kelas sudah penuh" }, { status: 400 });
+    if (enrollmentCount >= section.template.maxStudentsPerSection) {
+      return NextResponse.json(
+        { error: "Section sudah penuh" },
+        { status: 400 }
+      );
     }
 
     // Check if already enrolled
     const existingEnrollment = await db.enrollment.findUnique({
       where: {
-        studentId_classId: {
+        studentId_sectionId: {
           studentId: user.studentProfile.id,
-          classId: data.classId,
+          sectionId,
         },
       },
     });
 
     if (existingEnrollment) {
       return NextResponse.json(
-        { error: "Anda sudah terdaftar di kelas ini" },
+        { error: "Anda sudah terdaftar di section ini" },
         { status: 400 }
       );
     }
@@ -84,79 +96,79 @@ export async function POST(req: NextRequest) {
     const enrollment = await db.enrollment.create({
       data: {
         studentId: user.studentProfile.id,
-        classId: data.classId,
+        sectionId,
         status: "PENDING",
+        meetingsRemaining: section.template.meetingsPerPeriod,
+        totalMeetings: section.template.meetingsPerPeriod,
       },
       include: {
-        class: true,
+        section: { include: { template: true } },
       },
     });
 
-    // Get payment method from request body (default to qris)
-    const paymentMethod = (body.paymentMethod as PaymentMethod) || "qris";
+    const price = section.template.pricePerMonth;
+    const orderId = generateInvoiceNumber();
+    const className = `${section.template.name} - Section ${section.sectionLabel}`;
 
-    // Use enrollment ID as order ID for easier tracking
-    const orderId = enrollment.id;
-
-    // Create payment URL (will create transaction when user visits)
-    // For Pakasir, we use the URL method which is simpler
-    const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/payment/status?enrollmentId=${enrollment.id}`;
-    let paymentUrl = "";
-    let paymentStatus: "PENDING" | "PAID" | "FAILED" = "PENDING";
+    // Create Midtrans Snap transaction
+    let snapToken = "";
+    let redirectUrl = "";
 
     try {
-      // For Pakasir, we can use either API or URL method
-      // URL method is simpler for redirect scenario
-      const response = await createPayment({
+      const snapResponse = await createSnapTransaction({
         orderId,
-        amount: classData.price,
-        paymentMethod,
-        returnUrl,
+        grossAmount: price,
+        customerDetails: {
+          firstName: user.name,
+          email: user.email,
+          phone: user.phone || undefined,
+        },
+        itemDetails: [
+          {
+            id: sectionId,
+            name: className,
+            price,
+            quantity: 1,
+          },
+        ],
+        expiryDuration: 1440, // 24 hours
       });
 
-      paymentUrl = response.paymentUrl;
-      paymentStatus = "PENDING";
+      snapToken = snapResponse.token;
+      redirectUrl = snapResponse.redirect_url;
     } catch (error) {
-      console.error("Pakasir payment creation error:", error);
-      // Fallback: generate URL directly without API call
-      const pakasirSlug = process.env.PAKASIR_PROJECT_SLUG;
-      if (pakasirSlug) {
-        paymentUrl = `https://app.pakasir.com/pay/${pakasirSlug}/${
-          classData.price
-        }?order_id=${orderId}&redirect=${encodeURIComponent(returnUrl)}`;
-        paymentStatus = "PENDING";
-      }
+      console.error("Midtrans Snap creation error:", error);
+      // Continue with enrollment but without payment
     }
 
     // Create payment record
     const payment = await db.payment.create({
       data: {
         enrollmentId: enrollment.id,
-        amount: classData.price,
-        paymentMethod,
-        status: paymentStatus,
-        paymentUrl,
+        amount: price,
+        paymentMethod: "midtrans",
+        status: "PENDING",
+        paymentUrl: redirectUrl || null,
+        transactionId: orderId,
       },
     });
 
     // Send enrollment confirmation email with payment link
-    if (paymentUrl && paymentStatus === "PENDING") {
+    if (redirectUrl) {
       try {
-        // Calculate expiry date (24 hours from now)
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 24);
 
         await sendEnrollmentConfirmationEmail({
           to: user.email,
           userName: user.name,
-          className: classData.name,
-          paymentUrl,
-          amount: classData.price,
+          className,
+          paymentUrl: redirectUrl,
+          amount: price,
           expiresAt,
         });
       } catch (emailError) {
         console.error("Failed to send enrollment email:", emailError);
-        // Don't fail the enrollment if email fails
       }
     }
 
@@ -167,8 +179,9 @@ export async function POST(req: NextRequest) {
         payment: {
           id: payment.id,
           amount: payment.amount,
-          paymentUrl,
-          status: paymentStatus,
+          paymentUrl: redirectUrl,
+          snapToken,
+          status: "PENDING",
         },
         message: "Enrollment berhasil dibuat. Silakan lanjutkan pembayaran.",
       },
@@ -176,14 +189,11 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("Enrollment error:", error);
-    return NextResponse.json(
-      { error: "Gagal mendaftar kelas" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Gagal mendaftar" }, { status: 500 });
   }
 }
 
-// GET /api/enrollments - Get user's enrollments
+// GET /api/enrollments - Get user's enrollments (section based)
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -202,8 +212,9 @@ export async function GET(req: NextRequest) {
           include: {
             enrollments: {
               include: {
-                class: {
+                section: {
                   include: {
+                    template: true,
                     tutor: {
                       include: {
                         user: {

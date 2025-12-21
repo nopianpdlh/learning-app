@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/tutor/forum/discussions
- * Fetch all forum discussions from tutor's classes with aggregated stats
+ * Fetch all forum discussions from tutor's sections with aggregated stats
+ * Uses section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -20,11 +21,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with sections
     const dbUser = await db.user.findUnique({
       where: { id: user.id },
       include: {
-        tutorProfile: true,
+        tutorProfile: {
+          include: {
+            sections: {
+              select: {
+                id: true,
+                sectionLabel: true,
+                template: { select: { name: true, subject: true } },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -35,22 +46,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(req.url);
-    const classFilter = searchParams.get("classId"); // Optional: filter by specific class
-    const statusFilter = searchParams.get("status"); // 'all' | 'unanswered' | 'answered'
+    const tutorSections = dbUser.tutorProfile.sections;
 
-    // Get all classes owned by tutor
-    const tutorClasses = await db.class.findMany({
-      where: { tutorId: dbUser.tutorProfile.id },
-      select: {
-        id: true,
-        name: true,
-        subject: true,
-      },
-    });
-
-    if (tutorClasses.length === 0) {
+    if (tutorSections.length === 0) {
       return NextResponse.json({
         discussions: [],
         stats: {
@@ -62,21 +60,27 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const classIds = tutorClasses.map((c) => c.id);
+    const sectionIds = tutorSections.map((s) => s.id);
+
+    // Get query parameters
+    const { searchParams } = new URL(req.url);
+    const sectionFilter =
+      searchParams.get("classId") || searchParams.get("sectionId");
+    const statusFilter = searchParams.get("status"); // 'all' | 'unanswered' | 'answered'
 
     // Build where clause for threads
     const where: any = {
-      classId: classFilter || { in: classIds },
+      sectionId: sectionFilter || { in: sectionIds },
     };
 
-    // Fetch all threads from tutor's classes
+    // Fetch all threads from tutor's sections
     const threads = await db.forumThread.findMany({
       where,
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: { select: { name: true, subject: true } },
           },
         },
         posts: {
@@ -129,9 +133,9 @@ export async function GET(req: NextRequest) {
         authorName: author?.name || "Unknown",
         authorAvatar: author?.avatar || null,
         authorId: thread.authorId,
-        className: thread.class.name,
-        classId: thread.classId,
-        subject: thread.class.subject,
+        className: `${thread.section.template.name} - ${thread.section.sectionLabel}`,
+        classId: thread.sectionId,
+        subject: thread.section.template.subject,
         replyCount,
         hasTutorReply,
         isPinned: thread.isPinned,
@@ -165,10 +169,17 @@ export async function GET(req: NextRequest) {
       totalReplies: discussions.reduce((acc, d) => acc + d.replyCount, 0),
     };
 
+    // Transform sections for client compatibility
+    const classes = tutorSections.map((s) => ({
+      id: s.id,
+      name: `${s.template.name} - ${s.sectionLabel}`,
+      subject: s.template.subject,
+    }));
+
     return NextResponse.json({
       discussions: filteredDiscussions,
       stats,
-      classes: tutorClasses,
+      classes,
     });
   } catch (error) {
     console.error("GET /api/tutor/forum/discussions error:", error);

@@ -6,6 +6,7 @@ import { addDays } from "date-fns";
 /**
  * GET /api/tutor/dashboard
  * Aggregate dashboard overview data for tutor
+ * Uses section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -21,11 +22,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get user from database
+    // Get user from database with sections
     const dbUser = await db.user.findUnique({
       where: { id: user.id },
       include: {
-        tutorProfile: true,
+        tutorProfile: {
+          include: {
+            sections: { select: { id: true } },
+          },
+        },
       },
     });
 
@@ -37,16 +42,9 @@ export async function GET(req: NextRequest) {
     }
 
     const tutorId = dbUser.tutorProfile.id;
+    const sectionIds = dbUser.tutorProfile.sections.map((s) => s.id);
 
-    // Get all tutor's classes
-    const tutorClasses = await db.class.findMany({
-      where: { tutorId },
-      select: { id: true },
-    });
-
-    const classIds = tutorClasses.map((c) => c.id);
-
-    if (classIds.length === 0) {
+    if (sectionIds.length === 0) {
       return NextResponse.json({
         tutorName: dbUser.name,
         stats: {
@@ -63,7 +61,7 @@ export async function GET(req: NextRequest) {
 
     // Parallel queries for stats
     const [
-      totalClasses,
+      totalSections,
       totalStudents,
       pendingGradingCount,
       activeQuizzes,
@@ -73,21 +71,21 @@ export async function GET(req: NextRequest) {
       recentQuizAttempts,
       recentForumPosts,
     ] = await Promise.all([
-      // Total classes
-      db.class.count({ where: { tutorId } }),
+      // Total sections
+      db.classSection.count({ where: { tutorId } }),
 
       // Total students (unique enrollments)
       db.enrollment.count({
         where: {
-          classId: { in: classIds },
-          status: { in: ["PAID", "ACTIVE"] },
+          sectionId: { in: sectionIds },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
       }),
 
       // Pending grading (submitted but not graded)
       db.assignmentSubmission.count({
         where: {
-          assignment: { classId: { in: classIds } },
+          assignment: { sectionId: { in: sectionIds } },
           status: "SUBMITTED",
         },
       }),
@@ -95,7 +93,7 @@ export async function GET(req: NextRequest) {
       // Active quizzes
       db.quiz.count({
         where: {
-          classId: { in: classIds },
+          sectionId: { in: sectionIds },
           status: "PUBLISHED",
         },
       }),
@@ -103,17 +101,18 @@ export async function GET(req: NextRequest) {
       // Upcoming live classes (next 3)
       db.liveClass.findMany({
         where: {
-          classId: { in: classIds },
+          sectionId: { in: sectionIds },
           scheduledAt: { gt: new Date() },
         },
         include: {
-          class: {
+          section: {
             select: {
-              name: true,
+              sectionLabel: true,
+              template: { select: { name: true } },
               _count: {
                 select: {
                   enrollments: {
-                    where: { status: { in: ["PAID", "ACTIVE"] } },
+                    where: { status: { in: ["ACTIVE", "EXPIRED"] } },
                   },
                 },
               },
@@ -127,7 +126,7 @@ export async function GET(req: NextRequest) {
       // Assignments with pending submissions (top 3 by dueDate)
       db.assignment.findMany({
         where: {
-          classId: { in: classIds },
+          sectionId: { in: sectionIds },
           status: "PUBLISHED",
           dueDate: { gte: new Date() },
           submissions: {
@@ -135,13 +134,14 @@ export async function GET(req: NextRequest) {
           },
         },
         include: {
-          class: {
+          section: {
             select: {
-              name: true,
+              sectionLabel: true,
+              template: { select: { name: true } },
               _count: {
                 select: {
                   enrollments: {
-                    where: { status: { in: ["PAID", "ACTIVE"] } },
+                    where: { status: { in: ["ACTIVE", "EXPIRED"] } },
                   },
                 },
               },
@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
       // Recent submissions (last 5)
       db.assignmentSubmission.findMany({
         where: {
-          assignment: { classId: { in: classIds } },
+          assignment: { sectionId: { in: sectionIds } },
         },
         include: {
           student: {
@@ -173,7 +173,12 @@ export async function GET(req: NextRequest) {
           assignment: {
             select: {
               title: true,
-              class: { select: { name: true } },
+              section: {
+                select: {
+                  sectionLabel: true,
+                  template: { select: { name: true } },
+                },
+              },
             },
           },
         },
@@ -184,7 +189,7 @@ export async function GET(req: NextRequest) {
       // Recent quiz attempts (last 5)
       db.quizAttempt.findMany({
         where: {
-          quiz: { classId: { in: classIds } },
+          quiz: { sectionId: { in: sectionIds } },
           submittedAt: { not: null },
         },
         include: {
@@ -196,7 +201,12 @@ export async function GET(req: NextRequest) {
           quiz: {
             select: {
               title: true,
-              class: { select: { name: true } },
+              section: {
+                select: {
+                  sectionLabel: true,
+                  template: { select: { name: true } },
+                },
+              },
             },
           },
         },
@@ -207,14 +217,19 @@ export async function GET(req: NextRequest) {
       // Recent forum posts (last 5)
       db.forumPost.findMany({
         where: {
-          thread: { classId: { in: classIds } },
+          thread: { sectionId: { in: sectionIds } },
         },
         include: {
           author: { select: { name: true } },
           thread: {
             select: {
               title: true,
-              class: { select: { name: true } },
+              section: {
+                select: {
+                  sectionLabel: true,
+                  template: { select: { name: true } },
+                },
+              },
             },
           },
         },
@@ -229,17 +244,17 @@ export async function GET(req: NextRequest) {
       title: lc.title,
       scheduledAt: lc.scheduledAt.toISOString(),
       duration: lc.duration,
-      className: lc.class.name,
-      enrollmentCount: lc.class._count.enrollments,
+      className: `${lc.section.template.name} - ${lc.section.sectionLabel}`,
+      enrollmentCount: lc.section._count.enrollments,
     }));
 
     // Transform pending grading
     const transformedPendingGrading = pendingAssignments.map((assignment) => ({
       id: assignment.id,
       assignmentTitle: assignment.title,
-      className: assignment.class.name,
+      className: `${assignment.section.template.name} - ${assignment.section.sectionLabel}`,
       submittedCount: assignment._count.submissions,
-      totalEnrollment: assignment.class._count.enrollments,
+      totalEnrollment: assignment.section._count.enrollments,
       deadline: assignment.dueDate.toISOString(),
       isUrgent: assignment.dueDate < addDays(new Date(), 2), // Less than 2 days
     }));
@@ -251,7 +266,7 @@ export async function GET(req: NextRequest) {
         type: "submission",
         studentName: s.student.user.name,
         action: `Mengumpulkan ${s.assignment.title}`,
-        className: s.assignment.class.name,
+        className: `${s.assignment.section.template.name} - ${s.assignment.section.sectionLabel}`,
         timestamp: s.submittedAt,
       })),
       ...recentQuizAttempts.map((a) => ({
@@ -259,7 +274,7 @@ export async function GET(req: NextRequest) {
         type: "quiz",
         studentName: a.student.user.name,
         action: `Menyelesaikan ${a.quiz.title}`,
-        className: a.quiz.class.name,
+        className: `${a.quiz.section.template.name} - ${a.quiz.section.sectionLabel}`,
         timestamp: a.submittedAt,
       })),
       ...recentForumPosts.map((p) => ({
@@ -267,7 +282,7 @@ export async function GET(req: NextRequest) {
         type: "forum",
         studentName: p.author.name,
         action: `Bertanya di forum: ${p.thread.title}`,
-        className: p.thread.class.name,
+        className: `${p.thread.section.template.name} - ${p.thread.section.sectionLabel}`,
         timestamp: p.createdAt,
       })),
     ];
@@ -290,7 +305,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       tutorName: dbUser.name,
       stats: {
-        totalClasses,
+        totalClasses: totalSections,
         totalStudents,
         pendingGrading: pendingGradingCount,
         activeQuizzes,

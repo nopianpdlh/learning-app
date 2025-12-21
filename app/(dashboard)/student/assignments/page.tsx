@@ -1,6 +1,7 @@
 /**
  * Student Assignments Page - Server Component
  * Fetches assignments data from database and passes to client component
+ * Uses section-based enrollments only
  */
 
 import { redirect } from "next/navigation";
@@ -21,17 +22,15 @@ export default async function StudentAssignmentsPage() {
     redirect("/login");
   }
 
-  // Get student profile with enrollments
+  // Get student profile with section enrollments
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
     include: {
       enrollments: {
         where: {
-          status: { in: ["ACTIVE", "PAID"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
-        select: {
-          classId: true,
-        },
+        select: { sectionId: true },
       },
     },
   });
@@ -40,10 +39,11 @@ export default async function StudentAssignmentsPage() {
     redirect("/login");
   }
 
-  const enrolledClassIds = studentProfile.enrollments.map((e) => e.classId);
+  // Collect section IDs
+  const enrolledSectionIds = studentProfile.enrollments.map((e) => e.sectionId);
 
   // Handle no enrollments
-  if (enrolledClassIds.length === 0) {
+  if (enrolledSectionIds.length === 0) {
     return (
       <AssignmentsClient
         initialAssignments={[]}
@@ -58,18 +58,23 @@ export default async function StudentAssignmentsPage() {
     );
   }
 
-  // Fetch all PUBLISHED assignments from enrolled classes
+  // Fetch PUBLISHED assignments from sections
   const assignments = await prisma.assignment.findMany({
     where: {
-      classId: { in: enrolledClassIds },
+      sectionId: { in: enrolledSectionIds },
       status: "PUBLISHED",
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
         },
       },
       submissions: {
@@ -114,7 +119,11 @@ export default async function StudentAssignmentsPage() {
       maxPoints: assignment.maxPoints,
       attachmentUrl: assignment.attachmentUrl,
       createdAt: assignment.createdAt.toISOString(),
-      class: assignment.class,
+      class: {
+        id: assignment.section.id,
+        name: `${assignment.section.template.name} - Section ${assignment.section.sectionLabel}`,
+        subject: assignment.section.template.subject,
+      },
       isPastDue,
       effectiveStatus,
       submission: submission

@@ -4,14 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/student/classes/[id]/overview
- * Get overview data for a specific class dashboard
+ * Get overview data for a specific section dashboard
+ * Uses section-based system (id = sectionId)
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: classId } = await params;
+    const { id: sectionId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -45,22 +46,23 @@ export async function GET(
     const enrollment = await db.enrollment.findFirst({
       where: {
         studentId,
-        classId,
-        status: { in: ["PAID", "ACTIVE", "COMPLETED"] },
+        sectionId,
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
     });
 
     if (!enrollment) {
       return NextResponse.json(
-        { error: "Not enrolled in this class" },
+        { error: "Not enrolled in this section" },
         { status: 403 }
       );
     }
 
-    // Get class data with tutor info
-    const classData = await db.class.findUnique({
-      where: { id: classId },
+    // Get section data with tutor info
+    const section = await db.classSection.findUnique({
+      where: { id: sectionId },
       include: {
+        template: true,
         tutor: {
           include: {
             user: {
@@ -73,8 +75,8 @@ export async function GET(
       },
     });
 
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    if (!section) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
     // Parallel queries for efficiency
@@ -92,27 +94,27 @@ export async function GET(
     ] = await Promise.all([
       // Get all assignments
       db.assignment.findMany({
-        where: { classId, status: "PUBLISHED" },
+        where: { sectionId, status: "PUBLISHED" },
         select: { id: true },
       }),
 
       // Get all quizzes
       db.quiz.findMany({
-        where: { classId, status: "PUBLISHED" },
+        where: { sectionId, status: "PUBLISHED" },
         select: { id: true },
       }),
 
       // Get materials count
-      db.material.count({ where: { classId } }),
+      db.material.count({ where: { sectionId } }),
 
       // Get forum threads count
-      db.forumThread.count({ where: { classId } }),
+      db.forumThread.count({ where: { sectionId } }),
 
       // Get student's submissions
       db.assignmentSubmission.findMany({
         where: {
           studentId,
-          assignment: { classId },
+          assignment: { sectionId },
         },
         select: { id: true, assignmentId: true, status: true, score: true },
       }),
@@ -121,7 +123,7 @@ export async function GET(
       db.quizAttempt.findMany({
         where: {
           studentId,
-          quiz: { classId },
+          quiz: { sectionId },
           submittedAt: { not: null },
         },
         select: { id: true, quizId: true, score: true },
@@ -130,7 +132,7 @@ export async function GET(
       // Get next live class
       db.liveClass.findFirst({
         where: {
-          classId,
+          sectionId,
           scheduledAt: { gt: new Date() },
         },
         orderBy: { scheduledAt: "asc" },
@@ -146,7 +148,7 @@ export async function GET(
       db.assignmentSubmission.findMany({
         where: {
           studentId,
-          assignment: { classId },
+          assignment: { sectionId },
         },
         include: {
           assignment: {
@@ -161,7 +163,7 @@ export async function GET(
       db.quizAttempt.findMany({
         where: {
           studentId,
-          quiz: { classId },
+          quiz: { sectionId },
           submittedAt: { not: null },
         },
         include: {
@@ -177,7 +179,7 @@ export async function GET(
       db.forumPost.findMany({
         where: {
           authorId: user.id,
-          thread: { classId },
+          thread: { sectionId },
         },
         include: {
           thread: {
@@ -200,7 +202,7 @@ export async function GET(
     const overallProgress =
       totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
-    // Calculate pending assignments (submitted but not graded, or not submitted)
+    // Calculate pending assignments
     const submittedAssignmentIds = new Set(
       submissions.map((s) => s.assignmentId)
     );
@@ -262,13 +264,13 @@ export async function GET(
 
     return NextResponse.json({
       class: {
-        id: classData.id,
-        name: classData.name,
-        subject: classData.subject,
-        gradeLevel: classData.gradeLevel,
-        tutorName: classData.tutor.user.name,
-        schedule: classData.schedule,
-        thumbnail: classData.thumbnail,
+        id: section.id,
+        name: `${section.template.name} - Section ${section.sectionLabel}`,
+        subject: section.template.subject,
+        gradeLevel: section.template.gradeLevel,
+        tutorName: section.tutor.user.name,
+        schedule: null,
+        thumbnail: section.template.thumbnail,
       },
       progress: {
         overall: overallProgress,

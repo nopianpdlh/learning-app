@@ -19,63 +19,68 @@ export default async function TutorQuizzesPage() {
     where: {
       userId: user.id,
     },
+    include: {
+      sections: {
+        select: {
+          id: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!tutorProfile) {
     redirect("/");
   }
 
-  // Get all classes taught by this tutor
-  const classes = await prisma.class.findMany({
-    where: {
-      tutorId: tutorProfile.id,
-    },
-    select: {
-      id: true,
-      name: true,
-      subject: true,
-    },
-    orderBy: {
-      name: "asc",
-    },
-  });
+  const sectionIds = tutorProfile.sections.map((s) => s.id);
 
-  // Get all quizzes for tutor's classes with enrollments and attempts
+  // Transform sections for the client (compatibility with existing component)
+  const classes = tutorProfile.sections.map((s) => ({
+    id: s.id,
+    name: `${s.template.name} - Section ${s.sectionLabel}`,
+    subject: s.template.subject,
+  }));
+
+  // Get all quizzes for tutor's sections
   const quizzes = await prisma.quiz.findMany({
     where: {
-      classId: {
-        in: classes.map((c) => c.id),
+      sectionId: {
+        in: sectionIds,
       },
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
           enrollments: {
             where: {
-              status: {
-                in: ["PAID", "ACTIVE"],
-              },
+              status: { in: ["ACTIVE", "EXPIRED"] },
             },
-            select: {
-              id: true,
-            },
+            select: { id: true },
           },
         },
       },
       questions: {
-        select: {
-          id: true,
-        },
+        select: { id: true },
       },
       attempts: {
         include: {
           student: {
-            select: {
-              id: true,
-            },
+            select: { id: true },
           },
         },
       },
@@ -87,7 +92,7 @@ export default async function TutorQuizzesPage() {
 
   // Calculate stats for each quiz
   const quizzesWithStats = quizzes.map((quiz) => {
-    const totalStudents = quiz.class.enrollments.length;
+    const totalStudents = quiz.section.enrollments.length;
     const uniqueParticipants = new Set(quiz.attempts.map((a) => a.student.id))
       .size;
 
@@ -107,9 +112,9 @@ export default async function TutorQuizzesPage() {
       id: quiz.id,
       title: quiz.title,
       description: quiz.description,
-      classId: quiz.classId,
-      className: quiz.class.name,
-      classSubject: quiz.class.subject,
+      classId: quiz.sectionId, // For compatibility
+      className: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+      classSubject: quiz.section.template.subject,
       timeLimit: quiz.timeLimit,
       startDate: quiz.startDate?.toISOString() || null,
       endDate: quiz.endDate?.toISOString() || null,

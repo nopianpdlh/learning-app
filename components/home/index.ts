@@ -1,0 +1,11 @@
+export { Navbar } from "./Navbar";
+export { HeroSection } from "./HeroSection";
+export { FeaturesSection } from "./FeaturesSection";
+export { StatsSection } from "./StatsSection";
+export { ProgramsSection } from "./ProgramsSection";
+export { TestimonialsSection } from "./TestimonialsSection";
+export { FAQSection } from "./FAQSection";
+export { HowItWorksSection } from "./HowItWorksSection";
+export { WhyChooseUsSection } from "./WhyChooseUsSection";
+export { ContactSection } from "./ContactSection";
+export { Footer } from "./Footer";

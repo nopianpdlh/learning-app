@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -259,10 +260,11 @@ export default function MaterialsClient({
     return (
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         <div className="relative aspect-video bg-muted">
-          <img
+          <Image
             src={thumbnail}
             alt={material.title}
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover object-top"
           />
           <div className="absolute top-2 right-2 flex gap-2">
             <Badge

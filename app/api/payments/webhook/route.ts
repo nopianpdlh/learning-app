@@ -1,41 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { verifyWebhookPayload, WebhookPayload } from "@/lib/pakasir";
+import { verifySignature, mapTransactionStatus } from "@/lib/midtrans";
 import { sendPaymentConfirmationEmail } from "@/lib/email";
 
 /**
  * POST /api/payments/webhook
- * Handle Pakasir payment webhook callbacks
- * This endpoint is called by Pakasir when payment status changes
+ * Handle Midtrans payment webhook callbacks
+ * This endpoint is called by Midtrans when payment status changes
  */
 export async function POST(req: NextRequest) {
   try {
-    // Parse webhook payload from Pakasir
+    // Parse webhook payload from Midtrans
     const body = await req.json();
 
-    const payload: WebhookPayload = {
-      project: body.project,
-      order_id: body.order_id,
-      amount: body.amount,
-      status: body.status,
-      payment_method: body.payment_method,
-      completed_at: body.completed_at,
-    };
+    const {
+      order_id,
+      transaction_status,
+      fraud_status,
+      gross_amount,
+      signature_key,
+      status_code,
+      payment_type,
+      settlement_time,
+    } = body;
 
-    // Verify webhook payload
-    const isValid = verifyWebhookPayload(payload);
+    // Verify webhook signature
+    if (signature_key) {
+      const isValid = verifySignature(
+        order_id,
+        status_code,
+        gross_amount,
+        signature_key
+      );
 
-    if (!isValid) {
-      console.error("Invalid webhook payload");
-      return NextResponse.json({ error: "Invalid payload" }, { status: 401 });
+      if (!isValid) {
+        console.error("Invalid webhook signature");
+        return NextResponse.json(
+          { error: "Invalid signature" },
+          { status: 401 }
+        );
+      }
     }
 
-    // Find payment by order ID (our enrollment ID is in order_id)
+    // Find payment by order ID (which is the invoice number we sent to Midtrans)
     const payment = await db.payment.findFirst({
       where: {
-        enrollmentId: payload.order_id.startsWith("ENR-")
-          ? payload.order_id.split("-")[1]
-          : payload.order_id,
+        OR: [
+          { orderId: order_id },
+          { transactionId: order_id },
+          { enrollmentId: order_id },
+        ],
       },
       include: {
         enrollment: {
@@ -45,47 +59,40 @@ export async function POST(req: NextRequest) {
                 user: true,
               },
             },
-            class: true,
+            section: {
+              include: {
+                template: true,
+              },
+            },
           },
         },
       },
     });
 
     if (!payment) {
-      console.error("Payment not found for order_id:", payload.order_id);
+      console.error("Payment not found for order_id:", order_id);
       return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
 
-    // Verify amount matches (important security check as recommended by Pakasir)
-    if (payment.amount !== payload.amount) {
+    // Verify amount matches (important security check)
+    const receivedAmount = parseFloat(gross_amount);
+    if (payment.amount !== receivedAmount) {
       console.error("Amount mismatch:", {
         expected: payment.amount,
-        received: payload.amount,
+        received: receivedAmount,
       });
       return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
     }
 
-    // Map Pakasir status to our payment status
-    let paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED" = "PENDING";
-    let enrollmentStatus:
-      | "PENDING"
-      | "PAID"
-      | "ACTIVE"
-      | "COMPLETED"
-      | "CANCELLED" = "PENDING";
+    // Map Midtrans status to our payment status
+    const paymentStatus = mapTransactionStatus(
+      transaction_status,
+      fraud_status
+    );
 
-    switch (payload.status) {
-      case "completed":
-        paymentStatus = "PAID";
-        enrollmentStatus = "PAID"; // Will be changed to ACTIVE after class starts
-        break;
-      case "pending":
-        paymentStatus = "PENDING";
-        enrollmentStatus = "PENDING";
-        break;
-      default:
-        paymentStatus = "PENDING";
-        enrollmentStatus = "PENDING";
+    let enrollmentStatus: "PENDING" | "ACTIVE" | "EXPIRED" = "PENDING";
+    if (paymentStatus === "PAID") {
+      enrollmentStatus = "ACTIVE";
     }
 
     // Update payment status
@@ -93,18 +100,28 @@ export async function POST(req: NextRequest) {
       where: { id: payment.id },
       data: {
         status: paymentStatus,
-        paymentMethod: payload.payment_method,
-        paidAt: payload.completed_at ? new Date(payload.completed_at) : null,
+        paymentMethod: payment_type || "midtrans",
+        paidAt: settlement_time
+          ? new Date(settlement_time)
+          : paymentStatus === "PAID"
+          ? new Date()
+          : null,
       },
     });
 
     // Update enrollment status
-    await db.enrollment.update({
-      where: { id: payment.enrollmentId },
-      data: {
-        status: enrollmentStatus,
-      },
-    });
+    if (paymentStatus === "PAID") {
+      await db.enrollment.update({
+        where: { id: payment.enrollmentId },
+        data: {
+          status: enrollmentStatus,
+        },
+      });
+    }
+
+    const className = payment.enrollment.section
+      ? `${payment.enrollment.section.template.name} - Section ${payment.enrollment.section.sectionLabel}`
+      : "Program";
 
     // If payment is successful, send notification and email
     if (paymentStatus === "PAID") {
@@ -113,7 +130,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: payment.enrollment.student.userId,
           title: "Pembayaran Berhasil",
-          message: `Pembayaran untuk kelas "${payment.enrollment.class.name}" telah berhasil dikonfirmasi. Selamat belajar!`,
+          message: `Pembayaran untuk "${className}" telah berhasil dikonfirmasi. Selamat belajar!`,
           type: "PAYMENT",
         },
       });
@@ -123,26 +140,24 @@ export async function POST(req: NextRequest) {
         await sendPaymentConfirmationEmail({
           to: payment.enrollment.student.user.email,
           userName: payment.enrollment.student.user.name,
-          className: payment.enrollment.class.name,
+          className,
           amount: payment.amount,
-          transactionId: payload.order_id,
-          paidAt: payload.completed_at
-            ? new Date(payload.completed_at)
-            : new Date(),
+          transactionId: order_id,
+          paidAt: settlement_time ? new Date(settlement_time) : new Date(),
         });
       } catch (emailError) {
         console.error("Failed to send payment confirmation email:", emailError);
-        // Don't fail the webhook if email fails
       }
 
       console.log(`Payment confirmed for enrollment ${payment.enrollmentId}`);
     }
 
     // Log the webhook event
-    console.log("Webhook processed:", {
-      orderId: payload.order_id,
-      status: payload.status,
-      amount: payload.amount,
+    console.log("Midtrans webhook processed:", {
+      orderId: order_id,
+      transactionStatus: transaction_status,
+      paymentStatus,
+      amount: gross_amount,
       enrollmentId: payment.enrollmentId,
     });
 

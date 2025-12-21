@@ -1,6 +1,7 @@
 /**
  * Tutor Materials Page - Server Component
  * Fetches materials data from database and passes to client component
+ * Uses section-based content system
  */
 
 import { redirect } from "next/navigation";
@@ -27,13 +28,11 @@ export default async function TutorMaterialsPage() {
     include: {
       tutorProfile: {
         include: {
-          classes: {
+          sections: {
             select: {
               id: true,
-              name: true,
-            },
-            orderBy: {
-              name: "asc",
+              sectionLabel: true,
+              template: { select: { name: true, subject: true } },
             },
           },
         },
@@ -45,18 +44,25 @@ export default async function TutorMaterialsPage() {
     redirect("/login");
   }
 
-  // Get all materials for tutor's classes
+  const sectionIds = dbUser.tutorProfile.sections.map((s) => s.id);
+
+  // Transform sections for client (compatibility with existing component)
+  const classes = dbUser.tutorProfile.sections.map((s) => ({
+    id: s.id,
+    name: `${s.template.name} - Section ${s.sectionLabel}`,
+  }));
+
+  // Get all materials for tutor's sections
   const materials = await prisma.material.findMany({
     where: {
-      classId: {
-        in: dbUser.tutorProfile.classes.map((c) => c.id),
-      },
+      sectionId: { in: sectionIds },
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
+          sectionLabel: true,
+          template: { select: { name: true } },
         },
       },
     },
@@ -77,17 +83,28 @@ export default async function TutorMaterialsPage() {
     totalDownloads: materials.reduce((sum, m) => sum + m.downloadCount, 0),
   };
 
-  // Serialize dates for client component
+  // Serialize and transform for client component
   const serializedMaterials = materials.map((material) => ({
     ...material,
+    classId: material.sectionId, // Compatibility mapping
+    class: material.section
+      ? {
+          id: material.section.id,
+          name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
+        }
+      : null,
     createdAt: material.createdAt.toISOString(),
     updatedAt: material.updatedAt.toISOString(),
   }));
 
   return (
     <TutorMaterialsClient
-      materials={serializedMaterials}
-      classes={dbUser.tutorProfile.classes}
+      materials={
+        serializedMaterials as Parameters<
+          typeof TutorMaterialsClient
+        >[0]["materials"]
+      }
+      classes={classes}
       stats={stats}
     />
   );

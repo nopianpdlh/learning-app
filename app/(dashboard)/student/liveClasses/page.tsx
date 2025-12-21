@@ -1,6 +1,7 @@
 /**
  * Student Live Classes Page - Server Component
  * Fetches live classes data from database and passes to client component
+ * Uses section-based enrollments only
  */
 
 import { redirect } from "next/navigation";
@@ -21,15 +22,15 @@ export default async function StudentLiveClassesPage() {
     redirect("/login");
   }
 
-  // Get student profile with enrollments
+  // Get student profile with section enrollments
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId: user.id },
     include: {
       enrollments: {
         where: {
-          status: { in: ["ACTIVE", "PAID"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
-        select: { classId: true },
+        select: { sectionId: true },
       },
     },
   });
@@ -38,10 +39,11 @@ export default async function StudentLiveClassesPage() {
     redirect("/login");
   }
 
-  const enrolledClassIds = studentProfile.enrollments.map((e) => e.classId);
+  // Collect section IDs
+  const enrolledSectionIds = studentProfile.enrollments.map((e) => e.sectionId);
 
   // Handle no enrollments
-  if (enrolledClassIds.length === 0) {
+  if (enrolledSectionIds.length === 0) {
     return (
       <LiveClassesClient
         initialLiveClasses={[]}
@@ -50,17 +52,22 @@ export default async function StudentLiveClassesPage() {
     );
   }
 
-  // Fetch live classes from enrolled classes
+  // Fetch live classes from sections
   const liveClasses = await prisma.liveClass.findMany({
     where: {
-      classId: { in: enrolledClassIds },
+      sectionId: { in: enrolledSectionIds },
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
           tutor: {
             include: {
               user: {
@@ -122,13 +129,13 @@ export default async function StudentLiveClassesPage() {
       status: lc.status,
       effectiveStatus,
       class: {
-        id: lc.class.id,
-        name: lc.class.name,
-        subject: lc.class.subject,
+        id: lc.section.id,
+        name: `${lc.section.template.name} - Section ${lc.section.sectionLabel}`,
+        subject: lc.section.template.subject,
       },
       tutor: {
-        name: lc.class.tutor.user.name,
-        avatarUrl: lc.class.tutor.user.avatar,
+        name: lc.section.tutor.user.name,
+        avatarUrl: lc.section.tutor.user.avatar,
       },
       participantCount: lc._count.attendances,
       attended,

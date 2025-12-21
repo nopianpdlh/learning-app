@@ -35,17 +35,20 @@ export default async function QuizDetailPage({
       id: params.id,
     },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
           tutorId: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
           enrollments: {
             where: {
-              status: {
-                in: ["PAID", "ACTIVE"],
-              },
+              status: { in: ["ACTIVE", "EXPIRED"] },
             },
             select: {
               id: true,
@@ -99,12 +102,12 @@ export default async function QuizDetailPage({
   }
 
   // Check if tutor owns this quiz
-  if (quiz.class.tutorId !== tutorProfile.id) {
+  if (quiz.section.tutorId !== tutorProfile.id) {
     redirect("/tutor/quizzes");
   }
 
   // Calculate stats
-  const totalStudents = quiz.class.enrollments.length;
+  const totalStudents = quiz.section.enrollments.length;
   const uniqueParticipants = new Set(quiz.attempts.map((a) => a.student.id))
     .size;
 
@@ -122,7 +125,7 @@ export default async function QuizDetailPage({
 
   // Find students who haven't attempted
   const attemptedStudentIds = new Set(quiz.attempts.map((a) => a.student.id));
-  const notAttemptedStudents = quiz.class.enrollments
+  const notAttemptedStudents = quiz.section.enrollments
     .filter((e) => !attemptedStudentIds.has(e.student.id))
     .map((e) => ({
       id: e.student.id,
@@ -134,9 +137,9 @@ export default async function QuizDetailPage({
     id: quiz.id,
     title: quiz.title,
     description: quiz.description,
-    classId: quiz.classId,
-    className: quiz.class.name,
-    classSubject: quiz.class.subject,
+    classId: quiz.sectionId, // For compatibility with QuizDetailClient
+    className: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+    classSubject: quiz.section.template.subject,
     timeLimit: quiz.timeLimit,
     startDate: quiz.startDate?.toISOString() || null,
     endDate: quiz.endDate?.toISOString() || null,

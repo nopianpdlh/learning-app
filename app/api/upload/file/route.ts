@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Supabase Storage with authenticated client
     const uploadResult = await uploadFile({
-      bucket: bucket as "materials" | "assignments" | "avatars",
+      bucket: bucket as "materials" | "assignments" | "avatars" | "thumbnails",
       folder,
       file,
       fileName: file.name,
