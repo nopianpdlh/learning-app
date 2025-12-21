@@ -32,10 +32,35 @@ export const metadata: Metadata = {
     "les matematika anak",
   ],
   authors: [{ name: "Tutor Nomor Satu" }],
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://tutornomorsatu.com"
+  ),
   openGraph: {
     type: "website",
     locale: "id_ID",
     siteName: "Tutor Nomor Satu",
+    title: "Tutor Nomor Satu - Platform E-Learning Termurah Seindonesia",
+    description:
+      "Platform E-Learning Termurah Seindonesia. Spesialis TOEFL, IELTS & Speaking. Jagonya English & Math for Kids dengan tutor bersertifikat.",
+    images: [
+      {
+        url: "/images/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Tutor Nomor Satu",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tutor Nomor Satu - Platform E-Learning",
+    description:
+      "Platform E-Learning Termurah Seindonesia. Spesialis TOEFL, IELTS & Speaking.",
+    images: ["/images/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
