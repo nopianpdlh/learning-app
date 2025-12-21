@@ -6,8 +6,10 @@ const createUserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string(),
-  phone: z.string(),
+  phone: z.string().nullable().optional(),
   role: z.enum(["ADMIN", "TUTOR", "STUDENT"]),
+  gradeLevel: z.string().nullable().optional(),
+  acceptMarketing: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
         id: data.id,
         email: data.email,
         name: data.name,
-        phone: data.phone,
+        phone: data.phone || null,
         role: data.role,
       },
     });
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
       await db.studentProfile.create({
         data: {
           userId: user.id,
+          gradeLevel: data.gradeLevel || null,
         },
       });
     } else if (data.role === "TUTOR") {
@@ -54,6 +57,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("Register error:", error);
-    return NextResponse.json({ error: "Gagal membuat akun" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to create account" },
+      { status: 500 }
+    );
   }
 }

@@ -7,6 +7,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // url      = env("DATABASE_URL")
+  // directUrl = env("DIRECT_URL") 
 }
 
 // ============================================
@@ -20,11 +22,12 @@ enum Role {
 }
 
 enum EnrollmentStatus {
-  PENDING   // Awaiting payment
-  PAID      // Payment confirmed
-  ACTIVE    // Currently enrolled
-  COMPLETED // Course completed
-  CANCELLED // Enrollment cancelled
+  WAITING       // Di waiting list (menunggu approval)
+  PENDING       // Menunggu pembayaran
+  ACTIVE        // Aktif (bisa ikut kelas)
+  EXPIRED       // Periode 30 hari habis (dalam grace period)
+  SLOT_RELEASED // Grace period habis, slot dilepas
+  CANCELLED     // Dibatalkan
 }
 
 enum PaymentStatus {
@@ -32,6 +35,7 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+  EXPIRED
 }
 
 enum AssignmentStatus {
@@ -50,6 +54,45 @@ enum QuizStatus {
   DRAFT
   PUBLISHED
   CLOSED
+}
+
+// New enums for Class Management System
+enum ClassType {
+  SEMI_PRIVATE  // 2-10 siswa per section
+  PRIVATE       // 1 siswa (1-on-1)
+}
+
+enum SectionStatus {
+  ACTIVE        // Masih terima siswa
+  FULL          // Sudah max capacity
+  ARCHIVED      // Non-aktif
+}
+
+enum WaitingStatus {
+  PENDING       // Menunggu review admin
+  APPROVED      // Disetujui, waiting payment
+  REJECTED      // Ditolak
+  EXPIRED       // Timeout, tidak bayar
+}
+
+enum MeetingStatus {
+  SCHEDULED     // Terjadwal
+  LIVE          // Sedang berlangsung
+  COMPLETED     // Selesai
+  CANCELLED     // Dibatalkan
+}
+
+enum AttendanceStatus {
+  PENDING       // Meeting belum mulai
+  PRESENT       // Hadir
+  ABSENT        // Tidak hadir (quota tetap berkurang)
+}
+
+enum InvoiceStatus {
+  UNPAID        // Belum dibayar
+  PAID          // Sudah dibayar
+  OVERDUE       // Lewat jatuh tempo
+  CANCELLED     // Dibatalkan
 }
 
 // ============================================
@@ -90,6 +133,9 @@ model StudentProfile {
   enrollments           Enrollment[]
   assignmentSubmissions AssignmentSubmission[]
   quizAttempts          QuizAttempt[]
+  materialBookmarks     MaterialBookmark[]
+  liveClassAttendances  LiveClassAttendance[]
+  waitingList           WaitingList[]          // NEW: Waiting list entries
 
   @@index([userId])
 }
@@ -104,99 +150,151 @@ model TutorProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  classes Class[]
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sections     ClassSection[]     // Class sections
+  availability TutorAvailability[] // Availability slots
 
   @@index([userId])
 }
 
-model Class {
-  id          String   @id @default(cuid())
-  name        String
-  description String   @db.Text
-  subject     String
-  gradeLevel  String
-  price       Int
-  capacity    Int
-  schedule    String   // e.g., "Senin & Rabu, 19:00-21:00"
-  thumbnail   String?
-  published   Boolean  @default(false)
-  tutorId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tutor         TutorProfile  @relation(fields: [tutorId], references: [id])
-  enrollments   Enrollment[]
-  materials     Material[]
-  assignments   Assignment[]
-  quizzes       Quiz[]
-  liveClasses   LiveClass[]
-  forumThreads  ForumThread[]
-
-  @@index([tutorId])
-  @@index([subject])
-  @@index([published])
-}
+// NOTE: Legacy Class model has been removed
+// All content now uses ClassSection (sectionId)
 
 model Enrollment {
   id         String           @id @default(cuid())
   studentId  String
-  classId    String
+  sectionId  String           // Section-based enrollment (required)
   status     EnrollmentStatus @default(PENDING)
-  enrolledAt DateTime         @default(now())
+  
+  // Subscription Period (Rolling 30 days)
+  startDate       DateTime?         // Tanggal mulai aktif
+  expiryDate      DateTime?         // startDate + 30 days
+  graceExpiryDate DateTime?         // expiryDate + 7 days (grace period)
+  
+  // Meeting Quota Tracking
+  meetingsAllowed   Int   @default(8)
+  meetingsAttended  Int   @default(0)
+  meetingsRemaining Int   @default(8)
+  totalMeetings     Int   @default(8)
+  
+  enrolledAt  DateTime         @default(now())
   completedAt DateTime?
-  createdAt  DateTime         @default(now())
-  updatedAt  DateTime         @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  student StudentProfile @relation(fields: [studentId], references: [id])
-  class   Class          @relation(fields: [classId], references: [id])
-  payment Payment?
+  student    StudentProfile      @relation(fields: [studentId], references: [id])
+  section    ClassSection        @relation(fields: [sectionId], references: [id])
+  payment    Payment?
+  attendance MeetingAttendance[]
+  invoices   Invoice[]
 
-  @@unique([studentId, classId])
+  @@unique([studentId, sectionId])
   @@index([studentId])
-  @@index([classId])
+  @@index([sectionId])
   @@index([status])
+  @@index([expiryDate])
+  @@index([graceExpiryDate])
 }
 
 model Payment {
   id            String        @id @default(cuid())
   enrollmentId  String        @unique
   amount        Int
-  paymentMethod String        // QRIS, VA, E-Wallet
+  paymentMethod String        // bank_transfer, gopay, qris, etc
   status        PaymentStatus @default(PENDING)
-  externalId    String?       // Pakasir transaction ID
+  
+  
+  externalId    String?       
+  
+  // Midtrans Specific
+  orderId       String?       @unique // Format: "INV-{invoiceNumber}"
+  transactionId String?       // Midtrans transaction_id
+  paymentType   String?       // Midtrans payment_type
+  vaNumber      String?       // Virtual Account number
+  snapToken     String?       // Midtrans Snap token
+  redirectUrl   String?       // Snap redirect URL
+  expiredAt     DateTime?     // Payment expiry time
+  
   paymentUrl    String?
   paidAt        DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  invoice    Invoice?
 
   @@index([externalId])
+  @@index([orderId])
+  @@index([transactionId])
   @@index([status])
 }
 
+model Invoice {
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique  // Format: INV-YYYYMMDD-XXXX
+  paymentId      String?       @unique
+  enrollmentId   String
+  
+  // Billing Info
+  studentName    String
+  studentEmail   String
+  studentPhone   String?
+  
+  // Items
+  programName    String
+  sectionLabel   String
+  periodStart    DateTime
+  periodEnd      DateTime
+  
+  // Amounts
+  amount         Int           // Base price
+  tax            Int           @default(0)
+  discount       Int           @default(0)
+  totalAmount    Int           // Final amount to pay
+  
+  // Status
+  status         InvoiceStatus @default(UNPAID)
+  dueDate        DateTime      // Invoice expiry
+  paidAt         DateTime?
+  
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  
+  payment        Payment?      @relation(fields: [paymentId], references: [id])
+  enrollment     Enrollment    @relation(fields: [enrollmentId], references: [id])
+  
+  @@index([invoiceNumber])
+  @@index([enrollmentId])
+  @@index([status])
+  @@index([dueDate])
+}
+
 model Material {
-  id          String   @id @default(cuid())
-  classId     String
-  title       String
-  description String?  @db.Text
-  session     Int      // Pertemuan ke-
-  fileType    String   // PDF, VIDEO, LINK
-  fileUrl     String?
-  videoUrl    String?  // YouTube/Vimeo embed
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  sectionId     String   // Required: Section-based content
+  title         String
+  description   String?  @db.Text
+  session       Int      // Pertemuan ke-
+  fileType      String   // PDF, VIDEO, LINK, DOCUMENT, IMAGE
+  fileUrl       String?
+  videoUrl      String?  // YouTube/Vimeo/Drive embed
+  thumbnail     String?  // Thumbnail image URL
+  viewCount     Int      @default(0)
+  downloadCount Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section   ClassSection       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  bookmarks MaterialBookmark[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([session])
 }
 
 model Assignment {
   id           String           @id @default(cuid())
-  classId      String
+  sectionId    String           // Required: Section-based content
   title        String
   instructions String           @db.Text
   dueDate      DateTime
@@ -206,10 +304,10 @@ model Assignment {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
-  class       Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section     ClassSection           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   submissions AssignmentSubmission[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([dueDate])
   @@index([status])
 }
@@ -238,7 +336,7 @@ model AssignmentSubmission {
 
 model Quiz {
   id            String     @id @default(cuid())
-  classId       String
+  sectionId     String     // Required: Section-based content
   title         String
   description   String?    @db.Text
   timeLimit     Int?       // Minutes
@@ -249,11 +347,11 @@ model Quiz {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
-  class     Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section   ClassSection   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
   attempts  QuizAttempt[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([status])
 }
 
@@ -311,34 +409,56 @@ model QuizAnswer {
 }
 
 model LiveClass {
-  id          String   @id @default(cuid())
-  classId     String
-  title       String
-  meetingUrl  String
-  scheduledAt DateTime
-  duration    Int      // Minutes
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  sectionId       String    // Required: Section-based content
+  title           String
+  description     String?   @db.Text
+  meetingUrl      String
+  scheduledAt     DateTime
+  duration        Int       // Minutes
+  maxParticipants Int?
+  recordingUrl    String?
+  status          String    @default("SCHEDULED") // SCHEDULED, LIVE, COMPLETED, CANCELLED
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  class Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section     ClassSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  attendances LiveClassAttendance[]
 
-  @@index([classId])
+  @@index([sectionId])
   @@index([scheduledAt])
+  @@index([status])
+}
+
+model LiveClassAttendance {
+  id          String   @id @default(cuid())
+  liveClassId String
+  studentId   String
+  joinedAt    DateTime @default(now())
+  leftAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  liveClass LiveClass      @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+
+  @@unique([liveClassId, studentId])
+  @@index([liveClassId])
+  @@index([studentId])
 }
 
 model ForumThread {
   id        String   @id @default(cuid())
-  classId   String
+  sectionId String   // Section-based forum
   authorId  String
   title     String
   isPinned  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  class Class       @relation(fields: [classId], references: [id], onDelete: Cascade)
-  posts ForumPost[]
+  section ClassSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  posts   ForumPost[]
 
-  @@index([classId])
+  @@index([sectionId])
 }
 
 model ForumPost {
@@ -365,14 +485,29 @@ model Notification {
   userId    String
   title     String
   message   String   @db.Text
-  type      String   // ASSIGNMENT, QUIZ, PAYMENT, LIVE_CLASS, etc.
+  type      String   // ASSIGNMENT, QUIZ, PAYMENT, LIVE_CLASS, SUBSCRIPTION, CLASS
   read      Boolean  @default(false)
+  link      String?  // Optional link for actionable notifications
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([read])
+}
+
+model MaterialBookmark {
+  id         String   @id @default(cuid())
+  studentId  String
+  materialId String
+  createdAt  DateTime @default(now())
+
+  student  StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  material Material       @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, materialId])
+  @@index([studentId])
+  @@index([materialId])
 }
 
 model AuditLog {
@@ -388,4 +523,143 @@ model AuditLog {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+// ============================================
+// NEW MODELS - Class Management System
+// ============================================
+
+model ClassTemplate {
+  id                    String    @id @default(cuid())
+  name                  String    // "Semi-Private Grammar"
+  description           String    @db.Text
+  subject               String
+  gradeLevel            String    // "Dewasa", "Anak"
+  classType             ClassType
+  pricePerMonth         Int       // Harga per 30 hari
+  maxStudentsPerSection Int       @default(10) // Max per section
+  meetingsPerPeriod     Int       @default(8)  // 8 meetings
+  periodDays            Int       @default(30) // 30 hari
+  gracePeriodDays       Int       @default(7)  // 7 hari grace period
+  thumbnail             String?
+  published             Boolean   @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  sections    ClassSection[]
+  waitingList WaitingList[]
+
+  @@index([classType])
+  @@index([published])
+  @@index([subject])
+}
+
+model ClassSection {
+  id                 String        @id @default(cuid())
+  templateId         String
+  sectionLabel       String        // "A", "B", "C"
+  tutorId            String
+  status             SectionStatus @default(ACTIVE)
+  currentEnrollments Int           @default(0)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  template    ClassTemplate      @relation(fields: [templateId], references: [id])
+  tutor       TutorProfile       @relation(fields: [tutorId], references: [id])
+  enrollments Enrollment[]
+  meetings    ScheduledMeeting[]
+  
+  // Content relations
+  materials    Material[]
+  assignments  Assignment[]
+  quizzes      Quiz[]
+  liveClasses  LiveClass[]
+  forumThreads ForumThread[]
+
+  @@unique([templateId, sectionLabel])
+  @@index([templateId])
+  @@index([tutorId])
+  @@index([status])
+}
+
+model TutorAvailability {
+  id        String   @id @default(cuid())
+  tutorId   String
+  dayOfWeek Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime String   // "09:00"
+  endTime   String   // "12:00"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tutor TutorProfile @relation(fields: [tutorId], references: [id])
+
+  @@unique([tutorId, dayOfWeek, startTime]) // No duplicate slots
+  @@index([tutorId])
+  @@index([dayOfWeek])
+}
+
+model WaitingList {
+  id                String        @id @default(cuid())
+  studentId         String
+  templateId        String        // Program yang diinginkan
+  status            WaitingStatus @default(PENDING)
+  requestedAt       DateTime      @default(now())
+  approvedAt        DateTime?
+  approvedBy        String?       // Admin ID
+  rejectedAt        DateTime?
+  rejectionNote     String?
+  assignedSectionId String?       // Section yang di-assign saat approve
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  student  StudentProfile @relation(fields: [studentId], references: [id])
+  template ClassTemplate  @relation(fields: [templateId], references: [id])
+
+  @@unique([studentId, templateId]) // 1 siswa 1 waiting per program
+  @@index([templateId])
+  @@index([status])
+}
+
+model ScheduledMeeting {
+  id           String        @id @default(cuid())
+  sectionId    String
+  title        String
+  description  String?
+  scheduledAt  DateTime
+  duration     Int           // Minutes
+  meetingUrl   String?
+  status       MeetingStatus @default(SCHEDULED)
+  createdBy    String        // Admin yang buat
+  recordingUrl String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  section    ClassSection        @relation(fields: [sectionId], references: [id])
+  attendance MeetingAttendance[]
+
+  @@index([sectionId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model MeetingAttendance {
+  id           String           @id @default(cuid())
+  meetingId    String
+  enrollmentId String
+  status       AttendanceStatus @default(PENDING)
+  joinedAt     DateTime?
+  leftAt       DateTime?
+  markedBy     String?          // Admin/Tutor yang mark attendance
+  markedAt     DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  meeting    ScheduledMeeting @relation(fields: [meetingId], references: [id])
+  enrollment Enrollment       @relation(fields: [enrollmentId], references: [id])
+
+  @@unique([meetingId, enrollmentId])
+  @@index([meetingId])
+  @@index([enrollmentId])
+  @@index([status])
 }

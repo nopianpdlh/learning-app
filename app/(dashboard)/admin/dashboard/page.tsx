@@ -7,19 +7,26 @@ import {
   Activity,
   UserCheck,
 } from "lucide-react";
-import { RevenueChart } from "@/components/charts/RevenueChart";
-import { EnrollmentChart } from "@/components/charts/EnrollmentChart";
+import {
+  RevenueEnrollmentChart,
+  ChartDataPoint,
+} from "@/components/charts/RevenueEnrollmentChart";
 import { db } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 import { formatDistanceToNow } from "date-fns";
 import { id } from "date-fns/locale";
+import {
+  AdminDashboardHeader,
+  AdminDashboardCalendar,
+} from "./DashboardWidgets";
 
 async function getAdminStats() {
-  // Get counts
-  const [totalStudents, totalTutors, totalClasses, payments, enrollments] =
+  // Get counts - using sections instead of legacy classes
+  const [totalStudents, totalTutors, totalSections, payments, enrollments] =
     await Promise.all([
       db.user.count({ where: { role: "STUDENT" } }),
       db.user.count({ where: { role: "TUTOR" } }),
-      db.class.count({ where: { published: true } }),
+      db.classSection.count({ where: { status: "ACTIVE" } }),
       db.payment.findMany({
         where: { status: "PAID" },
         select: { amount: true, createdAt: true },
@@ -33,86 +40,104 @@ async function getAdminStats() {
   // Calculate revenue
   const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
-  // Get revenue by month (last 6 months)
+  // Get daily data for last 90 days (for the new chart)
   const now = new Date();
-  const monthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  const revenueByMonth = payments
-    .filter((p) => p.createdAt >= monthsAgo)
-    .reduce((acc, p) => {
-      const month = p.createdAt.toLocaleDateString("en-US", { month: "short" });
-      acc[month] = (acc[month] || 0) + p.amount;
-      return acc;
-    }, {} as Record<string, number>);
+  const ninetyDaysAgo = new Date(now);
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-  const revenueData = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    return { month, revenue: revenueByMonth[month] || 0 };
-  });
+  // Process payments into daily data
+  const dailyData: Record<string, { revenue: number; enrollments: number }> =
+    {};
 
-  // Get enrollment by month (last 6 months)
-  const enrollmentByMonth = enrollments
-    .filter((e) => e.enrolledAt >= monthsAgo)
-    .reduce((acc, e) => {
-      const month = e.enrolledAt.toLocaleDateString("en-US", {
-        month: "short",
-      });
-      acc[month] = (acc[month] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  // Initialize all days with 0
+  for (let i = 0; i < 90; i++) {
+    const date = new Date(ninetyDaysAgo);
+    date.setDate(date.getDate() + i);
+    const dateKey = date.toISOString().split("T")[0];
+    dailyData[dateKey] = { revenue: 0, enrollments: 0 };
+  }
 
-  const enrollmentData = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const month = date.toLocaleDateString("en-US", { month: "short" });
-    return { month, students: enrollmentByMonth[month] || 0 };
-  });
+  // Fill in payment data
+  payments
+    .filter((p) => p.createdAt >= ninetyDaysAgo)
+    .forEach((p) => {
+      const dateKey = p.createdAt.toISOString().split("T")[0];
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].revenue += p.amount;
+      }
+    });
+
+  // Fill in enrollment data
+  enrollments
+    .filter((e) => e.enrolledAt >= ninetyDaysAgo)
+    .forEach((e) => {
+      const dateKey = e.enrolledAt.toISOString().split("T")[0];
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].enrollments += 1;
+      }
+    });
+
+  // Convert to array for chart
+  const chartData: ChartDataPoint[] = Object.entries(dailyData)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, data]) => ({
+      date,
+      revenue: data.revenue,
+      enrollments: data.enrollments,
+    }));
 
   return {
     totalStudents,
     totalTutors,
-    totalClasses,
+    totalClasses: totalSections,
     totalRevenue,
-    revenueData,
-    enrollmentData,
+    chartData,
   };
 }
 
 async function getRecentActivities() {
-  const [recentEnrollments, recentPayments, recentClasses] = await Promise.all([
-    db.enrollment.findMany({
-      take: 5,
-      orderBy: { enrolledAt: "desc" },
-      include: {
-        student: { include: { user: true } },
-        class: true,
-      },
-    }),
-    db.payment.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        enrollment: {
-          include: {
-            student: { include: { user: true } },
-            class: true,
+  const [recentEnrollments, recentPayments, recentSections] = await Promise.all(
+    [
+      db.enrollment.findMany({
+        take: 5,
+        orderBy: { enrolledAt: "desc" },
+        include: {
+          student: { include: { user: true } },
+          section: {
+            include: {
+              template: true,
+            },
           },
         },
-      },
-    }),
-    db.class.findMany({
-      take: 3,
-      orderBy: { createdAt: "desc" },
-      include: {
-        tutor: { include: { user: true } },
-      },
-    }),
-  ]);
+      }),
+      db.payment.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: {
+          enrollment: {
+            include: {
+              student: { include: { user: true } },
+              section: { include: { template: true } },
+            },
+          },
+        },
+      }),
+      db.classSection.findMany({
+        take: 3,
+        orderBy: { createdAt: "desc" },
+        include: {
+          tutor: { include: { user: true } },
+          template: true,
+        },
+      }),
+    ]
+  );
 
   const activities = [
     ...recentEnrollments.map((e) => ({
       type: "enrollment",
       user: e.student.user.name,
-      action: `enrolled in ${e.class.name}`,
+      action: `enrolled in ${e.section.template.name} - Section ${e.section.sectionLabel}`,
       time: formatDistanceToNow(e.enrolledAt, { addSuffix: true, locale: id }),
       date: e.enrolledAt,
     })),
@@ -120,17 +145,17 @@ async function getRecentActivities() {
       type: "payment",
       user: p.enrollment.student.user.name,
       action: `paid Rp ${p.amount.toLocaleString("id-ID")} for ${
-        p.enrollment.class.name
+        p.enrollment.section.template.name
       }`,
       time: formatDistanceToNow(p.createdAt, { addSuffix: true, locale: id }),
       date: p.createdAt,
     })),
-    ...recentClasses.map((c) => ({
+    ...recentSections.map((s) => ({
       type: "class",
-      user: c.tutor.user.name,
-      action: `created new class: ${c.name}`,
-      time: formatDistanceToNow(c.createdAt, { addSuffix: true, locale: id }),
-      date: c.createdAt,
+      user: s.tutor.user.name,
+      action: `assigned to section: ${s.template.name} - ${s.sectionLabel}`,
+      time: formatDistanceToNow(s.createdAt, { addSuffix: true, locale: id }),
+      date: s.createdAt,
     })),
   ];
 
@@ -139,9 +164,74 @@ async function getRecentActivities() {
     .slice(0, 5);
 }
 
+// Get upcoming live class
+async function getUpcomingLiveClass() {
+  const now = new Date();
+  const nextMeeting = await db.scheduledMeeting.findFirst({
+    where: {
+      scheduledAt: {
+        gt: now,
+      },
+    },
+    orderBy: {
+      scheduledAt: "asc",
+    },
+    include: {
+      section: {
+        include: {
+          template: true,
+          tutor: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!nextMeeting) return null;
+
+  // Calculate end time based on scheduledAt + duration (duration is in minutes)
+  const endTime = new Date(
+    nextMeeting.scheduledAt.getTime() + nextMeeting.duration * 60000
+  );
+
+  return {
+    id: nextMeeting.id,
+    title: nextMeeting.section.template.name,
+    sectionLabel: nextMeeting.section.sectionLabel,
+    tutorName: nextMeeting.section.tutor.user.name,
+    startTime: nextMeeting.scheduledAt.toISOString(),
+    endTime: endTime.toISOString(),
+    meetingUrl: nextMeeting.meetingUrl || undefined,
+  };
+}
+
+// Get current admin user name
+async function getAdminUserName() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return "Admin";
+
+  const dbUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { name: true },
+  });
+
+  return dbUser?.name || user.email?.split("@")[0] || "Admin";
+}
+
 export default async function AdminDashboard() {
-  const stats = await getAdminStats();
-  const activities = await getRecentActivities();
+  const [stats, activities, upcomingLiveClass, userName] = await Promise.all([
+    getAdminStats(),
+    getRecentActivities(),
+    getUpcomingLiveClass(),
+    getAdminUserName(),
+  ]);
 
   const statsCards = [
     {
@@ -159,7 +249,7 @@ export default async function AdminDashboard() {
       trend: "up",
     },
     {
-      title: "Active Classes",
+      title: "Active Sections",
       value: stats.totalClasses.toLocaleString(),
       icon: GraduationCap,
       change: "+8%",
@@ -175,12 +265,12 @@ export default async function AdminDashboard() {
   ];
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-        <p className="text-muted-foreground">
-          Monitor platform performance and key metrics
-        </p>
-      </div>
+      {/* Welcome Message + LiveClass Banner */}
+      <AdminDashboardHeader
+        userName={userName}
+        upcomingLiveClass={upcomingLiveClass}
+        calendarEvents={[]}
+      />
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -208,26 +298,8 @@ export default async function AdminDashboard() {
         })}
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Overview (Last 6 Months)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RevenueChart data={stats.revenueData} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Enrollment (Last 6 Months)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <EnrollmentChart data={stats.enrollmentData} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Combined Chart */}
+      <RevenueEnrollmentChart data={stats.chartData} />
 
       {/* Recent Activities */}
       <Card>

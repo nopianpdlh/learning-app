@@ -14,7 +14,11 @@ async function getPayments() {
               user: true,
             },
           },
-          class: true,
+          section: {
+            include: {
+              template: true,
+            },
+          },
         },
       },
     },

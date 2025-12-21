@@ -119,13 +119,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
 
-      // Upload to storage
+      // Upload to storage with authenticated client
       const folder = `assignment-files/${assignmentId}`;
       const uploadResult = await uploadFile({
         bucket: "assignments",
         folder,
         file,
         fileName: file.name,
+        supabaseClient: supabase, // Pass authenticated client for RLS
       });
 
       if (!uploadResult.success) {
@@ -199,13 +200,14 @@ export async function POST(request: NextRequest) {
 
       const submissionId = existingSubmission?.id || `temp-${Date.now()}`;
 
-      // Upload to storage
+      // Upload to storage with authenticated client
       const folder = `submissions/${submissionId}`;
       const uploadResult = await uploadFile({
         bucket: "assignments",
         folder,
         file,
         fileName: file.name,
+        supabaseClient: supabase, // Pass authenticated client for RLS
       });
 
       if (!uploadResult.success) {

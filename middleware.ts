@@ -25,35 +25,36 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to dashboard if accessing auth page with session
   if (isAuthPage && session) {
-    const user = session.user;
-    const role = (user.user_metadata?.role || "student").toLowerCase();
-    return NextResponse.redirect(new URL(`/${role}/dashboard`, request.url));
+    const userRole = getUserRole(session.user);
+    const rolePath = userRole.toLowerCase();
+    return NextResponse.redirect(
+      new URL(`/${rolePath}/dashboard`, request.url)
+    );
   }
 
   // Role-based access control for dashboard routes
   if (isDashboard && session) {
-    const user = session.user;
-    const role = (user.user_metadata?.role || "STUDENT").toUpperCase();
+    const userRole = getUserRole(session.user);
 
     // Admin can only access /admin/* routes
-    if (isAdminRoute && role !== "ADMIN") {
-      const redirectRole = role.toLowerCase();
+    if (isAdminRoute && userRole !== "ADMIN") {
+      const redirectRole = userRole.toLowerCase();
       return NextResponse.redirect(
         new URL(`/${redirectRole}/dashboard`, request.url)
       );
     }
 
-    // Tutor can only access /tutor/* routes (admin is excluded from tutor routes)
-    if (isTutorRoute && role !== "TUTOR") {
-      const redirectRole = role.toLowerCase();
+    // Tutor can only access /tutor/* routes
+    if (isTutorRoute && userRole !== "TUTOR") {
+      const redirectRole = userRole.toLowerCase();
       return NextResponse.redirect(
         new URL(`/${redirectRole}/dashboard`, request.url)
       );
     }
 
     // Student can only access /student/* routes
-    if (isStudentRoute && role !== "STUDENT") {
-      const redirectRole = role.toLowerCase();
+    if (isStudentRoute && userRole !== "STUDENT") {
+      const redirectRole = userRole.toLowerCase();
       return NextResponse.redirect(
         new URL(`/${redirectRole}/dashboard`, request.url)
       );
@@ -61,6 +62,28 @@ export async function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
+}
+
+/**
+ * Get user role from session user metadata
+ * Priority: user_metadata.role > app_metadata.role > "STUDENT" (default)
+ */
+function getUserRole(user: {
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+}): string {
+  // Check user_metadata first (custom claims set during signup/update)
+  if (user.user_metadata?.role && typeof user.user_metadata.role === "string") {
+    return user.user_metadata.role.toUpperCase();
+  }
+
+  // Fallback to app_metadata (if role set by admin)
+  if (user.app_metadata?.role && typeof user.app_metadata.role === "string") {
+    return user.app_metadata.role.toUpperCase();
+  }
+
+  // Default to STUDENT if no role found
+  return "STUDENT";
 }
 
 export const config = {

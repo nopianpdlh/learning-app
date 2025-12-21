@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -193,11 +194,14 @@ export default function PaymentStatusPage() {
             {/* Class Info */}
             <div className="flex items-start gap-4">
               {status.enrollment.class.thumbnail && (
-                <img
-                  src={status.enrollment.class.thumbnail}
-                  alt={status.enrollment.class.name}
-                  className="w-20 h-20 object-cover rounded-lg"
-                />
+                <div className="relative w-20 h-20 shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  <Image
+                    src={status.enrollment.class.thumbnail}
+                    alt={status.enrollment.class.name}
+                    fill
+                    className="object-cover object-top"
+                  />
+                </div>
               )}
               <div>
                 <h3 className="font-semibold text-lg">

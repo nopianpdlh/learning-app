@@ -66,16 +66,39 @@ export async function GET(request: NextRequest) {
     // Role-based filtering
     if (profile.role === "STUDENT") {
       // Students see only live classes from enrolled classes
+      // First get student profile
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!studentProfile) {
+        return NextResponse.json(
+          { error: "Student profile not found" },
+          { status: 404 }
+        );
+      }
+
       const enrollments = await prisma.enrollment.findMany({
         where: {
-          studentId: user.id,
+          studentId: studentProfile.id,
           status: { in: ["PAID", "ACTIVE"] },
         },
         select: { classId: true },
       });
 
       const enrolledClassIds = enrollments.map((e) => e.classId);
-      where.classId = { in: enrolledClassIds };
+
+      // If filters.classId is provided, only include if student is enrolled
+      if (filters.classId) {
+        if (!enrolledClassIds.includes(filters.classId)) {
+          return NextResponse.json({
+            liveClasses: [],
+            pagination: { page, limit, total: 0, totalPages: 0 },
+          });
+        }
+      } else {
+        where.classId = { in: enrolledClassIds };
+      }
     } else if (profile.role === "TUTOR") {
       // Tutors see only live classes from their classes
       const tutorClasses = await prisma.class.findMany({

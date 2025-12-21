@@ -91,7 +91,7 @@ export const updateMaterialSchema = z
       .max(100, "Session cannot exceed 100")
       .optional(),
     fileType: FileType.optional(),
-    fileUrl: z.string().url("Invalid file URL").optional().nullable(),
+    fileUrl: z.string().optional().nullable(), // Allow both URL and path
     videoUrl: z.string().url("Invalid video URL").optional().nullable(),
   })
   .refine(
@@ -161,7 +161,9 @@ export const fileUploadSchema = z.object({
   description: z
     .string()
     .max(1000, "Description must be less than 1000 characters")
-    .optional(),
+    .nullable()
+    .optional()
+    .transform((val) => val || null),
 });
 
 /**

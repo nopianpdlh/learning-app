@@ -26,13 +26,13 @@ interface NavItem {
 
 const studentNav: NavItem[] = [
   { icon: Home, label: "Dashboard", href: "/student/dashboard" },
-  { icon: BookOpen, label: "Kelas Saya", href: "/student/classes" },
+  { icon: BookOpen, label: "Kelas Saya", href: "/student/sections" },
   { icon: TrendingUp, label: "Progress Saya", href: "/student/progress" },
 ];
 
 const tutorNav: NavItem[] = [
   { icon: Home, label: "Dashboard", href: "/tutor/dashboard" },
-  { icon: BookOpen, label: "Kelas Saya", href: "/tutor/classes" },
+  { icon: BookOpen, label: "Kelas Saya", href: "/tutor/sections" },
 ];
 
 const adminNav: NavItem[] = [

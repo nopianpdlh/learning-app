@@ -226,7 +226,21 @@ export async function PUT(
 
     // Parse request body
     const body: UpdateQuizInput = await request.json();
-    const validatedData = updateQuizSchema.parse(body);
+
+    // Validate data
+    const validation = updateQuizSchema.safeParse(body);
+    if (!validation.success) {
+      const errors = validation.error.errors.map((err) => ({
+        field: err.path.join("."),
+        message: err.message,
+      }));
+      return NextResponse.json(
+        { error: "Validation failed", details: errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validation.data;
 
     // Update quiz
     const updatedQuiz = await prisma.quiz.update({

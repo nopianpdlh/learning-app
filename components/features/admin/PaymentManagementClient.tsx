@@ -25,6 +25,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -40,6 +47,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { Separator } from "@/components/ui/separator";
 import {
   Search,
   Download,
@@ -49,6 +57,10 @@ import {
   FileText,
   FileSpreadsheet,
   FileDown,
+  User,
+  CreditCard,
+  Clock,
+  Receipt,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -68,8 +80,10 @@ interface PaymentData {
         name: string;
       };
     };
-    class: {
-      name: string;
+    section: {
+      template: {
+        name: string;
+      };
     };
   };
 }
@@ -86,6 +100,10 @@ export function PaymentManagementClient({
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedPayment, setSelectedPayment] = useState<PaymentData | null>(
+    null
+  );
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const itemsPerPage = 10;
 
   // Export functions
@@ -93,7 +111,7 @@ export function PaymentManagementClient({
     const csvData = filteredPayments.map((payment) => ({
       "Payment ID": payment.id,
       Student: payment.enrollment.student.user.name,
-      Class: payment.enrollment.class.name,
+      Class: payment.enrollment.section.template.name,
       Amount: payment.amount,
       Method: payment.paymentMethod,
       Status: payment.status,
@@ -110,7 +128,7 @@ export function PaymentManagementClient({
     const excelData = filteredPayments.map((payment) => ({
       "Payment ID": payment.id,
       Student: payment.enrollment.student.user.name,
-      Class: payment.enrollment.class.name,
+      Class: payment.enrollment.section.template.name,
       Amount: payment.amount,
       Method: payment.paymentMethod,
       Status: payment.status,
@@ -160,7 +178,7 @@ export function PaymentManagementClient({
     const tableData = filteredPayments.map((payment) => [
       payment.id.slice(0, 8) + "...",
       payment.enrollment.student.user.name,
-      payment.enrollment.class.name,
+      payment.enrollment.section.template.name,
       `Rp ${payment.amount.toLocaleString("id-ID")}`,
       payment.paymentMethod,
       payment.status,
@@ -194,7 +212,7 @@ export function PaymentManagementClient({
       payment.enrollment.student.user.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-      payment.enrollment.class.name
+      payment.enrollment.section.template.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
       payment.id.toLowerCase().includes(searchQuery.toLowerCase());
@@ -378,7 +396,9 @@ export function PaymentManagementClient({
                   {payment.id.slice(0, 8)}...
                 </TableCell>
                 <TableCell>{payment.enrollment.student.user.name}</TableCell>
-                <TableCell>{payment.enrollment.class.name}</TableCell>
+                <TableCell>
+                  {payment.enrollment.section.template.name}
+                </TableCell>
                 <TableCell suppressHydrationWarning>
                   Rp {payment.amount.toLocaleString("id-ID")}
                 </TableCell>
@@ -410,7 +430,8 @@ export function PaymentManagementClient({
                     size="icon"
                     className="h-8 w-8"
                     onClick={() => {
-                      console.log("View payment:", payment.id);
+                      setSelectedPayment(payment);
+                      setIsDetailOpen(true);
                     }}
                   >
                     <Eye className="h-4 w-4 text-blue-600" />
@@ -500,6 +521,123 @@ export function PaymentManagementClient({
           </Pagination>
         </div>
       )}
+
+      {/* Payment Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />
+              Payment Details
+            </DialogTitle>
+            <DialogDescription>
+              Complete information about this payment transaction.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedPayment && (
+            <div className="space-y-4">
+              {/* Payment ID */}
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <p className="text-xs text-muted-foreground">Payment ID</p>
+                <p className="font-mono text-sm">{selectedPayment.id}</p>
+              </div>
+
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Status</span>
+                <Badge
+                  variant={
+                    selectedPayment.status === "PAID"
+                      ? "default"
+                      : selectedPayment.status === "PENDING"
+                      ? "secondary"
+                      : "destructive"
+                  }
+                  className="text-sm"
+                >
+                  {selectedPayment.status}
+                </Badge>
+              </div>
+
+              <Separator />
+
+              {/* Student Info */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <User className="h-4 w-4" />
+                  Student Information
+                </div>
+                <div className="pl-6 space-y-1">
+                  <p className="font-medium">
+                    {selectedPayment.enrollment.student.user.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedPayment.enrollment.section.template.name}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Payment Info */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CreditCard className="h-4 w-4" />
+                  Payment Information
+                </div>
+                <div className="pl-6 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-bold text-lg">
+                      Rp {selectedPayment.amount.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Method</span>
+                    <span className="capitalize">
+                      {selectedPayment.paymentMethod.replace("_", " ")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Timestamp */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Clock className="h-4 w-4" />
+                  Timestamp
+                </div>
+                <div className="pl-6 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Created</span>
+                    <span>
+                      {format(
+                        new Date(selectedPayment.createdAt),
+                        "dd MMM yyyy, HH:mm"
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Relative</span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatDistanceToNow(
+                        new Date(selectedPayment.createdAt),
+                        {
+                          addSuffix: true,
+                          locale: id,
+                        }
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

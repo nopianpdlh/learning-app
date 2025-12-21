@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       classId,
       session,
       title,
-      description,
+      description: description || null,
     });
 
     // Verify class exists and user has access
@@ -121,13 +121,14 @@ export async function POST(request: NextRequest) {
       ? "PDF"
       : "DOCUMENT";
 
-    // Upload to Supabase Storage
+    // Upload to Supabase Storage (dengan authenticated client context)
     const folder = `${validatedData.classId}/session-${validatedData.session}`;
     const uploadResult = await uploadFile({
       bucket: "materials",
       folder,
       file,
       fileName: file.name,
+      supabaseClient: supabase,
     });
 
     if (!uploadResult.success) {
@@ -138,6 +139,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create material record in database
+    // Store path instead of publicUrl for private bucket (will generate signed URL on download)
     const material = await prisma.material.create({
       data: {
         classId: validatedData.classId,
@@ -145,7 +147,7 @@ export async function POST(request: NextRequest) {
         description: validatedData.description,
         session: validatedData.session,
         fileType,
-        fileUrl: uploadResult.publicUrl,
+        fileUrl: uploadResult.path || uploadResult.publicUrl,
       },
       include: {
         class: {
