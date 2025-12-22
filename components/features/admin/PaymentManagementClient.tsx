@@ -248,7 +248,7 @@ export function PaymentManagementClient({
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="All Status" />
@@ -366,82 +366,84 @@ export function PaymentManagementClient({
       </div>
 
       {/* Payments Table */}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Payment ID</TableHead>
-            <TableHead>Student</TableHead>
-            <TableHead>Class</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Method</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {paginatedPayments.length === 0 ? (
+      <div className="overflow-x-auto">
+        <Table className="min-w-[900px]">
+          <TableHeader>
             <TableRow>
-              <TableCell
-                colSpan={8}
-                className="text-center text-muted-foreground py-8"
-              >
-                No payments found
-              </TableCell>
+              <TableHead>Payment ID</TableHead>
+              <TableHead>Student</TableHead>
+              <TableHead>Class</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Method</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
-          ) : (
-            paginatedPayments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell className="font-mono text-sm">
-                  {payment.id.slice(0, 8)}...
-                </TableCell>
-                <TableCell>{payment.enrollment.student.user.name}</TableCell>
-                <TableCell>
-                  {payment.enrollment.section.template.name}
-                </TableCell>
-                <TableCell suppressHydrationWarning>
-                  Rp {payment.amount.toLocaleString("id-ID")}
-                </TableCell>
-                <TableCell className="capitalize">
-                  {payment.paymentMethod.replace("_", " ")}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={
-                      payment.status === "PAID"
-                        ? "default"
-                        : payment.status === "PENDING"
-                        ? "secondary"
-                        : "destructive"
-                    }
-                  >
-                    {payment.status}
-                  </Badge>
-                </TableCell>
-                <TableCell suppressHydrationWarning>
-                  {formatDistanceToNow(new Date(payment.createdAt), {
-                    addSuffix: true,
-                    locale: id,
-                  })}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => {
-                      setSelectedPayment(payment);
-                      setIsDetailOpen(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4 text-blue-600" />
-                  </Button>
+          </TableHeader>
+          <TableBody>
+            {paginatedPayments.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className="text-center text-muted-foreground py-8"
+                >
+                  No payments found
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              paginatedPayments.map((payment) => (
+                <TableRow key={payment.id}>
+                  <TableCell className="font-mono text-sm">
+                    {payment.id.slice(0, 8)}...
+                  </TableCell>
+                  <TableCell>{payment.enrollment.student.user.name}</TableCell>
+                  <TableCell>
+                    {payment.enrollment.section.template.name}
+                  </TableCell>
+                  <TableCell suppressHydrationWarning>
+                    Rp {payment.amount.toLocaleString("id-ID")}
+                  </TableCell>
+                  <TableCell className="capitalize">
+                    {payment.paymentMethod.replace("_", " ")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        payment.status === "PAID"
+                          ? "default"
+                          : payment.status === "PENDING"
+                          ? "secondary"
+                          : "destructive"
+                      }
+                    >
+                      {payment.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell suppressHydrationWarning>
+                    {formatDistanceToNow(new Date(payment.createdAt), {
+                      addSuffix: true,
+                      locale: id,
+                    })}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => {
+                        setSelectedPayment(payment);
+                        setIsDetailOpen(true);
+                      }}
+                    >
+                      <Eye className="h-4 w-4 text-blue-600" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (

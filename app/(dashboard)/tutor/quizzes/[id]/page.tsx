@@ -6,8 +6,9 @@ import QuizDetailClient from "@/components/features/tutor/QuizDetailClient";
 export default async function QuizDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createClient();
 
   const {
@@ -32,7 +33,7 @@ export default async function QuizDetailPage({
   // Get quiz with questions and attempts
   const quiz = await prisma.quiz.findUnique({
     where: {
-      id: params.id,
+      id,
     },
     include: {
       section: {

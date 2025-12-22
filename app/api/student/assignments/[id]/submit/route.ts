@@ -1,6 +1,7 @@
 /**
  * Student Assignment Submit API
  * POST /api/student/assignments/[id]/submit - Submit assignment with file upload
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -43,16 +44,16 @@ export async function POST(
       );
     }
 
-    // Get assignment and verify enrollment
+    // Get assignment and verify enrollment via section
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
-        class: {
+        section: {
           include: {
             enrollments: {
               where: {
                 studentId: studentProfile.id,
-                status: { in: ["ACTIVE", "PAID"] },
+                status: { in: ["ACTIVE", "EXPIRED"] },
               },
             },
           },
@@ -67,9 +68,9 @@ export async function POST(
       );
     }
 
-    if (assignment.class.enrollments.length === 0) {
+    if (assignment.section.enrollments.length === 0) {
       return NextResponse.json(
-        { error: "You are not enrolled in this class" },
+        { error: "You are not enrolled in this section" },
         { status: 403 }
       );
     }

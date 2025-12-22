@@ -92,7 +92,7 @@ export function TutorSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   // User state - fetch from session
   const [user, setUser] = useState({
@@ -152,7 +152,13 @@ export function TutorSidebar({
               size="lg"
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <Link href="/tutor/dashboard" className="flex items-center gap-3">
+              <Link
+                href="/tutor/dashboard"
+                className="flex items-center gap-3"
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
+              >
                 <div className="relative w-8 h-8 shrink-0">
                   <Image
                     src="/images/logo-tutor.svg"
@@ -195,7 +201,12 @@ export function TutorSidebar({
                         isActive={isActive}
                         tooltip={item.label}
                       >
-                        <Link href={item.path}>
+                        <Link
+                          href={item.path}
+                          onClick={() => {
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                        >
                           <Icon />
                           <span>{item.label}</span>
                         </Link>
@@ -259,7 +270,13 @@ export function TutorSidebar({
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem asChild>
-                    <Link href="/tutor/profile" className="cursor-pointer">
+                    <Link
+                      href="/tutor/profile"
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
                       <IconUserCircle className="mr-2 h-4 w-4" />
                       Account
                     </Link>

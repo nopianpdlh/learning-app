@@ -1,6 +1,7 @@
 /**
  * Student Quiz Detail API
  * GET /api/student/quizzes/[id] - Get quiz with questions for taking
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,19 +39,24 @@ export async function GET(
       );
     }
 
-    // Get quiz with class and questions
+    // Get quiz with section and questions
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             enrollments: {
               where: {
                 studentId: studentProfile.id,
-                status: { in: ["ACTIVE", "PAID"] },
+                status: { in: ["ACTIVE", "EXPIRED"] },
               },
               select: { id: true },
             },
@@ -86,9 +92,9 @@ export async function GET(
     }
 
     // Check enrollment
-    if (quiz.class.enrollments.length === 0) {
+    if (quiz.section.enrollments.length === 0) {
       return NextResponse.json(
-        { error: "You are not enrolled in this class" },
+        { error: "You are not enrolled in this section" },
         { status: 403 }
       );
     }
@@ -132,10 +138,11 @@ export async function GET(
         startDate: quiz.startDate?.toISOString() || null,
         endDate: quiz.endDate?.toISOString() || null,
         passingGrade: quiz.passingGrade || 70,
+        // Client compatibility
         class: {
-          id: quiz.class.id,
-          name: quiz.class.name,
-          subject: quiz.class.subject,
+          id: quiz.section.id,
+          name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+          subject: quiz.section.template.subject,
         },
         questions: quiz.questions,
         questionCount: quiz.questions.length,

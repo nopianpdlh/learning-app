@@ -1,6 +1,7 @@
 /**
  * Student Materials API
- * GET /api/student/materials - List all materials from enrolled classes
+ * GET /api/student/materials - List all materials from enrolled sections
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -35,21 +36,22 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const type = searchParams.get("type") || "all";
-    const classId = searchParams.get("classId") || null;
+    const sectionId =
+      searchParams.get("classId") || searchParams.get("sectionId") || null;
     const bookmarked = searchParams.get("bookmarked") === "true";
 
-    // Get enrolled class IDs
+    // Get enrolled section IDs
     const enrollments = await prisma.enrollment.findMany({
       where: {
         studentId: studentProfile.id,
-        status: { in: ["PAID", "ACTIVE", "COMPLETED"] },
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
-      select: { classId: true },
+      select: { sectionId: true },
     });
 
-    const enrolledClassIds = enrollments.map((e) => e.classId);
+    const enrolledSectionIds = enrollments.map((e) => e.sectionId);
 
-    if (enrolledClassIds.length === 0) {
+    if (enrolledSectionIds.length === 0) {
       return NextResponse.json({
         materials: [],
         stats: {
@@ -62,12 +64,12 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      classId: { in: enrolledClassIds },
+      sectionId: { in: enrolledSectionIds },
     };
 
-    // Filter by specific class if provided
-    if (classId) {
-      where.classId = classId;
+    // Filter by specific section if provided
+    if (sectionId) {
+      where.sectionId = sectionId;
     }
 
     // Filter by type
@@ -83,15 +85,20 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Fetch materials with class info and bookmark status
+    // Fetch materials with section info and bookmark status
     const materials = await prisma.material.findMany({
       where,
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
           },
         },
         bookmarks: {
@@ -120,12 +127,12 @@ export async function GET(request: NextRequest) {
       stats.byType[material.fileType] =
         (stats.byType[material.fileType] || 0) + 1;
 
-      // Count by class
-      stats.byClass[material.class.name] =
-        (stats.byClass[material.class.name] || 0) + 1;
+      // Count by class (using template name)
+      const className = material.section.template.name;
+      stats.byClass[className] = (stats.byClass[className] || 0) + 1;
     });
 
-    // Format response
+    // Format response with client compatibility
     const formattedMaterials = filteredMaterials.map((material) => ({
       id: material.id,
       title: material.title,
@@ -139,7 +146,12 @@ export async function GET(request: NextRequest) {
       downloadCount: material.downloadCount,
       createdAt: material.createdAt,
       updatedAt: material.updatedAt,
-      class: material.class,
+      // Client compatibility - provide class object
+      class: {
+        id: material.section.id,
+        name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
+        subject: material.section.template.subject,
+      },
       bookmarked: material.bookmarks.length > 0,
     }));
 

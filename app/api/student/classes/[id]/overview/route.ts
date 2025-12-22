@@ -129,11 +129,12 @@ export async function GET(
         select: { id: true, quizId: true, score: true },
       }),
 
-      // Get next live class
-      db.liveClass.findFirst({
+      // Get next scheduled meeting
+      db.scheduledMeeting.findFirst({
         where: {
           sectionId,
           scheduledAt: { gt: new Date() },
+          status: { not: "CANCELLED" },
         },
         orderBy: { scheduledAt: "asc" },
         select: {

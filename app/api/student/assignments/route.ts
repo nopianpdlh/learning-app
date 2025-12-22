@@ -1,6 +1,7 @@
 /**
  * Student Assignments API
- * GET /api/student/assignments - Fetch all assignments from enrolled classes
+ * GET /api/student/assignments - Fetch all assignments from enrolled sections
+ * Updated to use section-based system
  */
 
 import { NextResponse } from "next/server";
@@ -27,15 +28,20 @@ export async function GET() {
       include: {
         enrollments: {
           where: {
-            status: { in: ["ACTIVE", "PAID"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
           select: {
-            classId: true,
-            class: {
+            sectionId: true,
+            section: {
               select: {
                 id: true,
-                name: true,
-                subject: true,
+                sectionLabel: true,
+                template: {
+                  select: {
+                    name: true,
+                    subject: true,
+                  },
+                },
               },
             },
           },
@@ -50,9 +56,11 @@ export async function GET() {
       );
     }
 
-    const enrolledClassIds = studentProfile.enrollments.map((e) => e.classId);
+    const enrolledSectionIds = studentProfile.enrollments.map(
+      (e) => e.sectionId
+    );
 
-    if (enrolledClassIds.length === 0) {
+    if (enrolledSectionIds.length === 0) {
       return NextResponse.json({
         assignments: [],
         stats: {
@@ -65,18 +73,23 @@ export async function GET() {
       });
     }
 
-    // Fetch all PUBLISHED assignments from enrolled classes
+    // Fetch all PUBLISHED assignments from enrolled sections
     const assignments = await prisma.assignment.findMany({
       where: {
-        classId: { in: enrolledClassIds },
+        sectionId: { in: enrolledSectionIds },
         status: "PUBLISHED",
       },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
           },
         },
         submissions: {
@@ -106,11 +119,11 @@ export async function GET() {
       // Determine effective status for UI
       let effectiveStatus: string;
       if (submission) {
-        effectiveStatus = submission.status; // SUBMITTED, GRADED, LATE
+        effectiveStatus = submission.status;
       } else if (isPastDue) {
-        effectiveStatus = "OVERDUE"; // Past due but not submitted
+        effectiveStatus = "OVERDUE";
       } else {
-        effectiveStatus = "PENDING"; // Not yet due, not submitted
+        effectiveStatus = "PENDING";
       }
 
       return {
@@ -121,7 +134,12 @@ export async function GET() {
         maxPoints: assignment.maxPoints,
         attachmentUrl: assignment.attachmentUrl,
         createdAt: assignment.createdAt.toISOString(),
-        class: assignment.class,
+        // Client compatibility
+        class: {
+          id: assignment.section.id,
+          name: `${assignment.section.template.name} - Section ${assignment.section.sectionLabel}`,
+          subject: assignment.section.template.subject,
+        },
         isPastDue,
         effectiveStatus,
         submission: submission

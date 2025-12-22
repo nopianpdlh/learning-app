@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/tutor/liveClasses
- * Fetch all scheduled live classes for tutor's sections (read-only)
- * Uses section-based system
+ * Fetch all scheduled meetings for tutor's sections (read-only)
+ * Uses ScheduledMeeting model for admin-created meetings
  */
 export async function GET(req: NextRequest) {
   try {
@@ -76,10 +76,11 @@ export async function GET(req: NextRequest) {
     // Build where clause
     const where: any = {
       sectionId: sectionFilter || { in: sectionIds },
+      status: { not: "CANCELLED" },
     };
 
-    // Fetch all live classes
-    const liveClasses = await db.liveClass.findMany({
+    // Fetch all scheduled meetings (using ScheduledMeeting model that admin creates)
+    const scheduledMeetings = await db.scheduledMeeting.findMany({
       where,
       include: {
         section: {
@@ -105,23 +106,34 @@ export async function GET(req: NextRequest) {
     const now = new Date();
 
     // Transform and filter by status
-    const transformedClasses = liveClasses.map((lc) => {
-      const scheduledAt = new Date(lc.scheduledAt);
-      const isUpcoming = scheduledAt > now;
+    const transformedClasses = scheduledMeetings.map((meeting) => {
+      const scheduledAt = new Date(meeting.scheduledAt);
+      const endTime = new Date(
+        scheduledAt.getTime() + meeting.duration * 60 * 1000
+      );
+
+      let status: "upcoming" | "completed" | "live";
+      if (now < scheduledAt) {
+        status = "upcoming";
+      } else if (now >= scheduledAt && now <= endTime) {
+        status = "upcoming"; // Still show as upcoming if currently live
+      } else {
+        status = "completed";
+      }
 
       return {
-        id: lc.id,
-        title: lc.title,
-        meetingUrl: lc.meetingUrl,
-        scheduledAt: lc.scheduledAt.toISOString(),
-        duration: lc.duration,
-        classId: lc.sectionId, // For client compatibility
-        className: `${lc.section.template.name} - ${lc.section.sectionLabel}`,
-        classSubject: lc.section.template.subject,
-        enrollmentCount: lc.section._count.enrollments,
-        status: isUpcoming ? "upcoming" : "completed",
-        createdAt: lc.createdAt.toISOString(),
-        updatedAt: lc.updatedAt.toISOString(),
+        id: meeting.id,
+        title: meeting.title,
+        meetingUrl: meeting.meetingUrl || "",
+        scheduledAt: meeting.scheduledAt.toISOString(),
+        duration: meeting.duration,
+        classId: meeting.sectionId, // For client compatibility
+        className: `${meeting.section.template.name} - ${meeting.section.sectionLabel}`,
+        classSubject: meeting.section.template.subject,
+        enrollmentCount: meeting.section._count.enrollments,
+        status,
+        createdAt: meeting.createdAt.toISOString(),
+        updatedAt: meeting.updatedAt.toISOString(),
       };
     });
 
@@ -140,8 +152,8 @@ export async function GET(req: NextRequest) {
         .length,
       completed: transformedClasses.filter((lc) => lc.status === "completed")
         .length,
-      totalEnrollments: transformedClasses.reduce(
-        (sum, lc) => sum + lc.enrollmentCount,
+      totalEnrollments: sections.reduce(
+        (sum, s) => sum + s.enrollments.length,
         0
       ),
     };

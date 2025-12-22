@@ -1,6 +1,7 @@
 /**
  * Forum Posts API - Create Post/Reply
  * POST /api/forum/posts - Create new post or reply
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,15 +39,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createPostSchema.parse(body);
 
-    // Verify thread exists and get class info
+    // Verify thread exists and get section info
     const thread = await prisma.forumThread.findUnique({
       where: { id: data.threadId },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
+            sectionLabel: true,
             tutorId: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -56,13 +62,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Thread not found" }, { status: 404 });
     }
 
-    // Verify access to class
+    // Build section name for notifications
+    const className = `${thread.section.template.name} - Section ${thread.section.sectionLabel}`;
+
+    // Verify access to section
     if (profile.role === "STUDENT") {
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+      });
+
+      if (!studentProfile) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          studentId: user.id,
-          classId: thread.classId,
-          status: { in: ["PAID", "ACTIVE"] },
+          studentId: studentProfile.id,
+          sectionId: thread.sectionId,
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
       });
 
@@ -70,12 +87,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     } else if (profile.role === "TUTOR") {
-      // Get tutor profile to compare with class tutorId
+      // Get tutor profile to compare with section tutorId
       const tutorProfile = await prisma.tutorProfile.findUnique({
         where: { userId: user.id },
       });
 
-      if (!tutorProfile || thread.class.tutorId !== tutorProfile.id) {
+      if (!tutorProfile || thread.section.tutorId !== tutorProfile.id) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     }
@@ -130,7 +147,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId: thread.authorId,
           title: "New Reply in Thread",
-          message: `New reply in "${thread.title}" from ${thread.class.name}`,
+          message: `New reply in "${thread.title}" from ${className}`,
           type: "FORUM",
         },
       });
@@ -148,9 +165,9 @@ export async function POST(request: NextRequest) {
           activityType: "new_reply",
           threadTitle: thread.title,
           authorName: profile.name,
-          className: thread.class.name,
+          className,
           contentPreview,
-          threadUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${thread.classId}/forum/${thread.id}`,
+          threadUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/forum`,
         }).catch((err) => {
           console.error("Failed to send forum email notification:", err);
         });
@@ -198,9 +215,9 @@ export async function POST(request: NextRequest) {
             activityType: "new_reply",
             threadTitle: thread.title,
             authorName: profile.name,
-            className: thread.class.name,
+            className,
             contentPreview,
-            threadUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${thread.classId}/forum/${thread.id}`,
+            threadUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/forum`,
           }).catch((err) => {
             console.error("Failed to send forum email notification:", err);
           });
@@ -225,8 +242,29 @@ export async function POST(request: NextRequest) {
     console.error("Create forum post error:", error);
 
     if (error.name === "ZodError") {
+      // Get the first error message for a user-friendly response
+      const firstError = error.errors[0];
+      let errorMessage = "Validasi gagal";
+
+      if (firstError) {
+        const field = firstError.path.join(".");
+        const fieldNames: Record<string, string> = {
+          content: "Isi balasan",
+          threadId: "Thread",
+        };
+        const fieldName = fieldNames[field] || field;
+
+        if (firstError.code === "too_small") {
+          errorMessage = `${fieldName} minimal ${firstError.minimum} karakter`;
+        } else if (firstError.code === "too_big") {
+          errorMessage = `${fieldName} maksimal ${firstError.maximum} karakter`;
+        } else {
+          errorMessage = `${fieldName}: ${firstError.message}`;
+        }
+      }
+
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        { error: errorMessage, details: error.errors },
         { status: 400 }
       );
     }

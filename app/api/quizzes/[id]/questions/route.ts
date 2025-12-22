@@ -1,6 +1,7 @@
 /**
  * Quiz Questions API
  * POST /api/quizzes/[id]/questions - Add a question to a quiz
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -40,11 +41,11 @@ export async function POST(
       );
     }
 
-    // Get quiz and verify ownership
+    // Get quiz and verify ownership via section
     const quiz = await prisma.quiz.findUnique({
       where: { id: params.id },
       include: {
-        class: {
+        section: {
           select: {
             tutorId: true,
           },
@@ -65,7 +66,7 @@ export async function POST(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    if (quiz.class.tutorId !== dbUser.tutorProfile.id) {
+    if (quiz.section.tutorId !== dbUser.tutorProfile.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

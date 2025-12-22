@@ -1,6 +1,7 @@
 /**
  * Gradebook API
- * GET /api/classes/[id]/gradebook - Get gradebook for a class
+ * GET /api/classes/[id]/gradebook - Get gradebook for a section
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,9 +11,10 @@ import { calculateGradeBreakdown, GradeItem } from "@/lib/gradebook";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: sectionId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -38,18 +40,22 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Verify access to this class
-    const classData = await prisma.class.findUnique({
-      where: { id: params.id },
+    // Verify access to this section
+    const sectionData = await prisma.classSection.findUnique({
+      where: { id: sectionId },
+      include: {
+        template: true,
+      },
     });
 
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    if (!sectionData) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
     // Check permissions
     const isTutor =
-      dbUser.role === "TUTOR" && dbUser.tutorProfile?.id === classData.tutorId;
+      dbUser.role === "TUTOR" &&
+      dbUser.tutorProfile?.id === sectionData.tutorId;
     const isAdmin = dbUser.role === "ADMIN";
     const isStudent = dbUser.role === "STUDENT";
 
@@ -67,25 +73,24 @@ export async function GET(
       }
 
       // Verify student is enrolled
-      const enrollment = await prisma.enrollment.findUnique({
+      const enrollment = await prisma.enrollment.findFirst({
         where: {
-          studentId_classId: {
-            studentId: dbUser.studentProfile.id,
-            classId: params.id,
-          },
+          studentId: dbUser.studentProfile.id,
+          sectionId: sectionId,
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
       });
 
-      if (!enrollment || !["PAID", "ACTIVE"].includes(enrollment.status)) {
+      if (!enrollment) {
         return NextResponse.json(
-          { error: "Not enrolled in this class" },
+          { error: "Not enrolled in this section" },
           { status: 403 }
         );
       }
 
       // Get student's graded assignments
       const assignments = await prisma.assignment.findMany({
-        where: { classId: params.id, status: "PUBLISHED" },
+        where: { sectionId: sectionId, status: "PUBLISHED" },
         include: {
           submissions: {
             where: {
@@ -111,7 +116,7 @@ export async function GET(
 
       // Get student's completed quizzes
       const quizzes = await prisma.quiz.findMany({
-        where: { classId: params.id, status: "PUBLISHED" },
+        where: { sectionId: sectionId, status: "PUBLISHED" },
         include: {
           attempts: {
             where: {
@@ -160,8 +165,8 @@ export async function GET(
     // Tutor/Admin: Get gradebook for all students
     const enrollments = await prisma.enrollment.findMany({
       where: {
-        classId: params.id,
-        status: { in: ["PAID", "ACTIVE"] },
+        sectionId: sectionId,
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
       include: {
         student: {
@@ -172,9 +177,9 @@ export async function GET(
       },
     });
 
-    // Get all assignments for this class
+    // Get all assignments for this section
     const assignments = await prisma.assignment.findMany({
-      where: { classId: params.id, status: "PUBLISHED" },
+      where: { sectionId: sectionId, status: "PUBLISHED" },
       include: {
         submissions: {
           where: { status: "GRADED" },
@@ -183,9 +188,9 @@ export async function GET(
       orderBy: { dueDate: "asc" },
     });
 
-    // Get all quizzes for this class
+    // Get all quizzes for this section
     const quizzes = await prisma.quiz.findMany({
-      where: { classId: params.id, status: "PUBLISHED" },
+      where: { sectionId: sectionId, status: "PUBLISHED" },
       include: {
         attempts: {
           where: { submittedAt: { not: null } },
@@ -269,8 +274,8 @@ export async function GET(
 
     return NextResponse.json({
       class: {
-        id: classData.id,
-        name: classData.name,
+        id: sectionData.id,
+        name: `${sectionData.template.name} - Section ${sectionData.sectionLabel}`,
       },
       assignments: assignments.map((a) => ({
         id: a.id,

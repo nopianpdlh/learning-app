@@ -1,6 +1,7 @@
 /**
  * Tutor Quiz Results API
  * GET /api/quizzes/[id]/results
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,9 +10,10 @@ import { prisma } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: quizId } = await params;
     // Auth check
     const supabase = await createClient();
     const {
@@ -23,24 +25,31 @@ export async function GET(
     }
 
     // Get user profile
-    const profile = await prisma.user.findUnique({
+    const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { role: true },
+      include: {
+        tutorProfile: true,
+      },
     });
 
-    if (!profile || (profile.role !== "TUTOR" && profile.role !== "ADMIN")) {
+    if (!dbUser || (dbUser.role !== "TUTOR" && dbUser.role !== "ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch quiz
+    // Fetch quiz with section
     const quiz = await prisma.quiz.findUnique({
-      where: { id: params.id },
+      where: { id: quizId },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
+            sectionLabel: true,
             tutorId: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
         questions: {
@@ -53,15 +62,20 @@ export async function GET(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    // Permission check: Tutor must own the class
-    if (profile.role === "TUTOR" && quiz.class.tutorId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    // Permission check: Tutor must own the section
+    if (dbUser.role === "TUTOR") {
+      if (
+        !dbUser.tutorProfile ||
+        quiz.section.tutorId !== dbUser.tutorProfile.id
+      ) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     // Fetch all attempts with student info
     const attempts = await prisma.quizAttempt.findMany({
       where: {
-        quizId: params.id,
+        quizId: quizId,
         submittedAt: { not: null },
       },
       include: {
@@ -116,7 +130,7 @@ export async function GET(
       quiz: {
         id: quiz.id,
         title: quiz.title,
-        className: quiz.class.name,
+        className: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
         totalPoints,
         passingGrade: quiz.passingGrade,
       },

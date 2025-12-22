@@ -1,6 +1,7 @@
 /**
  * Student Assignment Detail API
  * GET /api/student/assignments/[id] - Get single assignment with submission
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,19 +39,24 @@ export async function GET(
       );
     }
 
-    // Get assignment with class and submission
+    // Get assignment with section and submission
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             enrollments: {
               where: {
                 studentId: studentProfile.id,
-                status: { in: ["ACTIVE", "PAID"] },
+                status: { in: ["ACTIVE", "EXPIRED"] },
               },
               select: { id: true },
             },
@@ -79,9 +85,9 @@ export async function GET(
     }
 
     // Check enrollment
-    if (assignment.class.enrollments.length === 0) {
+    if (assignment.section.enrollments.length === 0) {
       return NextResponse.json(
-        { error: "You are not enrolled in this class" },
+        { error: "You are not enrolled in this section" },
         { status: 403 }
       );
     }
@@ -109,10 +115,11 @@ export async function GET(
         maxPoints: assignment.maxPoints,
         attachmentUrl: assignment.attachmentUrl,
         createdAt: assignment.createdAt.toISOString(),
+        // Client compatibility
         class: {
-          id: assignment.class.id,
-          name: assignment.class.name,
-          subject: assignment.class.subject,
+          id: assignment.section.id,
+          name: `${assignment.section.template.name} - Section ${assignment.section.sectionLabel}`,
+          subject: assignment.section.template.subject,
         },
         isPastDue,
         effectiveStatus,

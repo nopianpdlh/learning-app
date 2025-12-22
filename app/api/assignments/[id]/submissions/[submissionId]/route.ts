@@ -1,6 +1,7 @@
 /**
  * Grade Assignment Submission API
  * PUT /api/assignments/[id]/submissions/[submissionId] - Grade a submission
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,9 +18,10 @@ import {
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; submissionId: string } }
+  { params }: { params: Promise<{ id: string; submissionId: string }> }
 ) {
   try {
+    const { id: assignmentId, submissionId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -55,17 +57,18 @@ export async function PUT(
     // Get assignment and submission
     const [assignment, submission] = await Promise.all([
       prisma.assignment.findUnique({
-        where: { id: params.id },
+        where: { id: assignmentId },
         include: {
-          class: {
+          section: {
             include: {
               tutor: true,
+              template: true,
             },
           },
         },
       }),
       prisma.assignmentSubmission.findUnique({
-        where: { id: params.submissionId },
+        where: { id: submissionId },
         include: {
           student: {
             include: {
@@ -91,20 +94,20 @@ export async function PUT(
     }
 
     // Verify submission belongs to this assignment
-    if (submission.assignmentId !== params.id) {
+    if (submission.assignmentId !== assignmentId) {
       return NextResponse.json(
         { error: "Submission does not belong to this assignment" },
         { status: 400 }
       );
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      assignment.class.tutorId !== dbUser.tutorProfile?.id
+      assignment.section.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only grade submissions in your own classes" },
+        { error: "You can only grade submissions in your own sections" },
         { status: 403 }
       );
     }
@@ -125,7 +128,7 @@ export async function PUT(
 
     // Update submission with grade
     const gradedSubmission = await prisma.assignmentSubmission.update({
-      where: { id: params.submissionId },
+      where: { id: submissionId },
       data: {
         score: validatedData.score,
         feedback: validatedData.feedback,
@@ -136,9 +139,14 @@ export async function PUT(
         assignment: {
           select: {
             title: true,
-            class: {
+            section: {
               select: {
-                name: true,
+                sectionLabel: true,
+                template: {
+                  select: {
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -157,19 +165,30 @@ export async function PUT(
       },
     });
 
+    const className = `${gradedSubmission.assignment.section.template.name} - ${gradedSubmission.assignment.section.sectionLabel}`;
+
     // Create notification for student
     await prisma.notification.create({
       data: {
         userId: gradedSubmission.student.user.id,
         title: "Assignment Graded",
-        message: `Your submission for "${gradedSubmission.assignment.title}" has been graded: ${validatedData.score}/${assignment.maxPoints}`,
+        message: `Your submission for "${gradedSubmission.assignment.title}" in ${className} has been graded: ${validatedData.score}/${assignment.maxPoints}`,
         type: "ASSIGNMENT",
       },
     });
 
     return NextResponse.json({
       success: true,
-      data: gradedSubmission,
+      data: {
+        ...gradedSubmission,
+        // Client compatibility
+        assignment: {
+          ...gradedSubmission.assignment,
+          class: {
+            name: className,
+          },
+        },
+      },
       message: "Submission graded successfully",
     });
   } catch (error) {

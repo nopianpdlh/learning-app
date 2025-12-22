@@ -1,6 +1,7 @@
 /**
  * Quiz Result Page - Server Component
  * Shows quiz result with detailed answer breakdown
+ * Updated to use section-based system
  */
 
 import { redirect, notFound } from "next/navigation";
@@ -22,6 +23,20 @@ import {
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ attemptId?: string }>;
+}
+
+interface QuestionWithAnswer {
+  id: string;
+  questionType: string;
+  questionText: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string | null;
+  points: number;
+  orderIndex: number;
+  studentAnswer: string | null;
+  isCorrect: boolean;
+  earnedPoints: number;
 }
 
 export default async function QuizResultPage({
@@ -52,15 +67,20 @@ export default async function QuizResultPage({
     redirect("/login");
   }
 
-  // Get quiz with questions
+  // Get quiz with questions - using section instead of class
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
         },
       },
       questions: {
@@ -111,21 +131,27 @@ export default async function QuizResultPage({
   }
 
   // Build result data
-  const questionsWithAnswers = quiz.questions.map((question) => {
-    const studentAnswer = attempt.answers.find(
-      (a) => a.questionId === question.id
-    );
-    return {
-      ...question,
-      studentAnswer: studentAnswer?.answer || null,
-      isCorrect: studentAnswer?.isCorrect || false,
-      earnedPoints: studentAnswer?.isCorrect ? question.points : 0,
-    };
-  });
+  const questionsWithAnswers: QuestionWithAnswer[] = quiz.questions.map(
+    (question) => {
+      const studentAnswer = attempt.answers.find(
+        (a) => a.questionId === question.id
+      );
+      return {
+        ...question,
+        options: question.options as string[],
+        studentAnswer: studentAnswer?.answer || null,
+        isCorrect: studentAnswer?.isCorrect || false,
+        earnedPoints: studentAnswer?.isCorrect ? question.points : 0,
+      };
+    }
+  );
 
-  const totalPoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
+  const totalPoints = quiz.questions.reduce(
+    (sum: number, q) => sum + q.points,
+    0
+  );
   const earnedPoints = questionsWithAnswers.reduce(
-    (sum, q) => sum + q.earnedPoints,
+    (sum: number, q) => sum + q.earnedPoints,
     0
   );
   const correctCount = questionsWithAnswers.filter((q) => q.isCorrect).length;
@@ -244,125 +270,127 @@ export default async function QuizResultPage({
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Review Jawaban</h2>
 
-        {questionsWithAnswers.map((question, index) => (
-          <Card
-            key={question.id}
-            className={`${
-              question.isCorrect
-                ? "border-l-4 border-l-green-500"
-                : "border-l-4 border-l-red-500"
-            }`}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Soal {index + 1}</CardTitle>
-                <div className="flex items-center gap-2">
-                  {question.isCorrect ? (
-                    <Badge className="bg-green-500">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Benar
+        {questionsWithAnswers.map(
+          (question: QuestionWithAnswer, index: number) => (
+            <Card
+              key={question.id}
+              className={`${
+                question.isCorrect
+                  ? "border-l-4 border-l-green-500"
+                  : "border-l-4 border-l-red-500"
+              }`}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Soal {index + 1}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    {question.isCorrect ? (
+                      <Badge className="bg-green-500">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Benar
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Salah
+                      </Badge>
+                    )}
+                    <Badge variant="outline">
+                      {question.earnedPoints}/{question.points} poin
                     </Badge>
-                  ) : (
-                    <Badge variant="destructive">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Salah
-                    </Badge>
-                  )}
-                  <Badge variant="outline">
-                    {question.earnedPoints}/{question.points} poin
-                  </Badge>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p>{question.questionText}</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p>{question.questionText}</p>
 
-              {(question.questionType === "MULTIPLE_CHOICE" ||
-                question.questionType === "TRUE_FALSE") && (
-                <div className="space-y-2">
-                  {(question.questionType === "TRUE_FALSE"
-                    ? ["Benar", "Salah"]
-                    : question.options
-                  ).map((option, optIndex) => {
-                    const isCorrectAnswer =
-                      option.toLowerCase().trim() ===
-                      question.correctAnswer.toLowerCase().trim();
-                    const isStudentAnswer =
-                      option.toLowerCase().trim() ===
-                      question.studentAnswer?.toLowerCase().trim();
+                {(question.questionType === "MULTIPLE_CHOICE" ||
+                  question.questionType === "TRUE_FALSE") && (
+                  <div className="space-y-2">
+                    {(question.questionType === "TRUE_FALSE"
+                      ? ["Benar", "Salah"]
+                      : question.options
+                    ).map((option: string, optIndex: number) => {
+                      const isCorrectAnswer =
+                        option.toLowerCase().trim() ===
+                        question.correctAnswer.toLowerCase().trim();
+                      const isStudentAnswer =
+                        option.toLowerCase().trim() ===
+                        question.studentAnswer?.toLowerCase().trim();
 
-                    return (
-                      <div
-                        key={optIndex}
-                        className={`p-3 rounded-lg border ${
-                          isCorrectAnswer
-                            ? "bg-green-50 border-green-300"
-                            : isStudentAnswer
-                            ? "bg-red-50 border-red-300"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{option}</span>
-                          <div className="flex gap-2">
-                            {isCorrectAnswer && (
-                              <Badge
-                                variant="outline"
-                                className="bg-green-100 text-green-700"
-                              >
-                                Jawaban Benar
-                              </Badge>
-                            )}
-                            {isStudentAnswer && !isCorrectAnswer && (
-                              <Badge
-                                variant="outline"
-                                className="bg-red-100 text-red-700"
-                              >
-                                Jawaban Anda
-                              </Badge>
-                            )}
+                      return (
+                        <div
+                          key={optIndex}
+                          className={`p-3 rounded-lg border ${
+                            isCorrectAnswer
+                              ? "bg-green-50 border-green-300"
+                              : isStudentAnswer
+                              ? "bg-red-50 border-red-300"
+                              : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{option}</span>
+                            <div className="flex gap-2">
+                              {isCorrectAnswer && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-green-100 text-green-700"
+                                >
+                                  Jawaban Benar
+                                </Badge>
+                              )}
+                              {isStudentAnswer && !isCorrectAnswer && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-red-100 text-red-700"
+                                >
+                                  Jawaban Anda
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                      );
+                    })}
+                  </div>
+                )}
 
-              {question.questionType === "SHORT_ANSWER" && (
-                <div className="space-y-2">
-                  <div className="p-3 rounded-lg bg-muted">
-                    <p className="text-sm text-muted-foreground">
-                      Jawaban Anda:
+                {question.questionType === "SHORT_ANSWER" && (
+                  <div className="space-y-2">
+                    <div className="p-3 rounded-lg bg-muted">
+                      <p className="text-sm text-muted-foreground">
+                        Jawaban Anda:
+                      </p>
+                      <p className="font-medium">
+                        {question.studentAnswer || "(Tidak dijawab)"}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-green-50 border border-green-300">
+                      <p className="text-sm text-muted-foreground">
+                        Jawaban Benar:
+                      </p>
+                      <p className="font-medium text-green-700">
+                        {question.correctAnswer}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {question.explanation && (
+                  <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
+                    <p className="text-sm font-medium text-blue-700 mb-1">
+                      Penjelasan:
                     </p>
-                    <p className="font-medium">
-                      {question.studentAnswer || "(Tidak dijawab)"}
+                    <p className="text-sm text-blue-600">
+                      {question.explanation}
                     </p>
                   </div>
-                  <div className="p-3 rounded-lg bg-green-50 border border-green-300">
-                    <p className="text-sm text-muted-foreground">
-                      Jawaban Benar:
-                    </p>
-                    <p className="font-medium text-green-700">
-                      {question.correctAnswer}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {question.explanation && (
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <p className="text-sm font-medium text-blue-700 mb-1">
-                    Penjelasan:
-                  </p>
-                  <p className="text-sm text-blue-600">
-                    {question.explanation}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                )}
+              </CardContent>
+            </Card>
+          )
+        )}
       </div>
 
       {/* Back Button */}

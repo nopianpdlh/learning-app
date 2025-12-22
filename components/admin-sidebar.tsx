@@ -91,7 +91,6 @@ const menuGroups = [
     label: "Sistem",
     items: [
       { icon: IconReport, label: "Reports", path: "/admin/reports" },
-      { icon: IconSettings, label: "Settings", path: "/admin/settings" },
       { icon: IconShield, label: "Audit Logs", path: "/admin/auditLogs" },
     ],
   },
@@ -102,7 +101,7 @@ export function AdminSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   // User state - fetch from session
   const [user, setUser] = useState({
@@ -162,7 +161,13 @@ export function AdminSidebar({
               size="lg"
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <Link href="/admin/dashboard" className="flex items-center gap-3">
+              <Link
+                href="/admin/dashboard"
+                className="flex items-center gap-3"
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
+              >
                 <div className="relative w-8 h-8 shrink-0">
                   <Image
                     src="/images/logo-tutor.svg"
@@ -205,7 +210,12 @@ export function AdminSidebar({
                         isActive={isActive}
                         tooltip={item.label}
                       >
-                        <Link href={item.path}>
+                        <Link
+                          href={item.path}
+                          onClick={() => {
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                        >
                           <Icon />
                           <span>{item.label}</span>
                         </Link>
@@ -269,7 +279,13 @@ export function AdminSidebar({
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem asChild>
-                    <Link href="/admin/profile" className="cursor-pointer">
+                    <Link
+                      href="/admin/profile"
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
                       <IconUserCircle className="mr-2 h-4 w-4" />
                       Account
                     </Link>

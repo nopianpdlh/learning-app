@@ -2,7 +2,7 @@
  * Assignment Submissions API
  * POST /api/assignments/[id]/submit - Submit assignment
  * GET /api/assignments/[id]/submissions - Get all submissions (Tutor only)
- * PUT /api/assignments/[id]/submissions/[submissionId]/grade - Grade submission
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -10,9 +10,7 @@ import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
 import {
   submitAssignmentSchema,
-  gradeSubmissionSchema,
   calculateSubmissionStatus,
-  validateScore,
 } from "@/lib/validations/assignment.schema";
 
 /**
@@ -21,9 +19,10 @@ import {
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: assignmentId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -53,7 +52,7 @@ export async function POST(
 
     // Get assignment
     const assignment = await prisma.assignment.findUnique({
-      where: { id: params.id },
+      where: { id: assignmentId },
     });
 
     if (!assignment) {
@@ -63,18 +62,18 @@ export async function POST(
       );
     }
 
-    // Check if student is enrolled
+    // Check if student is enrolled via section
     const enrollment = await prisma.enrollment.findFirst({
       where: {
-        classId: assignment.classId,
+        sectionId: assignment.sectionId,
         studentId: dbUser.studentProfile?.id,
-        status: { in: ["PAID", "ACTIVE"] },
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
     });
 
     if (!enrollment) {
       return NextResponse.json(
-        { error: "You must be enrolled in this class to submit" },
+        { error: "You must be enrolled in this section to submit" },
         { status: 403 }
       );
     }
@@ -90,7 +89,7 @@ export async function POST(
     // Parse request body
     const body = await request.json();
     const validatedData = submitAssignmentSchema.parse({
-      assignmentId: params.id,
+      assignmentId: assignmentId,
       fileUrl: body.fileUrl,
     });
 
@@ -104,7 +103,7 @@ export async function POST(
     // Check if student already submitted
     const existingSubmission = await prisma.assignmentSubmission.findFirst({
       where: {
-        assignmentId: params.id,
+        assignmentId: assignmentId,
         studentId: dbUser.studentProfile?.id,
       },
     });
@@ -129,7 +128,7 @@ export async function POST(
       // Create new submission
       submission = await prisma.assignmentSubmission.create({
         data: {
-          assignmentId: params.id,
+          assignmentId: assignmentId,
           studentId: dbUser.studentProfile!.id,
           fileUrl: validatedData.fileUrl,
           status,
@@ -138,10 +137,11 @@ export async function POST(
       });
     }
 
-    // Create notification for tutor
-    const classData = await prisma.class.findUnique({
-      where: { id: assignment.classId },
+    // Create notification for tutor via section
+    const sectionData = await prisma.classSection.findUnique({
+      where: { id: assignment.sectionId },
       include: {
+        template: true,
         tutor: {
           include: {
             user: true,
@@ -150,12 +150,12 @@ export async function POST(
       },
     });
 
-    if (classData) {
+    if (sectionData) {
       await prisma.notification.create({
         data: {
-          userId: classData.tutor.user.id,
+          userId: sectionData.tutor.user.id,
           title: "New Submission",
-          message: `${dbUser.name} submitted "${assignment.title}" in ${classData.name}`,
+          message: `${dbUser.name} submitted "${assignment.title}" in ${sectionData.template.name}`,
           type: "ASSIGNMENT",
         },
       });
@@ -192,9 +192,10 @@ export async function POST(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: assignmentId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -219,11 +220,11 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get assignment
+    // Get assignment with section
     const assignment = await prisma.assignment.findUnique({
-      where: { id: params.id },
+      where: { id: assignmentId },
       include: {
-        class: true,
+        section: true,
       },
     });
 
@@ -234,9 +235,9 @@ export async function GET(
       );
     }
 
-    // Check permissions
+    // Check permissions via section
     if (dbUser.role === "TUTOR") {
-      if (assignment.class.tutorId !== dbUser.tutorProfile?.id) {
+      if (assignment.section.tutorId !== dbUser.tutorProfile?.id) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
     } else if (dbUser.role !== "ADMIN") {
@@ -248,7 +249,7 @@ export async function GET(
 
     // Get all submissions for this assignment
     const submissions = await prisma.assignmentSubmission.findMany({
-      where: { assignmentId: params.id },
+      where: { assignmentId: assignmentId },
       include: {
         student: {
           include: {

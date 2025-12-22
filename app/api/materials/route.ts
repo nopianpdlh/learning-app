@@ -2,15 +2,34 @@
  * Materials API - List and Create
  * GET /api/materials - List materials with filters
  * POST /api/materials - Create new material
+ *
+ * Updated to use section-based system (ClassSection instead of Class)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import {
-  createMaterialSchema,
-  materialFilterSchema,
-} from "@/lib/validations/material.schema";
+import { z } from "zod";
+import { getVideoThumbnail, extractVideoId } from "@/lib/video-thumbnail";
+
+// Validation schemas
+const materialFilterSchema = z.object({
+  sectionId: z.string().optional(),
+  session: z.coerce.number().optional(),
+  fileType: z.string().optional(),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+});
+
+const createMaterialSchema = z.object({
+  sectionId: z.string().min(1, "Section ID is required"),
+  title: z.string().min(1, "Title is required"),
+  description: z.string().optional().nullable(),
+  session: z.coerce.number().min(1, "Session must be at least 1"),
+  fileType: z.enum(["PDF", "VIDEO", "DOCUMENT", "IMAGE"]),
+  fileUrl: z.string().url().optional().nullable().or(z.literal("")),
+  videoUrl: z.string().url().optional().nullable().or(z.literal("")),
+});
 
 /**
  * GET /api/materials
@@ -46,7 +65,10 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const filters = materialFilterSchema.parse({
-      classId: searchParams.get("classId") || undefined,
+      sectionId:
+        searchParams.get("sectionId") ||
+        searchParams.get("classId") ||
+        undefined,
       session: searchParams.get("session") || undefined,
       fileType: searchParams.get("fileType") || undefined,
       page: searchParams.get("page") || "1",
@@ -56,67 +78,67 @@ export async function GET(request: NextRequest) {
     // Build query conditions
     const where: any = {};
 
-    // Filter by classId if provided
-    if (filters.classId) {
-      where.classId = filters.classId;
+    // Filter by sectionId if provided
+    if (filters.sectionId) {
+      where.sectionId = filters.sectionId;
 
-      // Check user has access to this class
+      // Check user has access to this section
       if (dbUser.role === "STUDENT") {
         const enrollment = await prisma.enrollment.findFirst({
           where: {
-            classId: filters.classId,
+            sectionId: filters.sectionId,
             studentId: dbUser.studentProfile?.id,
-            status: { in: ["PAID", "ACTIVE"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
         });
 
         if (!enrollment) {
           return NextResponse.json(
-            { error: "Access denied to this class" },
+            { error: "Access denied to this section" },
             { status: 403 }
           );
         }
       } else if (dbUser.role === "TUTOR") {
-        const classData = await prisma.class.findFirst({
+        const sectionData = await prisma.classSection.findFirst({
           where: {
-            id: filters.classId,
+            id: filters.sectionId,
             tutorId: dbUser.tutorProfile?.id,
           },
         });
 
-        if (!classData) {
+        if (!sectionData) {
           return NextResponse.json(
-            { error: "Access denied to this class" },
+            { error: "Access denied to this section" },
             { status: 403 }
           );
         }
       }
     } else {
-      // No classId provided, filter by user role
+      // No sectionId provided, filter by user role
       if (dbUser.role === "STUDENT") {
-        // Get enrolled classes
+        // Get enrolled sections
         const enrollments = await prisma.enrollment.findMany({
           where: {
             studentId: dbUser.studentProfile?.id,
-            status: { in: ["PAID", "ACTIVE"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
-          select: { classId: true },
+          select: { sectionId: true },
         });
 
-        where.classId = {
-          in: enrollments.map((e) => e.classId),
+        where.sectionId = {
+          in: enrollments.map((e) => e.sectionId),
         };
       } else if (dbUser.role === "TUTOR") {
-        // Get tutor's classes
-        const classes = await prisma.class.findMany({
+        // Get tutor's sections
+        const sections = await prisma.classSection.findMany({
           where: {
             tutorId: dbUser.tutorProfile?.id,
           },
           select: { id: true },
         });
 
-        where.classId = {
-          in: classes.map((c) => c.id),
+        where.sectionId = {
+          in: sections.map((s) => s.id),
         };
       }
       // Admin can see all materials (no filter)
@@ -139,10 +161,16 @@ export async function GET(request: NextRequest) {
       prisma.material.findMany({
         where,
         include: {
-          class: {
+          section: {
             select: {
               id: true,
-              name: true,
+              sectionLabel: true,
+              template: {
+                select: {
+                  name: true,
+                  subject: true,
+                },
+              },
               tutor: {
                 select: {
                   user: {
@@ -162,9 +190,19 @@ export async function GET(request: NextRequest) {
       prisma.material.count({ where }),
     ]);
 
+    // Transform for client compatibility
+    const transformedMaterials = materials.map((m) => ({
+      ...m,
+      class: {
+        id: m.section.id,
+        name: `${m.section.template.name} - Section ${m.section.sectionLabel}`,
+        tutor: m.section.tutor,
+      },
+    }));
+
     return NextResponse.json({
       success: true,
-      data: materials,
+      data: transformedMaterials,
       pagination: {
         page: filters.page,
         limit: filters.limit,
@@ -221,43 +259,65 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const validatedData = createMaterialSchema.parse(body);
 
-    // Verify class exists and user has access
-    const classData = await prisma.class.findUnique({
-      where: { id: validatedData.classId },
+    // Support both sectionId and classId for backward compatibility
+    const dataToValidate = {
+      ...body,
+      sectionId: body.sectionId || body.classId,
+    };
+
+    const validatedData = createMaterialSchema.parse(dataToValidate);
+
+    // Verify section exists and user has access
+    const sectionData = await prisma.classSection.findUnique({
+      where: { id: validatedData.sectionId },
+      include: {
+        template: true,
+      },
     });
 
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    if (!sectionData) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      classData.tutorId !== dbUser.tutorProfile?.id
+      sectionData.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only add materials to your own classes" },
+        { error: "You can only add materials to your own sections" },
         { status: 403 }
       );
+    }
+
+    // Auto-extract thumbnail from video URL if not provided
+    let thumbnail: string | null = null;
+    if (validatedData.fileType === "VIDEO" && validatedData.videoUrl) {
+      thumbnail = getVideoThumbnail(validatedData.videoUrl);
     }
 
     // Create material
     const material = await prisma.material.create({
       data: {
-        classId: validatedData.classId,
+        sectionId: validatedData.sectionId,
         title: validatedData.title,
-        description: validatedData.description,
+        description: validatedData.description || null,
         session: validatedData.session,
         fileType: validatedData.fileType,
-        fileUrl: validatedData.fileUrl,
-        videoUrl: validatedData.videoUrl,
+        fileUrl: validatedData.fileUrl || null,
+        videoUrl: validatedData.videoUrl || null,
+        thumbnail: thumbnail,
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -266,7 +326,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: material,
+        data: {
+          ...material,
+          class: {
+            name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
+          },
+        },
         message: "Material created successfully",
       },
       { status: 201 }
@@ -274,9 +339,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("POST /api/materials error:", error);
 
-    if (error instanceof Error && error.name === "ZodError") {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error },
+        { error: "Validation error", details: error.issues },
         { status: 400 }
       );
     }

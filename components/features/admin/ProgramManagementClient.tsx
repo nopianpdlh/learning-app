@@ -436,7 +436,7 @@ export default function ProgramManagementClient({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0A2647]">
             Manajemen Program
@@ -460,7 +460,7 @@ export default function ProgramManagementClient({
               <DialogTitle>Tambah Program Baru</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleAddProgram} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="add-name">Nama Program *</Label>
                   <Input
@@ -722,7 +722,7 @@ export default function ProgramManagementClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -794,8 +794,8 @@ export default function ProgramManagementClient({
 
       {/* Programs Table */}
       <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Program</TableHead>

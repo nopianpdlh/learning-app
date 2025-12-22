@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Table,
@@ -223,10 +223,13 @@ export default function ScheduleManagementClient({
     });
   };
 
-  // Run conflict check when relevant fields change
+  // Run conflict check when relevant fields change using useEffect
+  useEffect(() => {
+    checkConflict();
+  }, [formData.sectionId, formData.date, formData.time, formData.duration]);
+
   const handleFormChange = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
-    setTimeout(() => checkConflict(), 100);
   };
 
   const handleAddMeeting = async (e: React.FormEvent) => {
@@ -556,7 +559,7 @@ export default function ScheduleManagementClient({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0A2647]">Jadwal Meeting</h1>
           <p className="text-muted-foreground">
@@ -727,7 +730,7 @@ export default function ScheduleManagementClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -785,7 +788,7 @@ export default function ScheduleManagementClient({
       {/* Search & Filter */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -796,7 +799,7 @@ export default function ScheduleManagementClient({
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter status" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -813,8 +816,8 @@ export default function ScheduleManagementClient({
 
       {/* Meetings Table */}
       <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Meeting</TableHead>

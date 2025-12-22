@@ -1,7 +1,7 @@
 /**
  * Student Live Classes Page - Server Component
- * Fetches live classes data from database and passes to client component
- * Uses section-based enrollments only
+ * Fetches scheduled meetings data from database and passes to client component
+ * Uses section-based enrollments with ScheduledMeeting model
  */
 
 import { redirect } from "next/navigation";
@@ -30,7 +30,10 @@ export default async function StudentLiveClassesPage() {
         where: {
           status: { in: ["ACTIVE", "EXPIRED"] },
         },
-        select: { sectionId: true },
+        select: {
+          id: true,
+          sectionId: true,
+        },
       },
     },
   });
@@ -39,8 +42,9 @@ export default async function StudentLiveClassesPage() {
     redirect("/login");
   }
 
-  // Collect section IDs
+  // Collect section IDs and enrollment IDs
   const enrolledSectionIds = studentProfile.enrollments.map((e) => e.sectionId);
+  const enrollmentIds = studentProfile.enrollments.map((e) => e.id);
 
   // Handle no enrollments
   if (enrolledSectionIds.length === 0) {
@@ -52,8 +56,8 @@ export default async function StudentLiveClassesPage() {
     );
   }
 
-  // Fetch live classes from sections
-  const liveClasses = await prisma.liveClass.findMany({
+  // Fetch scheduled meetings from sections (using ScheduledMeeting model that admin creates)
+  const scheduledMeetings = await prisma.scheduledMeeting.findMany({
     where: {
       sectionId: { in: enrolledSectionIds },
     },
@@ -80,32 +84,34 @@ export default async function StudentLiveClassesPage() {
           },
         },
       },
-      attendances: {
+      attendance: {
         where: {
-          studentId: studentProfile.id,
+          enrollmentId: { in: enrollmentIds },
         },
         select: {
           id: true,
-          joinedAt: true,
+          status: true,
         },
       },
       _count: {
         select: {
-          attendances: true,
+          attendance: true,
         },
       },
     },
     orderBy: { scheduledAt: "desc" },
   });
 
-  // Process live classes
+  // Process scheduled meetings
   const now = new Date();
-  const processedLiveClasses = liveClasses.map((lc) => {
-    const scheduledAt = new Date(lc.scheduledAt);
-    const endTime = new Date(scheduledAt.getTime() + lc.duration * 60 * 1000);
+  const processedLiveClasses = scheduledMeetings.map((meeting) => {
+    const scheduledAt = new Date(meeting.scheduledAt);
+    const endTime = new Date(
+      scheduledAt.getTime() + meeting.duration * 60 * 1000
+    );
 
     let effectiveStatus: string;
-    if (lc.status === "CANCELLED") {
+    if (meeting.status === "CANCELLED") {
       effectiveStatus = "CANCELLED";
     } else if (now < scheduledAt) {
       effectiveStatus = "UPCOMING";
@@ -115,29 +121,29 @@ export default async function StudentLiveClassesPage() {
       effectiveStatus = "COMPLETED";
     }
 
-    const attended = lc.attendances.length > 0;
+    const attended = meeting.attendance.some((a) => a.status === "PRESENT");
 
     return {
-      id: lc.id,
-      title: lc.title,
-      description: lc.description,
-      meetingUrl: lc.meetingUrl,
-      scheduledAt: lc.scheduledAt.toISOString(),
-      duration: lc.duration,
-      maxParticipants: lc.maxParticipants,
-      recordingUrl: lc.recordingUrl,
-      status: lc.status,
+      id: meeting.id,
+      title: meeting.title,
+      description: meeting.description,
+      meetingUrl: meeting.meetingUrl || "",
+      scheduledAt: meeting.scheduledAt.toISOString(),
+      duration: meeting.duration,
+      maxParticipants: null as number | null,
+      recordingUrl: meeting.recordingUrl,
+      status: meeting.status,
       effectiveStatus,
       class: {
-        id: lc.section.id,
-        name: `${lc.section.template.name} - Section ${lc.section.sectionLabel}`,
-        subject: lc.section.template.subject,
+        id: meeting.section.id,
+        name: `${meeting.section.template.name} - Section ${meeting.section.sectionLabel}`,
+        subject: meeting.section.template.subject,
       },
       tutor: {
-        name: lc.section.tutor.user.name,
-        avatarUrl: lc.section.tutor.user.avatar,
+        name: meeting.section.tutor.user.name,
+        avatarUrl: meeting.section.tutor.user.avatar,
       },
-      participantCount: lc._count.attendances,
+      participantCount: meeting._count.attendance,
       attended,
     };
   });

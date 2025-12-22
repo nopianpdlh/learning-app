@@ -507,7 +507,7 @@ export default function SectionManagementClient({
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#0A2647]">
             Manajemen Section
@@ -536,7 +536,7 @@ export default function SectionManagementClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -625,7 +625,7 @@ export default function SectionManagementClient({
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => toggleProgramExpand(program.id)}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     {expandedPrograms.has(program.id) ? (
                       <ChevronDown className="h-5 w-5" />
@@ -641,7 +641,7 @@ export default function SectionManagementClient({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                     <Badge variant="outline">
                       {program.sections.length} sections
                     </Badge>
@@ -685,96 +685,102 @@ export default function SectionManagementClient({
                       </Button>
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Section</TableHead>
-                          <TableHead>Tutor</TableHead>
-                          <TableHead>Kapasitas</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {program.sections
-                          .sort((a, b) =>
-                            a.sectionLabel.localeCompare(b.sectionLabel)
-                          )
-                          .map((section) => {
-                            const capacityPct = getCapacityPercentage(
-                              section,
-                              program.maxStudentsPerSection
-                            );
-                            return (
-                              <TableRow key={section.id}>
-                                <TableCell>
-                                  <span className="font-medium">
-                                    Section {section.sectionLabel}
-                                  </span>
-                                </TableCell>
-                                <TableCell>{section.tutor.user.name}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full ${getCapacityColor(
-                                          capacityPct
-                                        )}`}
-                                        style={{
-                                          width: `${Math.min(
-                                            capacityPct,
-                                            100
-                                          )}%`,
-                                        }}
-                                      />
-                                    </div>
-                                    <span className="text-sm">
-                                      {section.currentEnrollments}/
-                                      {program.maxStudentsPerSection} (
-                                      {capacityPct}%)
+                    <div className="overflow-x-auto">
+                      <Table className="min-w-[600px]">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Section</TableHead>
+                            <TableHead>Tutor</TableHead>
+                            <TableHead>Kapasitas</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Aksi</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {program.sections
+                            .sort((a, b) =>
+                              a.sectionLabel.localeCompare(b.sectionLabel)
+                            )
+                            .map((section) => {
+                              const capacityPct = getCapacityPercentage(
+                                section,
+                                program.maxStudentsPerSection
+                              );
+                              return (
+                                <TableRow key={section.id}>
+                                  <TableCell>
+                                    <span className="font-medium">
+                                      Section {section.sectionLabel}
                                     </span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={
-                                      section.status === "ACTIVE"
-                                        ? "default"
-                                        : section.status === "FULL"
-                                        ? "destructive"
-                                        : "secondary"
-                                    }
-                                  >
-                                    {section.status}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => openEditDialog(section)}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() =>
-                                        setDeletingSection(section)
+                                  </TableCell>
+                                  <TableCell>
+                                    {section.tutor.user.name}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div
+                                          className={`h-full ${getCapacityColor(
+                                            capacityPct
+                                          )}`}
+                                          style={{
+                                            width: `${Math.min(
+                                              capacityPct,
+                                              100
+                                            )}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <span className="text-sm">
+                                        {section.currentEnrollments}/
+                                        {program.maxStudentsPerSection} (
+                                        {capacityPct}%)
+                                      </span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant={
+                                        section.status === "ACTIVE"
+                                          ? "default"
+                                          : section.status === "FULL"
+                                          ? "destructive"
+                                          : "secondary"
                                       }
-                                      className="text-red-500 hover:text-red-700"
-                                      disabled={section.currentEnrollments > 0}
                                     >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                      </TableBody>
-                    </Table>
+                                      {section.status}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => openEditDialog(section)}
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() =>
+                                          setDeletingSection(section)
+                                        }
+                                        className="text-red-500 hover:text-red-700"
+                                        disabled={
+                                          section.currentEnrollments > 0
+                                        }
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </CardContent>
               )}

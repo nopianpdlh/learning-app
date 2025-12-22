@@ -3,6 +3,7 @@
  * GET /api/quizzes/[id] - Get quiz details
  * PUT /api/quizzes/[id] - Update quiz
  * DELETE /api/quizzes/[id] - Delete quiz
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,9 +17,10 @@ import { sendQuizPublishedNotification } from "@/lib/email";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: quizId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -44,15 +46,21 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Fetch quiz with questions
+    // Fetch quiz with questions and section
     const quiz = await prisma.quiz.findUnique({
-      where: { id: params.id },
+      where: { id: quizId },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
+            sectionLabel: true,
             tutorId: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             tutor: {
               select: {
                 user: {
@@ -81,7 +89,6 @@ export async function GET(
 
     // Permission checks based on role
     if (dbUser.role === "STUDENT") {
-      // Students can only see PUBLISHED quizzes from enrolled classes
       if (!dbUser.studentProfile) {
         return NextResponse.json(
           { error: "Student profile not found" },
@@ -89,18 +96,18 @@ export async function GET(
         );
       }
 
-      const enrollment = await prisma.enrollment.findUnique({
+      // Check enrollment via section
+      const enrollment = await prisma.enrollment.findFirst({
         where: {
-          studentId_classId: {
-            studentId: dbUser.studentProfile.id,
-            classId: quiz.classId,
-          },
+          studentId: dbUser.studentProfile.id,
+          sectionId: quiz.sectionId,
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
       });
 
-      if (!enrollment || !["PAID", "ACTIVE"].includes(enrollment.status)) {
+      if (!enrollment) {
         return NextResponse.json(
-          { error: "You must be enrolled in this class" },
+          { error: "You must be enrolled in this section" },
           { status: 403 }
         );
       }
@@ -145,22 +152,37 @@ export async function GET(
         ...quiz,
         questions: questionsForStudent,
         myAttempts: attempts,
+        // Client compatibility
+        class: {
+          id: quiz.section.id,
+          name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+          tutorId: quiz.section.tutorId,
+          tutor: quiz.section.tutor,
+        },
       });
     } else if (dbUser.role === "TUTOR") {
-      // Tutors can only see quizzes from their classes
+      // Tutors can only see quizzes from their sections
       if (
         !dbUser.tutorProfile ||
-        quiz.class.tutorId !== dbUser.tutorProfile.id
+        quiz.section.tutorId !== dbUser.tutorProfile.id
       ) {
         return NextResponse.json(
-          { error: "You can only view quizzes from your own classes" },
+          { error: "You can only view quizzes from your own sections" },
           { status: 403 }
         );
       }
     }
     // Admins can see all quizzes
 
-    return NextResponse.json(quiz);
+    return NextResponse.json({
+      ...quiz,
+      class: {
+        id: quiz.section.id,
+        name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+        tutorId: quiz.section.tutorId,
+        tutor: quiz.section.tutor,
+      },
+    });
   } catch (error: any) {
     console.error("Error fetching quiz:", error);
     return NextResponse.json(
@@ -172,9 +194,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: quizId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -199,11 +222,15 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch existing quiz
+    // Fetch existing quiz with section
     const existingQuiz = await prisma.quiz.findUnique({
-      where: { id: params.id },
+      where: { id: quizId },
       include: {
-        class: true,
+        section: {
+          include: {
+            template: true,
+          },
+        },
       },
     });
 
@@ -211,14 +238,14 @@ export async function PUT(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    // Verify tutor owns the class (skip for admin)
+    // Verify tutor owns the section (skip for admin)
     if (dbUser.role === "TUTOR") {
       if (
         !dbUser.tutorProfile ||
-        existingQuiz.class.tutorId !== dbUser.tutorProfile.id
+        existingQuiz.section.tutorId !== dbUser.tutorProfile.id
       ) {
         return NextResponse.json(
-          { error: "You can only update quizzes from your own classes" },
+          { error: "You can only update quizzes from your own sections" },
           { status: 403 }
         );
       }
@@ -230,7 +257,7 @@ export async function PUT(
     // Validate data
     const validation = updateQuizSchema.safeParse(body);
     if (!validation.success) {
-      const errors = validation.error.errors.map((err) => ({
+      const errors = validation.error.issues.map((err: any) => ({
         field: err.path.join("."),
         message: err.message,
       }));
@@ -244,7 +271,7 @@ export async function PUT(
 
     // Update quiz
     const updatedQuiz = await prisma.quiz.update({
-      where: { id: params.id },
+      where: { id: quizId },
       data: {
         title: validatedData.title,
         description: validatedData.description,
@@ -259,9 +286,14 @@ export async function PUT(
         status: validatedData.status,
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
         questions: true,
@@ -278,8 +310,8 @@ export async function PUT(
     if (existingQuiz.status === "DRAFT" && updatedQuiz.status === "PUBLISHED") {
       const enrolledStudents = await prisma.enrollment.findMany({
         where: {
-          classId: existingQuiz.classId,
-          status: { in: ["PAID", "ACTIVE"] },
+          sectionId: existingQuiz.sectionId,
+          status: { in: ["ACTIVE"] },
         },
         include: {
           student: {
@@ -291,37 +323,44 @@ export async function PUT(
       });
 
       // Create in-app notifications
-      await prisma.notification.createMany({
-        data: enrolledStudents.map((enrollment) => ({
-          userId: enrollment.student.user.id,
-          title: "New Quiz Available",
-          message: `New quiz "${updatedQuiz.title}" has been published in ${updatedQuiz.class.name}`,
-          type: "QUIZ",
-        })),
-      });
-
-      // Send email notifications
-      const quizUrl = `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${existingQuiz.classId}/quizzes/${updatedQuiz.id}`;
-
-      for (const enrollment of enrolledStudents) {
-        sendQuizPublishedNotification({
-          to: enrollment.student.user.email,
-          studentName: enrollment.student.user.name,
-          quizTitle: updatedQuiz.title,
-          className: updatedQuiz.class.name,
-          startDate: updatedQuiz.startDate || undefined,
-          endDate: updatedQuiz.endDate || undefined,
-          quizUrl,
-        }).catch((err) => {
-          console.error(
-            `Failed to send quiz email to ${enrollment.student.user.email}:`,
-            err
-          );
+      if (enrolledStudents.length > 0) {
+        await prisma.notification.createMany({
+          data: enrolledStudents.map((enrollment) => ({
+            userId: enrollment.student.user.id,
+            title: "New Quiz Available",
+            message: `New quiz "${updatedQuiz.title}" has been published in ${updatedQuiz.section.template.name}`,
+            type: "QUIZ",
+          })),
         });
+
+        // Send email notifications
+        const quizUrl = `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${existingQuiz.sectionId}/quizzes/${updatedQuiz.id}`;
+
+        for (const enrollment of enrolledStudents) {
+          sendQuizPublishedNotification({
+            to: enrollment.student.user.email,
+            studentName: enrollment.student.user.name,
+            quizTitle: updatedQuiz.title,
+            className: updatedQuiz.section.template.name,
+            startDate: updatedQuiz.startDate || undefined,
+            endDate: updatedQuiz.endDate || undefined,
+            quizUrl,
+          }).catch((err) => {
+            console.error(
+              `Failed to send quiz email to ${enrollment.student.user.email}:`,
+              err
+            );
+          });
+        }
       }
     }
 
-    return NextResponse.json(updatedQuiz);
+    return NextResponse.json({
+      ...updatedQuiz,
+      class: {
+        name: `${updatedQuiz.section.template.name} - Section ${updatedQuiz.section.sectionLabel}`,
+      },
+    });
   } catch (error: any) {
     console.error("Error updating quiz:", error);
     return NextResponse.json(
@@ -333,9 +372,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: quizId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -360,11 +400,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch quiz
+    // Fetch quiz with section
     const quiz = await prisma.quiz.findUnique({
-      where: { id: params.id },
+      where: { id: quizId },
       include: {
-        class: true,
+        section: true,
       },
     });
 
@@ -372,14 +412,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    // Verify tutor owns the class (skip for admin)
+    // Verify tutor owns the section (skip for admin)
     if (dbUser.role === "TUTOR") {
       if (
         !dbUser.tutorProfile ||
-        quiz.class.tutorId !== dbUser.tutorProfile.id
+        quiz.section.tutorId !== dbUser.tutorProfile.id
       ) {
         return NextResponse.json(
-          { error: "You can only delete quizzes from your own classes" },
+          { error: "You can only delete quizzes from your own sections" },
           { status: 403 }
         );
       }
@@ -387,7 +427,7 @@ export async function DELETE(
 
     // Delete quiz (cascade will delete questions, attempts, answers)
     await prisma.quiz.delete({
-      where: { id: params.id },
+      where: { id: quizId },
     });
 
     return NextResponse.json({ message: "Quiz deleted successfully" });

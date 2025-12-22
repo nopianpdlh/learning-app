@@ -1,6 +1,7 @@
 /**
  * Student Live Classes API
- * GET /api/student/liveClasses - Fetch live classes from enrolled classes
+ * GET /api/student/liveClasses - Fetch scheduled meetings from enrolled sections
+ * Updated to use ScheduledMeeting model (section-based)
  */
 
 import { NextResponse } from "next/server";
@@ -27,9 +28,9 @@ export async function GET() {
       include: {
         enrollments: {
           where: {
-            status: { in: ["ACTIVE", "PAID"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
-          select: { classId: true },
+          select: { sectionId: true },
         },
       },
     });
@@ -41,26 +42,33 @@ export async function GET() {
       );
     }
 
-    const enrolledClassIds = studentProfile.enrollments.map((e) => e.classId);
+    const enrolledSectionIds = studentProfile.enrollments.map(
+      (e) => e.sectionId
+    );
 
-    if (enrolledClassIds.length === 0) {
+    if (enrolledSectionIds.length === 0) {
       return NextResponse.json({
         liveClasses: [],
         stats: { upcoming: 0, completed: 0, attended: 0, totalHours: 0 },
       });
     }
 
-    // Fetch live classes from enrolled classes
-    const liveClasses = await prisma.liveClass.findMany({
+    // Fetch scheduled meetings from enrolled sections
+    const meetings = await prisma.scheduledMeeting.findMany({
       where: {
-        classId: { in: enrolledClassIds },
+        sectionId: { in: enrolledSectionIds },
       },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             tutor: {
               include: {
                 user: {
@@ -73,18 +81,16 @@ export async function GET() {
             },
           },
         },
-        attendances: {
+        attendance: {
           where: {
-            studentId: studentProfile.id,
+            enrollment: {
+              studentId: studentProfile.id,
+            },
           },
           select: {
             id: true,
+            status: true,
             joinedAt: true,
-          },
-        },
-        _count: {
-          select: {
-            attendances: true,
           },
         },
       },
@@ -93,13 +99,15 @@ export async function GET() {
 
     // Process live classes
     const now = new Date();
-    const processedLiveClasses = liveClasses.map((lc) => {
-      const scheduledAt = new Date(lc.scheduledAt);
-      const endTime = new Date(scheduledAt.getTime() + lc.duration * 60 * 1000);
+    const processedLiveClasses = meetings.map((meeting) => {
+      const scheduledAt = new Date(meeting.scheduledAt);
+      const endTime = new Date(
+        scheduledAt.getTime() + meeting.duration * 60 * 1000
+      );
 
       // Determine effective status
       let effectiveStatus: string;
-      if (lc.status === "CANCELLED") {
+      if (meeting.status === "CANCELLED") {
         effectiveStatus = "CANCELLED";
       } else if (now < scheduledAt) {
         effectiveStatus = "UPCOMING";
@@ -109,30 +117,30 @@ export async function GET() {
         effectiveStatus = "COMPLETED";
       }
 
-      const attended = lc.attendances.length > 0;
+      const attended = meeting.attendance.some((a) => a.status === "PRESENT");
 
       return {
-        id: lc.id,
-        title: lc.title,
-        description: lc.description,
-        meetingUrl: lc.meetingUrl,
-        scheduledAt: lc.scheduledAt.toISOString(),
-        duration: lc.duration,
-        maxParticipants: lc.maxParticipants,
-        recordingUrl: lc.recordingUrl,
-        status: lc.status,
+        id: meeting.id,
+        title: meeting.title,
+        description: meeting.description,
+        meetingUrl: meeting.meetingUrl,
+        scheduledAt: meeting.scheduledAt.toISOString(),
+        duration: meeting.duration,
+        recordingUrl: meeting.recordingUrl,
+        status: meeting.status,
         effectiveStatus,
-        createdAt: lc.createdAt.toISOString(),
+        createdAt: meeting.createdAt.toISOString(),
+        // Client compatibility
         class: {
-          id: lc.class.id,
-          name: lc.class.name,
-          subject: lc.class.subject,
+          id: meeting.section.id,
+          name: `${meeting.section.template.name} - Section ${meeting.section.sectionLabel}`,
+          subject: meeting.section.template.subject,
         },
         tutor: {
-          name: lc.class.tutor.user.name,
-          avatarUrl: lc.class.tutor.user.avatar,
+          name: meeting.section.tutor.user.name,
+          avatarUrl: meeting.section.tutor.user.avatar,
         },
-        participantCount: lc._count.attendances,
+        participantCount: meeting.attendance.length,
         attended,
       };
     });

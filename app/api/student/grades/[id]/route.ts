@@ -1,6 +1,7 @@
 /**
  * Student Grade Report API
- * GET /api/student/grades/[id] - Get detailed grade report for a specific class
+ * GET /api/student/grades/[id] - Get detailed grade report for a specific section
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,9 +10,10 @@ import { prisma } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: sectionId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -39,36 +41,35 @@ export async function GET(
       );
     }
 
-    const classId = params.id;
-
-    // Verify enrollment
-    const enrollment = await prisma.enrollment.findUnique({
+    // Verify enrollment via section
+    const enrollment = await prisma.enrollment.findFirst({
       where: {
-        studentId_classId: {
-          studentId: student.id,
-          classId,
-        },
+        studentId: student.id,
+        sectionId,
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
     });
 
-    if (
-      !enrollment ||
-      !["PAID", "ACTIVE", "COMPLETED"].includes(enrollment.status)
-    ) {
+    if (!enrollment) {
       return NextResponse.json(
-        { error: "Not enrolled in this class" },
+        { error: "Not enrolled in this section" },
         { status: 403 }
       );
     }
 
-    // Get class info
-    const classInfo = await prisma.class.findUnique({
-      where: { id: classId },
+    // Get section info
+    const section = await prisma.classSection.findUnique({
+      where: { id: sectionId },
       select: {
         id: true,
-        name: true,
-        subject: true,
-        gradeLevel: true,
+        sectionLabel: true,
+        template: {
+          select: {
+            name: true,
+            subject: true,
+            gradeLevel: true,
+          },
+        },
         tutor: {
           select: {
             user: {
@@ -81,14 +82,14 @@ export async function GET(
       },
     });
 
-    if (!classInfo) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    if (!section) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // Get all assignments
+    // Get all assignments for this section
     const assignments = await prisma.assignment.findMany({
       where: {
-        classId,
+        sectionId,
         status: "PUBLISHED",
       },
       include: {
@@ -103,10 +104,10 @@ export async function GET(
       },
     });
 
-    // Get all quizzes
+    // Get all quizzes for this section
     const quizzes = await prisma.quiz.findMany({
       where: {
-        classId,
+        sectionId,
         status: "PUBLISHED",
       },
       include: {
@@ -174,11 +175,11 @@ export async function GET(
 
     const gradeData = {
       classInfo: {
-        id: classInfo.id,
-        name: classInfo.name,
-        subject: classInfo.subject,
-        gradeLevel: classInfo.gradeLevel,
-        tutorName: classInfo.tutor.user.name,
+        id: section.id,
+        name: `${section.template.name} - Section ${section.sectionLabel}`,
+        subject: section.template.subject,
+        gradeLevel: section.template.gradeLevel,
+        tutorName: section.tutor.user.name,
       },
       student: {
         name: student.user.name,
