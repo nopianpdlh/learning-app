@@ -2,6 +2,7 @@
  * Single Quiz Question API
  * PUT /api/quizzes/[id]/questions/[questionId] - Update question
  * DELETE /api/quizzes/[id]/questions/[questionId] - Delete question
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -41,13 +42,13 @@ export async function PUT(
       );
     }
 
-    // Get question and verify ownership
+    // Get question and verify ownership via section
     const question = await prisma.quizQuestion.findUnique({
       where: { id: params.questionId },
       include: {
         quiz: {
           include: {
-            class: {
+            section: {
               select: {
                 tutorId: true,
               },
@@ -71,7 +72,7 @@ export async function PUT(
       );
     }
 
-    if (question.quiz.class.tutorId !== dbUser.tutorProfile.id) {
+    if (question.quiz.section.tutorId !== dbUser.tutorProfile.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -169,13 +170,13 @@ export async function DELETE(
       );
     }
 
-    // Get question and verify ownership
+    // Get question and verify ownership via section
     const question = await prisma.quizQuestion.findUnique({
       where: { id: params.questionId },
       include: {
         quiz: {
           include: {
-            class: {
+            section: {
               select: {
                 tutorId: true,
               },
@@ -199,7 +200,7 @@ export async function DELETE(
       );
     }
 
-    if (question.quiz.class.tutorId !== dbUser.tutorProfile.id) {
+    if (question.quiz.section.tutorId !== dbUser.tutorProfile.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

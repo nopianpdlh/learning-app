@@ -245,7 +245,7 @@ export default function WaitingListManagementClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -319,7 +319,7 @@ export default function WaitingListManagementClient({
       <Card>
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+            <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0 overflow-x-auto">
               <TabsTrigger
                 value="PENDING"
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#FFB800] data-[state=active]:bg-transparent"
@@ -351,140 +351,144 @@ export default function WaitingListManagementClient({
             </TabsList>
 
             <TabsContent value={activeTab} className="m-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Siswa</TableHead>
-                    <TableHead>Program</TableHead>
-                    <TableHead>Tanggal Request</TableHead>
-                    <TableHead>Sections Available</TableHead>
-                    {activeTab !== "PENDING" && (
-                      <TableHead>Status Info</TableHead>
-                    )}
-                    {activeTab === "PENDING" && (
-                      <TableHead className="text-right">Aksi</TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredList.length === 0 ? (
+              <div className="overflow-x-auto">
+                <Table className="min-w-[800px]">
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center py-8 text-muted-foreground"
-                      >
-                        Tidak ada data
-                      </TableCell>
+                      <TableHead>Siswa</TableHead>
+                      <TableHead>Program</TableHead>
+                      <TableHead>Tanggal Request</TableHead>
+                      <TableHead>Sections Available</TableHead>
+                      {activeTab !== "PENDING" && (
+                        <TableHead>Status Info</TableHead>
+                      )}
+                      {activeTab === "PENDING" && (
+                        <TableHead className="text-right">Aksi</TableHead>
+                      )}
                     </TableRow>
-                  ) : (
-                    filteredList.map((entry) => {
-                      const availableSections = getAvailableSections(entry);
-                      return (
-                        <TableRow key={entry.id}>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">
-                                {entry.student.user.name}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {entry.student.user.email}
-                              </p>
-                              {entry.student.user.phone && (
-                                <p className="text-sm text-muted-foreground">
-                                  {entry.student.user.phone}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <BookOpen className="h-4 w-4 text-[#0A2647]" />
+                  </TableHeader>
+                  <TableBody>
+                    {filteredList.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          Tidak ada data
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredList.map((entry) => {
+                        const availableSections = getAvailableSections(entry);
+                        return (
+                          <TableRow key={entry.id}>
+                            <TableCell>
                               <div>
                                 <p className="font-medium">
-                                  {entry.template.name}
+                                  {entry.student.user.name}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {formatPrice(entry.template.pricePerMonth)}
-                                  /bulan
+                                  {entry.student.user.email}
                                 </p>
+                                {entry.student.user.phone && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {entry.student.user.phone}
+                                  </p>
+                                )}
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{formatDate(entry.requestedAt)}</TableCell>
-                          <TableCell>
-                            {availableSections.length > 0 ? (
-                              <div className="flex flex-wrap gap-1">
-                                {availableSections.map((s) => (
-                                  <Badge
-                                    key={s.id}
-                                    variant="outline"
-                                    className="text-xs"
-                                  >
-                                    {s.sectionLabel} ({s.currentEnrollments}/
-                                    {entry.template.maxStudentsPerSection})
-                                  </Badge>
-                                ))}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="h-4 w-4 text-[#0A2647]" />
+                                <div>
+                                  <p className="font-medium">
+                                    {entry.template.name}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {formatPrice(entry.template.pricePerMonth)}
+                                    /bulan
+                                  </p>
+                                </div>
                               </div>
-                            ) : (
-                              <Badge variant="destructive">
-                                Semua section penuh
-                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {formatDate(entry.requestedAt)}
+                            </TableCell>
+                            <TableCell>
+                              {availableSections.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {availableSections.map((s) => (
+                                    <Badge
+                                      key={s.id}
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
+                                      {s.sectionLabel} ({s.currentEnrollments}/
+                                      {entry.template.maxStudentsPerSection})
+                                    </Badge>
+                                  ))}
+                                </div>
+                              ) : (
+                                <Badge variant="destructive">
+                                  Semua section penuh
+                                </Badge>
+                              )}
+                            </TableCell>
+                            {activeTab === "APPROVED" && (
+                              <TableCell>
+                                <p className="text-sm">
+                                  Approved:{" "}
+                                  {entry.approvedAt &&
+                                    formatDate(entry.approvedAt)}
+                                </p>
+                              </TableCell>
                             )}
-                          </TableCell>
-                          {activeTab === "APPROVED" && (
-                            <TableCell>
-                              <p className="text-sm">
-                                Approved:{" "}
-                                {entry.approvedAt &&
-                                  formatDate(entry.approvedAt)}
-                              </p>
-                            </TableCell>
-                          )}
-                          {activeTab === "REJECTED" && (
-                            <TableCell>
-                              <p className="text-sm text-red-600">
-                                {entry.rejectionNote || "Tidak ada catatan"}
-                              </p>
-                            </TableCell>
-                          )}
-                          {activeTab === "EXPIRED" && (
-                            <TableCell>
-                              <p className="text-sm text-muted-foreground">
-                                Payment timeout
-                              </p>
-                            </TableCell>
-                          )}
-                          {activeTab === "PENDING" && (
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => openApproveDialog(entry)}
-                                  disabled={availableSections.length === 0}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => openRejectDialog(entry)}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Reject
-                                </Button>
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      );
-                    })
-                  )}
-                </TableBody>
-              </Table>
+                            {activeTab === "REJECTED" && (
+                              <TableCell>
+                                <p className="text-sm text-red-600">
+                                  {entry.rejectionNote || "Tidak ada catatan"}
+                                </p>
+                              </TableCell>
+                            )}
+                            {activeTab === "EXPIRED" && (
+                              <TableCell>
+                                <p className="text-sm text-muted-foreground">
+                                  Payment timeout
+                                </p>
+                              </TableCell>
+                            )}
+                            {activeTab === "PENDING" && (
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    onClick={() => openApproveDialog(entry)}
+                                    disabled={availableSections.length === 0}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => openRejectDialog(entry)}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -1,6 +1,7 @@
 /**
  * Student Grades API
- * GET /api/student/grades - Aggregate grades per enrolled class
+ * GET /api/student/grades - Aggregate grades per enrolled section
+ * Updated to use section-based system
  */
 
 import { NextResponse } from "next/server";
@@ -33,15 +34,21 @@ export async function GET() {
       );
     }
 
-    // Get enrolled classes with tutor info
+    // Get enrolled sections with tutor info
     const enrollments = await prisma.enrollment.findMany({
       where: {
         studentId: studentProfile.id,
-        status: { in: ["ACTIVE", "PAID"] },
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
       include: {
-        class: {
+        section: {
           include: {
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             tutor: {
               include: {
                 user: {
@@ -69,6 +76,8 @@ export async function GET() {
       });
     }
 
+    const enrolledSectionIds = enrollments.map((e) => e.sectionId);
+
     // Get all graded assignment submissions
     const assignmentSubmissions = await prisma.assignmentSubmission.findMany({
       where: {
@@ -81,7 +90,7 @@ export async function GET() {
           select: {
             id: true,
             title: true,
-            classId: true,
+            sectionId: true,
             maxPoints: true,
           },
         },
@@ -101,42 +110,41 @@ export async function GET() {
           select: {
             id: true,
             title: true,
-            classId: true,
+            sectionId: true,
           },
         },
       },
       orderBy: { submittedAt: "desc" },
     });
 
-    // Aggregate grades per class
+    // Aggregate grades per section
     const classGrades = enrollments.map((enrollment) => {
-      const classId = enrollment.class.id;
+      const sectionId = enrollment.section.id;
 
-      // Filter submissions for this class
-      const classAssignments = assignmentSubmissions.filter(
-        (s) => s.assignment.classId === classId
+      // Filter submissions for this section
+      const sectionAssignments = assignmentSubmissions.filter(
+        (s) => s.assignment.sectionId === sectionId
       );
-      const classQuizzes = quizAttempts.filter(
-        (a) => a.quiz.classId === classId
+      const sectionQuizzes = quizAttempts.filter(
+        (a) => a.quiz.sectionId === sectionId
       );
 
       // Calculate averages
       const assignmentAvg =
-        classAssignments.length > 0
+        sectionAssignments.length > 0
           ? Math.round(
-              classAssignments.reduce((sum, s) => {
-                // Normalize to 100 scale
+              sectionAssignments.reduce((sum, s) => {
                 const normalized = (s.score! / s.assignment.maxPoints) * 100;
                 return sum + normalized;
-              }, 0) / classAssignments.length
+              }, 0) / sectionAssignments.length
             )
           : null;
 
       const quizAvg =
-        classQuizzes.length > 0
+        sectionQuizzes.length > 0
           ? Math.round(
-              classQuizzes.reduce((sum, a) => sum + (a.score || 0), 0) /
-                classQuizzes.length
+              sectionQuizzes.reduce((sum, a) => sum + (a.score || 0), 0) /
+                sectionQuizzes.length
             )
           : null;
 
@@ -159,15 +167,15 @@ export async function GET() {
       }
 
       return {
-        classId,
-        className: enrollment.class.name,
-        subject: enrollment.class.subject,
-        tutorName: enrollment.class.tutor.user.name,
+        classId: sectionId,
+        className: `${enrollment.section.template.name} - Section ${enrollment.section.sectionLabel}`,
+        subject: enrollment.section.template.subject,
+        tutorName: enrollment.section.tutor.user.name,
         assignmentAvg,
         quizAvg,
         overallAvg,
-        assignmentCount: classAssignments.length,
-        quizCount: classQuizzes.length,
+        assignmentCount: sectionAssignments.length,
+        quizCount: sectionQuizzes.length,
         status,
       };
     });
@@ -185,12 +193,12 @@ export async function GET() {
     // Add assignment scores
     assignmentSubmissions.slice(0, 5).forEach((s) => {
       const enrollment = enrollments.find(
-        (e) => e.class.id === s.assignment.classId
+        (e) => e.section.id === s.assignment.sectionId
       );
       if (enrollment && s.gradedAt) {
         recentScores.push({
           type: "Tugas",
-          subject: enrollment.class.subject,
+          subject: enrollment.section.template.subject,
           title: s.assignment.title,
           date: s.gradedAt.toISOString(),
           score: s.score!,
@@ -201,11 +209,13 @@ export async function GET() {
 
     // Add quiz scores
     quizAttempts.slice(0, 5).forEach((a) => {
-      const enrollment = enrollments.find((e) => e.class.id === a.quiz.classId);
+      const enrollment = enrollments.find(
+        (e) => e.section.id === a.quiz.sectionId
+      );
       if (enrollment && a.submittedAt) {
         recentScores.push({
           type: "Kuis",
-          subject: enrollment.class.subject,
+          subject: enrollment.section.template.subject,
           title: a.quiz.title,
           date: a.submittedAt.toISOString(),
           score: a.score!,

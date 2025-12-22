@@ -3,6 +3,7 @@
  * GET /api/assignments/[id] - Get assignment by ID
  * PUT /api/assignments/[id] - Update assignment
  * DELETE /api/assignments/[id] - Delete assignment
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -17,9 +18,10 @@ import { deleteFile, extractPathFromUrl } from "@/lib/storage";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -45,15 +47,21 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get assignment
+    // Get assignment with section
     const assignment = await prisma.assignment.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
+            sectionLabel: true,
             tutorId: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             tutor: {
               select: {
                 user: {
@@ -92,9 +100,9 @@ export async function GET(
 
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          classId: assignment.classId,
+          sectionId: assignment.sectionId,
           studentId: dbUser.studentProfile?.id,
-          status: { in: ["PAID", "ACTIVE"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
       });
 
@@ -108,7 +116,7 @@ export async function GET(
       // Check if student has submitted
       const submission = await prisma.assignmentSubmission.findFirst({
         where: {
-          assignmentId: params.id,
+          assignmentId: id,
           studentId: dbUser.studentProfile?.id,
         },
       });
@@ -117,12 +125,18 @@ export async function GET(
         success: true,
         data: {
           ...assignment,
+          // Client compatibility
+          class: {
+            id: assignment.section.id,
+            name: `${assignment.section.template.name} - Section ${assignment.section.sectionLabel}`,
+            tutor: assignment.section.tutor,
+          },
           submission,
         },
       });
     } else if (dbUser.role === "TUTOR") {
-      // Tutor must own the class
-      if (assignment.class.tutorId !== dbUser.tutorProfile?.id) {
+      // Tutor must own the section
+      if (assignment.section.tutorId !== dbUser.tutorProfile?.id) {
         return NextResponse.json(
           { error: "Access denied to this assignment" },
           { status: 403 }
@@ -133,7 +147,15 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: assignment,
+      data: {
+        ...assignment,
+        // Client compatibility
+        class: {
+          id: assignment.section.id,
+          name: `${assignment.section.template.name} - Section ${assignment.section.sectionLabel}`,
+          tutor: assignment.section.tutor,
+        },
+      },
     });
   } catch (error) {
     console.error("GET /api/assignments/[id] error:", error);
@@ -150,9 +172,10 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -185,11 +208,15 @@ export async function PUT(
       );
     }
 
-    // Get existing assignment
+    // Get existing assignment with section
     const existingAssignment = await prisma.assignment.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        class: true,
+        section: {
+          include: {
+            template: true,
+          },
+        },
       },
     });
 
@@ -200,13 +227,13 @@ export async function PUT(
       );
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      existingAssignment.class.tutorId !== dbUser.tutorProfile?.id
+      existingAssignment.section.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only update assignments in your own classes" },
+        { error: "You can only update assignments in your own sections" },
         { status: 403 }
       );
     }
@@ -217,7 +244,7 @@ export async function PUT(
 
     // Update assignment
     const updatedAssignment = await prisma.assignment.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(validatedData.title && { title: validatedData.title }),
         ...(validatedData.instructions && {
@@ -235,9 +262,14 @@ export async function PUT(
         ...(validatedData.status && { status: validatedData.status }),
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -250,8 +282,8 @@ export async function PUT(
     ) {
       const enrolledStudents = await prisma.enrollment.findMany({
         where: {
-          classId: existingAssignment.classId,
-          status: { in: ["PAID", "ACTIVE"] },
+          sectionId: existingAssignment.sectionId,
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
         include: {
           student: {
@@ -262,11 +294,13 @@ export async function PUT(
         },
       });
 
+      const className = `${existingAssignment.section.template.name} - ${existingAssignment.section.sectionLabel}`;
+
       await prisma.notification.createMany({
         data: enrolledStudents.map((enrollment) => ({
           userId: enrollment.student.user.id,
           title: "New Assignment",
-          message: `Assignment "${updatedAssignment.title}" has been published in ${updatedAssignment.class.name}`,
+          message: `Assignment "${updatedAssignment.title}" has been published in ${className}`,
           type: "ASSIGNMENT",
         })),
       });
@@ -274,7 +308,12 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: updatedAssignment,
+      data: {
+        ...updatedAssignment,
+        class: {
+          name: `${updatedAssignment.section.template.name} - ${updatedAssignment.section.sectionLabel}`,
+        },
+      },
       message: "Assignment updated successfully",
     });
   } catch (error) {
@@ -300,9 +339,10 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -335,11 +375,11 @@ export async function DELETE(
       );
     }
 
-    // Get existing assignment
+    // Get existing assignment with section
     const existingAssignment = await prisma.assignment.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
-        class: true,
+        section: true,
         submissions: true,
       },
     });
@@ -351,13 +391,13 @@ export async function DELETE(
       );
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      existingAssignment.class.tutorId !== dbUser.tutorProfile?.id
+      existingAssignment.section.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only delete assignments from your own classes" },
+        { error: "You can only delete assignments from your own sections" },
         { status: 403 }
       );
     }
@@ -380,7 +420,7 @@ export async function DELETE(
 
     // Delete assignment from database (cascade will delete submissions)
     await prisma.assignment.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({

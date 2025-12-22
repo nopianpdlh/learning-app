@@ -169,7 +169,7 @@ export default function LiveClassesClient({
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -190,18 +190,6 @@ export default function LiveClassesClient({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.completed}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Kehadiran
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.attended}/{stats.completed}
-            </div>
           </CardContent>
         </Card>
         <Card>
@@ -359,23 +347,6 @@ export default function LiveClassesClient({
                             {liveClass.title}
                           </h3>
                           {getStatusBadge(liveClass.effectiveStatus)}
-                          {liveClass.attended ? (
-                            <Badge
-                              variant="outline"
-                              className="bg-green-500/10 text-green-700 border-green-500/20"
-                            >
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Hadir
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="bg-red-500/10 text-red-700 border-red-500/20"
-                            >
-                              <AlertCircle className="h-3 w-3 mr-1" />
-                              Tidak Hadir
-                            </Badge>
-                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {liveClass.class.name} • {liveClass.class.subject}

@@ -2,6 +2,7 @@
  * Assignments API - List and Create
  * GET /api/assignments - List assignments with filters
  * POST /api/assignments - Create new assignment
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -43,10 +44,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Parse query parameters
+    // Parse query parameters - support both classId and sectionId
     const { searchParams } = new URL(request.url);
+    const sectionId =
+      searchParams.get("classId") || searchParams.get("sectionId") || undefined;
     const filters = assignmentFilterSchema.parse({
-      classId: searchParams.get("classId") || undefined,
+      classId: sectionId,
       status: searchParams.get("status") || undefined,
       page: searchParams.get("page") || "1",
       limit: searchParams.get("limit") || "20",
@@ -55,70 +58,70 @@ export async function GET(request: NextRequest) {
     // Build query conditions
     const where: any = {};
 
-    // Filter by classId if provided
+    // Filter by sectionId if provided
     if (filters.classId) {
-      where.classId = filters.classId;
+      where.sectionId = filters.classId;
 
-      // Check user has access to this class
+      // Check user has access to this section
       if (dbUser.role === "STUDENT") {
         const enrollment = await prisma.enrollment.findFirst({
           where: {
-            classId: filters.classId,
+            sectionId: filters.classId,
             studentId: dbUser.studentProfile?.id,
-            status: { in: ["PAID", "ACTIVE"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
         });
 
         if (!enrollment) {
           return NextResponse.json(
-            { error: "Access denied to this class" },
+            { error: "Access denied to this section" },
             { status: 403 }
           );
         }
       } else if (dbUser.role === "TUTOR") {
-        const classData = await prisma.class.findFirst({
+        const sectionData = await prisma.classSection.findFirst({
           where: {
             id: filters.classId,
             tutorId: dbUser.tutorProfile?.id,
           },
         });
 
-        if (!classData) {
+        if (!sectionData) {
           return NextResponse.json(
-            { error: "Access denied to this class" },
+            { error: "Access denied to this section" },
             { status: 403 }
           );
         }
       }
     } else {
-      // No classId provided, filter by user role
+      // No sectionId provided, filter by user role
       if (dbUser.role === "STUDENT") {
-        // Get enrolled classes
+        // Get enrolled sections
         const enrollments = await prisma.enrollment.findMany({
           where: {
             studentId: dbUser.studentProfile?.id,
-            status: { in: ["PAID", "ACTIVE"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
-          select: { classId: true },
+          select: { sectionId: true },
         });
 
-        where.classId = {
-          in: enrollments.map((e) => e.classId),
+        where.sectionId = {
+          in: enrollments.map((e) => e.sectionId),
         };
 
         // Students only see published assignments
         where.status = "PUBLISHED";
       } else if (dbUser.role === "TUTOR") {
-        // Get tutor's classes
-        const classes = await prisma.class.findMany({
+        // Get tutor's sections
+        const sections = await prisma.classSection.findMany({
           where: {
             tutorId: dbUser.tutorProfile?.id,
           },
           select: { id: true },
         });
 
-        where.classId = {
-          in: classes.map((c) => c.id),
+        where.sectionId = {
+          in: sections.map((s) => s.id),
         };
       }
       // Admin can see all assignments (no filter)
@@ -137,10 +140,16 @@ export async function GET(request: NextRequest) {
       prisma.assignment.findMany({
         where,
         include: {
-          class: {
+          section: {
             select: {
               id: true,
-              name: true,
+              sectionLabel: true,
+              template: {
+                select: {
+                  name: true,
+                  subject: true,
+                },
+              },
               tutor: {
                 select: {
                   user: {
@@ -165,9 +174,20 @@ export async function GET(request: NextRequest) {
       prisma.assignment.count({ where }),
     ]);
 
+    // Transform for client compatibility
+    const transformedAssignments = assignments.map((a) => ({
+      ...a,
+      // Client compatibility
+      class: {
+        id: a.section.id,
+        name: `${a.section.template.name} - Section ${a.section.sectionLabel}`,
+        tutor: a.section.tutor,
+      },
+    }));
+
     return NextResponse.json({
       success: true,
-      data: assignments,
+      data: transformedAssignments,
       pagination: {
         page: filters.page,
         limit: filters.limit,
@@ -222,26 +242,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse request body
+    // Parse request body - support both classId and sectionId
     const body = await request.json();
-    const validatedData = createAssignmentSchema.parse(body);
-
-    // Verify class exists and user has access
-    const classData = await prisma.class.findUnique({
-      where: { id: validatedData.classId },
+    const sectionId = body.sectionId || body.classId;
+    const validatedData = createAssignmentSchema.parse({
+      ...body,
+      classId: sectionId,
     });
 
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    // Verify section exists and user has access
+    const sectionData = await prisma.classSection.findUnique({
+      where: { id: validatedData.classId },
+      include: {
+        template: true,
+      },
+    });
+
+    if (!sectionData) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      classData.tutorId !== dbUser.tutorProfile?.id
+      sectionData.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only add assignments to your own classes" },
+        { error: "You can only add assignments to your own sections" },
         { status: 403 }
       );
     }
@@ -249,7 +276,7 @@ export async function POST(request: NextRequest) {
     // Create assignment
     const assignment = await prisma.assignment.create({
       data: {
-        classId: validatedData.classId,
+        sectionId: validatedData.classId,
         title: validatedData.title,
         instructions: validatedData.instructions,
         dueDate: new Date(validatedData.dueDate),
@@ -258,9 +285,14 @@ export async function POST(request: NextRequest) {
         status: validatedData.status,
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -270,8 +302,8 @@ export async function POST(request: NextRequest) {
     if (assignment.status === "PUBLISHED") {
       const enrolledStudents = await prisma.enrollment.findMany({
         where: {
-          classId: validatedData.classId,
-          status: { in: ["PAID", "ACTIVE"] },
+          sectionId: validatedData.classId,
+          status: { in: ["ACTIVE"] },
         },
         include: {
           student: {
@@ -283,20 +315,27 @@ export async function POST(request: NextRequest) {
       });
 
       // Create notifications
-      await prisma.notification.createMany({
-        data: enrolledStudents.map((enrollment) => ({
-          userId: enrollment.student.user.id,
-          title: "New Assignment",
-          message: `New assignment "${assignment.title}" has been posted in ${assignment.class.name}`,
-          type: "ASSIGNMENT",
-        })),
-      });
+      if (enrolledStudents.length > 0) {
+        await prisma.notification.createMany({
+          data: enrolledStudents.map((enrollment) => ({
+            userId: enrollment.student.user.id,
+            title: "New Assignment",
+            message: `New assignment "${assignment.title}" has been posted in ${assignment.section.template.name}`,
+            type: "ASSIGNMENT",
+          })),
+        });
+      }
     }
 
     return NextResponse.json(
       {
         success: true,
-        data: assignment,
+        data: {
+          ...assignment,
+          class: {
+            name: `${assignment.section.template.name} - Section ${assignment.section.sectionLabel}`,
+          },
+        },
         message: "Assignment created successfully",
       },
       { status: 201 }

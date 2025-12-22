@@ -1,6 +1,7 @@
 /**
  * Start Quiz Attempt API
  * POST /api/student/quizzes/[id]/start - Create new quiz attempt
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -38,16 +39,16 @@ export async function POST(
       );
     }
 
-    // Get quiz
+    // Get quiz with section
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
-        class: {
+        section: {
           include: {
             enrollments: {
               where: {
                 studentId: studentProfile.id,
-                status: { in: ["ACTIVE", "PAID"] },
+                status: { in: ["ACTIVE", "EXPIRED"] },
               },
             },
           },
@@ -62,9 +63,9 @@ export async function POST(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    if (quiz.class.enrollments.length === 0) {
+    if (quiz.section.enrollments.length === 0) {
       return NextResponse.json(
-        { error: "You are not enrolled in this class" },
+        { error: "You are not enrolled in this section" },
         { status: 403 }
       );
     }

@@ -1,7 +1,8 @@
 /**
  * Live Classes API - List and Create
- * GET /api/live-classes - List all live classes
- * POST /api/live-classes - Create new live class
+ * GET /api/live-classes - List all scheduled meetings
+ * POST /api/live-classes - Create new scheduled meeting
+ * Updated to use ScheduledMeeting and section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -37,10 +38,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Parse query params
+    // Parse query params - support both classId and sectionId
     const searchParams = request.nextUrl.searchParams;
+    const sectionId =
+      searchParams.get("classId") || searchParams.get("sectionId");
     const filters = liveClassFilterSchema.parse({
-      classId: searchParams.get("classId"),
+      classId: sectionId,
       upcoming: searchParams.get("upcoming"),
       page: searchParams.get("page") || "1",
       limit: searchParams.get("limit") || "20",
@@ -53,9 +56,9 @@ export async function GET(request: NextRequest) {
     // Build where clause based on role
     const where: any = {};
 
-    // Filter by classId if provided
+    // Filter by sectionId if provided
     if (filters.classId) {
-      where.classId = filters.classId;
+      where.sectionId = filters.classId;
     }
 
     // Filter by upcoming
@@ -65,8 +68,6 @@ export async function GET(request: NextRequest) {
 
     // Role-based filtering
     if (profile.role === "STUDENT") {
-      // Students see only live classes from enrolled classes
-      // First get student profile
       const studentProfile = await prisma.studentProfile.findUnique({
         where: { userId: user.id },
       });
@@ -81,45 +82,55 @@ export async function GET(request: NextRequest) {
       const enrollments = await prisma.enrollment.findMany({
         where: {
           studentId: studentProfile.id,
-          status: { in: ["PAID", "ACTIVE"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
-        select: { classId: true },
+        select: { sectionId: true },
       });
 
-      const enrolledClassIds = enrollments.map((e) => e.classId);
+      const enrolledSectionIds = enrollments.map((e) => e.sectionId);
 
-      // If filters.classId is provided, only include if student is enrolled
       if (filters.classId) {
-        if (!enrolledClassIds.includes(filters.classId)) {
+        if (!enrolledSectionIds.includes(filters.classId)) {
           return NextResponse.json({
             liveClasses: [],
             pagination: { page, limit, total: 0, totalPages: 0 },
           });
         }
       } else {
-        where.classId = { in: enrolledClassIds };
+        where.sectionId = { in: enrolledSectionIds };
       }
     } else if (profile.role === "TUTOR") {
-      // Tutors see only live classes from their classes
-      const tutorClasses = await prisma.class.findMany({
-        where: { tutorId: user.id },
-        select: { id: true },
+      const tutorProfile = await prisma.tutorProfile.findUnique({
+        where: { userId: user.id },
       });
 
-      const tutorClassIds = tutorClasses.map((c) => c.id);
-      where.classId = { in: tutorClassIds };
-    }
-    // Admins see all live classes (no filter)
+      if (tutorProfile) {
+        const tutorSections = await prisma.classSection.findMany({
+          where: { tutorId: tutorProfile.id },
+          select: { id: true },
+        });
 
-    // Fetch live classes
-    const [liveClasses, total] = await Promise.all([
-      prisma.liveClass.findMany({
+        const tutorSectionIds = tutorSections.map((s) => s.id);
+        where.sectionId = { in: tutorSectionIds };
+      }
+    }
+    // Admins see all meetings (no filter)
+
+    // Fetch scheduled meetings
+    const [meetings, total] = await Promise.all([
+      prisma.scheduledMeeting.findMany({
         where,
         include: {
-          class: {
+          section: {
             select: {
               id: true,
-              name: true,
+              sectionLabel: true,
+              template: {
+                select: {
+                  name: true,
+                  subject: true,
+                },
+              },
               tutor: {
                 select: {
                   user: {
@@ -136,20 +147,22 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.liveClass.count({ where }),
+      prisma.scheduledMeeting.count({ where }),
     ]);
 
     return NextResponse.json({
-      liveClasses: liveClasses.map((lc) => ({
-        id: lc.id,
-        classId: lc.classId,
-        className: lc.class.name,
-        tutorName: lc.class.tutor.user.name,
-        title: lc.title,
-        meetingUrl: lc.meetingUrl,
-        scheduledAt: lc.scheduledAt,
-        duration: lc.duration,
-        createdAt: lc.createdAt,
+      liveClasses: meetings.map((m) => ({
+        id: m.id,
+        classId: m.sectionId,
+        className: `${m.section.template.name} - Section ${m.section.sectionLabel}`,
+        tutorName: m.section.tutor.user.name,
+        title: m.title,
+        description: m.description,
+        meetingUrl: m.meetingUrl,
+        scheduledAt: m.scheduledAt,
+        duration: m.duration,
+        status: m.status,
+        createdAt: m.createdAt,
       })),
       pagination: {
         page,
@@ -180,51 +193,63 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user profile
-    const profile = await prisma.user.findUnique({
+    const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
-      select: { role: true },
-    });
-
-    if (!profile || (profile.role !== "TUTOR" && profile.role !== "ADMIN")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Parse and validate request body
-    const body = await request.json();
-    const data = createLiveClassSchema.parse(body);
-
-    // Verify class exists
-    const classData = await prisma.class.findUnique({
-      where: { id: data.classId },
-      select: {
-        id: true,
-        name: true,
-        tutorId: true,
+      include: {
+        tutorProfile: true,
       },
     });
 
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
-    }
-
-    // Tutors can only create live classes for their own classes
-    if (profile.role === "TUTOR" && classData.tutorId !== user.id) {
+    if (!dbUser || (dbUser.role !== "TUTOR" && dbUser.role !== "ADMIN")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Create live class
-    const liveClass = await prisma.liveClass.create({
+    // Parse and validate request body - support both classId and sectionId
+    const body = await request.json();
+    const sectionId = body.sectionId || body.classId;
+    const data = createLiveClassSchema.parse({ ...body, classId: sectionId });
+
+    // Verify section exists
+    const sectionData = await prisma.classSection.findUnique({
+      where: { id: data.classId },
+      include: {
+        template: true,
+      },
+    });
+
+    if (!sectionData) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
+    }
+
+    // Tutors can only create meetings for their own sections
+    if (
+      dbUser.role === "TUTOR" &&
+      sectionData.tutorId !== dbUser.tutorProfile?.id
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Create scheduled meeting
+    const meeting = await prisma.scheduledMeeting.create({
       data: {
-        classId: data.classId,
+        sectionId: data.classId,
+        createdBy: user.id,
         title: data.title,
+        description: (data as any).description || null,
         meetingUrl: data.meetingUrl,
         scheduledAt: new Date(data.scheduledAt),
         duration: data.duration,
+        status: "SCHEDULED",
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -233,24 +258,36 @@ export async function POST(request: NextRequest) {
     // Create notifications for enrolled students
     const enrollments = await prisma.enrollment.findMany({
       where: {
-        classId: data.classId,
-        status: { in: ["PAID", "ACTIVE"] },
+        sectionId: data.classId,
+        status: { in: ["ACTIVE"] },
       },
-      select: { studentId: true },
+      include: {
+        student: {
+          include: {
+            user: true,
+          },
+        },
+      },
     });
 
     if (enrollments.length > 0) {
       await prisma.notification.createMany({
         data: enrollments.map((enrollment) => ({
-          userId: enrollment.studentId,
+          userId: enrollment.student.user.id,
           title: "New Live Class Scheduled",
-          message: `Live class "${data.title}" has been scheduled for ${classData.name}`,
+          message: `Live class "${data.title}" has been scheduled for ${sectionData.template.name}`,
           type: "LIVE_CLASS",
         })),
       });
     }
 
-    return NextResponse.json(liveClass, { status: 201 });
+    return NextResponse.json(
+      {
+        ...meeting,
+        className: `${meeting.section.template.name} - Section ${meeting.section.sectionLabel}`,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error("Create live class error:", error);
 

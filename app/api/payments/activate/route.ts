@@ -3,9 +3,9 @@ import { db } from "@/lib/db";
 
 /**
  * POST /api/payments/activate
- * Activate paid enrollments (can be called via cron job)
- * Changes enrollment status from PAID to ACTIVE
- * This endpoint should be called by a cron job or manually by admin
+ * Activate enrollments that have been paid
+ * Changes enrollment status from PENDING to ACTIVE when payment is PAID
+ * Updated to use section-based system
  */
 export async function POST(req: NextRequest) {
   try {
@@ -17,13 +17,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Find all enrollments with PAID status
-    const paidEnrollments = await db.enrollment.findMany({
+    // Find all enrollments with PENDING status that have PAID payment
+    const pendingEnrollments = await db.enrollment.findMany({
       where: {
-        status: "PAID",
+        status: "PENDING",
+        payment: {
+          status: "PAID",
+        },
       },
       include: {
-        class: true,
+        section: {
+          include: {
+            template: true,
+          },
+        },
         student: {
           include: {
             user: true,
@@ -32,17 +39,26 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const now = new Date();
     let activatedCount = 0;
+    const now = new Date();
 
-    // Activate enrollments where class has started
-    // For simplicity, we activate immediately after payment
-    // In production, you might want to check class start date
-    for (const enrollment of paidEnrollments) {
+    // Activate enrollments
+    for (const enrollment of pendingEnrollments) {
+      // Calculate subscription period (30 days)
+      const expiryDate = new Date(now);
+      expiryDate.setDate(expiryDate.getDate() + 30);
+
+      // Calculate grace period (7 days after expiry)
+      const graceExpiryDate = new Date(expiryDate);
+      graceExpiryDate.setDate(graceExpiryDate.getDate() + 7);
+
       await db.enrollment.update({
         where: { id: enrollment.id },
         data: {
           status: "ACTIVE",
+          startDate: now,
+          expiryDate: expiryDate,
+          graceExpiryDate: graceExpiryDate,
         },
       });
 
@@ -51,7 +67,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: enrollment.student.userId,
           title: "Kelas Aktif",
-          message: `Kelas "${enrollment.class.name}" sekarang sudah aktif. Anda dapat mulai belajar!`,
+          message: `Kelas "${enrollment.section.template.name}" sekarang sudah aktif. Anda dapat mulai belajar!`,
           type: "ASSIGNMENT",
         },
       });

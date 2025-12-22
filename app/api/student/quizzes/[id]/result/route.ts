@@ -1,6 +1,7 @@
 /**
  * Quiz Result API
  * GET /api/student/quizzes/[id]/result - Get quiz attempt result with answers
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -41,15 +42,20 @@ export async function GET(
       );
     }
 
-    // Get quiz with questions
+    // Get quiz with questions and section
     const quiz = await prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
           },
         },
         questions: {
@@ -59,7 +65,7 @@ export async function GET(
             questionType: true,
             questionText: true,
             options: true,
-            correctAnswer: true, // Include for review
+            correctAnswer: true,
             explanation: true,
             points: true,
             orderIndex: true,
@@ -143,7 +149,12 @@ export async function GET(
         title: quiz.title,
         description: quiz.description,
         passingGrade: quiz.passingGrade || 70,
-        class: quiz.class,
+        // Client compatibility
+        class: {
+          id: quiz.section.id,
+          name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+          subject: quiz.section.template.subject,
+        },
       },
       attempt: {
         id: attempt.id,

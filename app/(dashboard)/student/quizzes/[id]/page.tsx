@@ -1,6 +1,7 @@
 /**
  * Quiz Taking Page - Server Component
  * Fetches quiz data and renders taking interface
+ * Updated to use section-based system
  */
 
 import { redirect, notFound } from "next/navigation";
@@ -45,15 +46,20 @@ export default async function QuizTakingPage({
   const quiz = await prisma.quiz.findUnique({
     where: { id: quizId },
     include: {
-      class: {
+      section: {
         select: {
           id: true,
-          name: true,
-          subject: true,
+          sectionLabel: true,
+          template: {
+            select: {
+              name: true,
+              subject: true,
+            },
+          },
           enrollments: {
             where: {
               studentId: studentProfile.id,
-              status: { in: ["ACTIVE", "PAID"] },
+              status: { in: ["ACTIVE", "EXPIRED"] },
             },
             select: { id: true },
           },
@@ -78,7 +84,7 @@ export default async function QuizTakingPage({
   }
 
   // Check enrollment
-  if (quiz.class.enrollments.length === 0) {
+  if (quiz.section.enrollments.length === 0) {
     redirect("/student/quizzes");
   }
 
@@ -126,6 +132,9 @@ export default async function QuizTakingPage({
     }
   }
 
+  // Build class info for client compatibility
+  const className = `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`;
+
   return (
     <QuizClient
       quiz={{
@@ -134,9 +143,9 @@ export default async function QuizTakingPage({
         description: quiz.description,
         timeLimit: quiz.timeLimit,
         class: {
-          id: quiz.class.id,
-          name: quiz.class.name,
-          subject: quiz.class.subject,
+          id: quiz.section.id,
+          name: className,
+          subject: quiz.section.template.subject,
         },
         questions: quiz.questions,
         questionCount: quiz.questions.length,

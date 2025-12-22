@@ -2,6 +2,7 @@
  * Quizzes API
  * GET /api/quizzes - List quizzes with filters
  * POST /api/quizzes - Create a new quiz
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -40,10 +41,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Parse query parameters
+    // Parse query parameters - support both classId and sectionId
     const searchParams = request.nextUrl.searchParams;
+    const sectionId =
+      searchParams.get("classId") || searchParams.get("sectionId") || undefined;
     const params = quizFilterSchema.parse({
-      classId: searchParams.get("classId") || undefined,
+      classId: sectionId,
       status: searchParams.get("status") || undefined,
       page: searchParams.get("page") || "1",
       limit: searchParams.get("limit") || "20",
@@ -52,14 +55,13 @@ export async function GET(request: NextRequest) {
     // Build where clause based on role
     const where: any = {};
 
-    // If classId provided, filter by class
+    // If sectionId provided, filter by section
     if (params.classId) {
-      where.classId = params.classId;
+      where.sectionId = params.classId;
     }
 
     // Role-based filtering
     if (dbUser.role === "STUDENT") {
-      // Students can only see PUBLISHED quizzes from enrolled classes
       if (!dbUser.studentProfile) {
         return NextResponse.json(
           { error: "Student profile not found" },
@@ -67,21 +69,18 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const enrolledClasses = await prisma.enrollment.findMany({
+      const enrolledSections = await prisma.enrollment.findMany({
         where: {
           studentId: dbUser.studentProfile.id,
-          status: { in: ["PAID", "ACTIVE"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
-        select: { classId: true },
+        select: { sectionId: true },
       });
 
-      where.classId = { in: enrolledClasses.map((e) => e.classId) };
+      where.sectionId = { in: enrolledSections.map((e) => e.sectionId) };
       where.status = "PUBLISHED";
-
-      // Override status filter for students
       delete params.status;
     } else if (dbUser.role === "TUTOR") {
-      // Tutors can see all quizzes from their classes
       if (!dbUser.tutorProfile) {
         return NextResponse.json(
           { error: "Tutor profile not found" },
@@ -89,14 +88,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const tutorClasses = await prisma.class.findMany({
+      const tutorSections = await prisma.classSection.findMany({
         where: { tutorId: dbUser.tutorProfile.id },
         select: { id: true },
       });
 
-      where.classId = { in: tutorClasses.map((c) => c.id) };
+      where.sectionId = { in: tutorSections.map((s) => s.id) };
     }
-    // Admins can see all quizzes
 
     // Apply status filter if provided
     if (params.status) {
@@ -111,10 +109,16 @@ export async function GET(request: NextRequest) {
       prisma.quiz.findMany({
         where,
         include: {
-          class: {
+          section: {
             select: {
               id: true,
-              name: true,
+              sectionLabel: true,
+              template: {
+                select: {
+                  name: true,
+                  subject: true,
+                },
+              },
               tutor: {
                 select: {
                   user: {
@@ -140,11 +144,21 @@ export async function GET(request: NextRequest) {
       prisma.quiz.count({ where }),
     ]);
 
+    // Transform for client compatibility
+    let quizzesWithAttempts = quizzes.map((quiz) => ({
+      ...quiz,
+      // Client compatibility
+      class: {
+        id: quiz.section.id,
+        name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+        tutor: quiz.section.tutor,
+      },
+    }));
+
     // For students, include their attempt status
-    let quizzesWithAttempts = quizzes;
     if (dbUser.role === "STUDENT" && dbUser.studentProfile) {
       quizzesWithAttempts = await Promise.all(
-        quizzes.map(async (quiz) => {
+        quizzesWithAttempts.map(async (quiz) => {
           const attempts = await prisma.quizAttempt.findMany({
             where: {
               quizId: quiz.id,
@@ -212,10 +226,14 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body: CreateQuizInput = await request.json();
 
+    // Support both classId and sectionId
+    const sectionId = (body as any).sectionId || body.classId;
+    const dataToValidate = { ...body, classId: sectionId };
+
     // Validate data
-    const validation = createQuizSchema.safeParse(body);
+    const validation = createQuizSchema.safeParse(dataToValidate);
     if (!validation.success) {
-      const errors = validation.error.errors.map((err) => ({
+      const errors = validation.error.issues.map((err: any) => ({
         field: err.path.join("."),
         message: err.message,
       }));
@@ -227,23 +245,26 @@ export async function POST(request: NextRequest) {
 
     const validatedData = validation.data;
 
-    // Verify class exists
-    const classData = await prisma.class.findUnique({
+    // Verify section exists
+    const sectionData = await prisma.classSection.findUnique({
       where: { id: validatedData.classId },
+      include: {
+        template: true,
+      },
     });
 
-    if (!classData) {
-      return NextResponse.json({ error: "Class not found" }, { status: 404 });
+    if (!sectionData) {
+      return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    // Verify tutor owns the class (skip for admin)
+    // Verify tutor owns the section (skip for admin)
     if (dbUser.role === "TUTOR") {
       if (
         !dbUser.tutorProfile ||
-        classData.tutorId !== dbUser.tutorProfile.id
+        sectionData.tutorId !== dbUser.tutorProfile.id
       ) {
         return NextResponse.json(
-          { error: "You can only create quizzes for your own classes" },
+          { error: "You can only create quizzes for your own sections" },
           { status: 403 }
         );
       }
@@ -252,7 +273,7 @@ export async function POST(request: NextRequest) {
     // Create quiz with questions
     const quiz = await prisma.quiz.create({
       data: {
-        classId: validatedData.classId,
+        sectionId: validatedData.classId,
         title: validatedData.title,
         description: validatedData.description,
         timeLimit: validatedData.timeLimit,
@@ -277,9 +298,14 @@ export async function POST(request: NextRequest) {
           : undefined,
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
         questions: true,
@@ -295,8 +321,8 @@ export async function POST(request: NextRequest) {
     if (quiz.status === "PUBLISHED") {
       const enrolledStudents = await prisma.enrollment.findMany({
         where: {
-          classId: validatedData.classId,
-          status: { in: ["PAID", "ACTIVE"] },
+          sectionId: validatedData.classId,
+          status: { in: ["ACTIVE"] },
         },
         include: {
           student: {
@@ -308,21 +334,30 @@ export async function POST(request: NextRequest) {
       });
 
       // Create notifications for all enrolled students
-      await prisma.notification.createMany({
-        data: enrolledStudents.map((enrollment) => ({
-          userId: enrollment.student.user.id,
-          title: "New Quiz Available",
-          message: `New quiz "${quiz.title}" has been published in ${quiz.class.name}`,
-          type: "QUIZ",
-        })),
-      });
+      if (enrolledStudents.length > 0) {
+        await prisma.notification.createMany({
+          data: enrolledStudents.map((enrollment) => ({
+            userId: enrollment.student.user.id,
+            title: "New Quiz Available",
+            message: `New quiz "${quiz.title}" has been published in ${quiz.section.template.name}`,
+            type: "QUIZ",
+          })),
+        });
+      }
     }
 
-    return NextResponse.json(quiz, { status: 201 });
+    return NextResponse.json(
+      {
+        ...quiz,
+        class: {
+          name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error("Error creating quiz:", error);
 
-    // Handle Prisma errors
     if (error.code === "P2002") {
       return NextResponse.json(
         { error: "A quiz with this information already exists" },

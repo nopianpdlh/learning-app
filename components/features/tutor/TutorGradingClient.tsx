@@ -208,8 +208,25 @@ export default function TutorGradingClient() {
     }
   };
 
-  const handleDownloadFile = (fileUrl: string) => {
-    window.open(fileUrl, "_blank");
+  const handleDownloadFile = async (submissionId: string) => {
+    try {
+      const response = await fetch(
+        `/api/submissions/${submissionId}/signed-url`,
+        {
+          method: "POST",
+        }
+      );
+      const data = await response.json();
+
+      if (response.ok && data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        toast.error(data.error || "Gagal membuka file");
+      }
+    } catch (error) {
+      console.error("Error getting signed URL:", error);
+      toast.error("Gagal membuka file");
+    }
   };
 
   if (loading) {
@@ -401,7 +418,7 @@ export default function TutorGradingClient() {
                       <Button
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleDownloadFile(submission.fileUrl)}
+                        onClick={() => handleDownloadFile(submission.id)}
                       >
                         <ExternalLink className="mr-2 h-4 w-4" />
                         Lihat File Submission

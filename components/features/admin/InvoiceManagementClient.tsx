@@ -219,7 +219,7 @@ export default function InvoiceManagementClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -267,7 +267,7 @@ export default function InvoiceManagementClient({
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Paid</p>
-                <p className="text-xl font-bold">
+                <p className="text-lg md:text-xl font-bold truncate">
                   {formatPrice(stats.totalPaid)}
                 </p>
               </div>
@@ -279,7 +279,7 @@ export default function InvoiceManagementClient({
       {/* Search & Filter */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -290,7 +290,7 @@ export default function InvoiceManagementClient({
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter status" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -307,8 +307,8 @@ export default function InvoiceManagementClient({
 
       {/* Invoices Table */}
       <Card>
-        <CardContent className="p-0">
-          <Table>
+        <CardContent className="p-0 overflow-x-auto">
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>

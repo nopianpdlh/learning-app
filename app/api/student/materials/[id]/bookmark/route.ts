@@ -1,6 +1,7 @@
 /**
  * Material Bookmark API
  * POST /api/student/materials/[id]/bookmark - Toggle bookmark
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -36,16 +37,16 @@ export async function POST(
       );
     }
 
-    // Check if material exists and student has access
+    // Check if material exists and student has access via section
     const material = await prisma.material.findUnique({
       where: { id: materialId },
       include: {
-        class: {
+        section: {
           include: {
             enrollments: {
               where: {
                 studentId: studentProfile.id,
-                status: { in: ["PAID", "ACTIVE", "COMPLETED"] },
+                status: { in: ["ACTIVE", "EXPIRED"] },
               },
             },
           },
@@ -60,9 +61,9 @@ export async function POST(
       );
     }
 
-    if (material.class.enrollments.length === 0) {
+    if (material.section.enrollments.length === 0) {
       return NextResponse.json(
-        { error: "You are not enrolled in this class" },
+        { error: "You are not enrolled in this section" },
         { status: 403 }
       );
     }

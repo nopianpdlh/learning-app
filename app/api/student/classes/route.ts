@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * GET /api/student/classes
- * Fetch all classes enrolled by the student with progress tracking
+ * Fetch all sections enrolled by the student with progress tracking
+ * Updated to use section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -37,15 +38,22 @@ export async function GET(req: NextRequest) {
 
     const studentId = dbUser.studentProfile.id;
 
-    // Get all enrollments for student
+    // Get all enrollments for student with section data
     const enrollments = await db.enrollment.findMany({
       where: {
         studentId,
-        status: { in: ["PAID", "ACTIVE", "COMPLETED"] }, // Exclude PENDING
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
       include: {
-        class: {
+        section: {
           include: {
+            template: {
+              select: {
+                name: true,
+                subject: true,
+                gradeLevel: true,
+              },
+            },
             tutor: {
               include: {
                 user: {
@@ -59,7 +67,7 @@ export async function GET(req: NextRequest) {
               select: {
                 enrollments: {
                   where: {
-                    status: { in: ["PAID", "ACTIVE"] },
+                    status: { in: ["ACTIVE"] },
                   },
                 },
               },
@@ -84,29 +92,29 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Get class IDs
-    const classIds = enrollments.map((e) => e.classId);
+    // Get section IDs
+    const sectionIds = enrollments.map((e) => e.sectionId);
 
-    // Get all assignments and quizzes for enrolled classes
+    // Get all assignments and quizzes for enrolled sections
     const [assignments, quizzes] = await Promise.all([
       db.assignment.findMany({
         where: {
-          classId: { in: classIds },
+          sectionId: { in: sectionIds },
           status: "PUBLISHED",
         },
         select: {
           id: true,
-          classId: true,
+          sectionId: true,
         },
       }),
       db.quiz.findMany({
         where: {
-          classId: { in: classIds },
+          sectionId: { in: sectionIds },
           status: "PUBLISHED",
         },
         select: {
           id: true,
-          classId: true,
+          sectionId: true,
         },
       }),
     ]);
@@ -129,7 +137,7 @@ export async function GET(req: NextRequest) {
         where: {
           studentId,
           quizId: { in: quizIds },
-          submittedAt: { not: null }, // Only completed attempts
+          submittedAt: { not: null },
         },
         select: {
           quizId: true,
@@ -138,75 +146,74 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Create maps for quick lookup
-    const assignmentsByClass = new Map<string, string[]>();
-    const quizzesByClass = new Map<string, string[]>();
+    const assignmentsBySection = new Map<string, string[]>();
+    const quizzesBySection = new Map<string, string[]>();
     const submissionsByAssignment = new Set(
       submissions.map((s) => s.assignmentId)
     );
     const attemptsByQuiz = new Set(attempts.map((a) => a.quizId));
 
     assignments.forEach((a) => {
-      if (!assignmentsByClass.has(a.classId)) {
-        assignmentsByClass.set(a.classId, []);
+      if (!assignmentsBySection.has(a.sectionId)) {
+        assignmentsBySection.set(a.sectionId, []);
       }
-      assignmentsByClass.get(a.classId)!.push(a.id);
+      assignmentsBySection.get(a.sectionId)!.push(a.id);
     });
 
     quizzes.forEach((q) => {
-      if (!quizzesByClass.has(q.classId)) {
-        quizzesByClass.set(q.classId, []);
+      if (!quizzesBySection.has(q.sectionId)) {
+        quizzesBySection.set(q.sectionId, []);
       }
-      quizzesByClass.get(q.classId)!.push(q.id);
+      quizzesBySection.get(q.sectionId)!.push(q.id);
     });
 
     // Transform enrollments to classes with progress
     const classes = enrollments.map((enrollment) => {
-      const classId = enrollment.classId;
+      const sectionId = enrollment.sectionId;
 
-      // Get assignments and quizzes for this class
-      const classAssignments = assignmentsByClass.get(classId) || [];
-      const classQuizzes = quizzesByClass.get(classId) || [];
+      // Get assignments and quizzes for this section
+      const sectionAssignments = assignmentsBySection.get(sectionId) || [];
+      const sectionQuizzes = quizzesBySection.get(sectionId) || [];
 
       // Count completed items
-      const completedAssignments = classAssignments.filter((id) =>
+      const completedAssignments = sectionAssignments.filter((id) =>
         submissionsByAssignment.has(id)
       ).length;
-      const completedQuizzes = classQuizzes.filter((id) =>
+      const completedQuizzes = sectionQuizzes.filter((id) =>
         attemptsByQuiz.has(id)
       ).length;
 
       // Calculate progress
-      const totalItems = classAssignments.length + classQuizzes.length;
+      const totalItems = sectionAssignments.length + sectionQuizzes.length;
       const completedItems = completedAssignments + completedQuizzes;
       const progress =
         totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
       // Determine status
-      const status = enrollment.status === "COMPLETED" ? "completed" : "active";
+      const status = enrollment.status === "EXPIRED" ? "completed" : "active";
 
       return {
         id: enrollment.id,
-        classId: enrollment.classId,
-        title: enrollment.class.name,
-        subject: enrollment.class.subject,
-        gradeLevel: enrollment.class.gradeLevel,
-        tutorName: enrollment.class.tutor.user.name,
-        schedule: enrollment.class.schedule,
-        thumbnail: enrollment.class.thumbnail,
-        studentsCount: enrollment.class._count.enrollments,
+        classId: enrollment.sectionId,
+        title: `${enrollment.section.template.name} - Section ${enrollment.section.sectionLabel}`,
+        subject: enrollment.section.template.subject,
+        gradeLevel: enrollment.section.template.gradeLevel,
+        tutorName: enrollment.section.tutor.user.name,
+        schedule: null, // Schedule handled differently now
+        thumbnail: null,
+        studentsCount: enrollment.section._count.enrollments,
         status,
         progress,
         enrolledAt: enrollment.enrolledAt.toISOString(),
-        completedAt: enrollment.completedAt?.toISOString() || null,
-        // Enhancement 1: Progress details
+        completedAt: null,
         progressDetails: {
           assignments: {
             completed: completedAssignments,
-            total: classAssignments.length,
+            total: sectionAssignments.length,
           },
           quizzes: {
             completed: completedQuizzes,
-            total: classQuizzes.length,
+            total: sectionQuizzes.length,
           },
         },
       };

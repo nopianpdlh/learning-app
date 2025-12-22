@@ -1,6 +1,7 @@
 /**
  * Student Quizzes API
- * GET /api/student/quizzes - Fetch all quizzes from enrolled classes
+ * GET /api/student/quizzes - Fetch all quizzes from enrolled sections
+ * Updated to use section-based system
  */
 
 import { NextResponse } from "next/server";
@@ -27,9 +28,9 @@ export async function GET() {
       include: {
         enrollments: {
           where: {
-            status: { in: ["ACTIVE", "PAID"] },
+            status: { in: ["ACTIVE", "EXPIRED"] },
           },
-          select: { classId: true },
+          select: { sectionId: true },
         },
       },
     });
@@ -41,27 +42,34 @@ export async function GET() {
       );
     }
 
-    const enrolledClassIds = studentProfile.enrollments.map((e) => e.classId);
+    const enrolledSectionIds = studentProfile.enrollments.map(
+      (e) => e.sectionId
+    );
 
-    if (enrolledClassIds.length === 0) {
+    if (enrolledSectionIds.length === 0) {
       return NextResponse.json({
         quizzes: [],
         stats: { total: 0, available: 0, completed: 0, missed: 0, avgScore: 0 },
       });
     }
 
-    // Fetch all PUBLISHED quizzes from enrolled classes
+    // Fetch all PUBLISHED quizzes from enrolled sections
     const quizzes = await prisma.quiz.findMany({
       where: {
-        classId: { in: enrolledClassIds },
+        sectionId: { in: enrolledSectionIds },
         status: "PUBLISHED",
       },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
-            subject: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
           },
         },
         questions: {
@@ -87,9 +95,9 @@ export async function GET() {
     const now = new Date();
     const processedQuizzes = quizzes.map((quiz) => {
       const attempts = quiz.attempts;
-      const bestAttempt = attempts[0] || null; // Sorted by score desc
+      const bestAttempt = attempts[0] || null;
       const attemptCount = attempts.length;
-      const maxAttempts = 1; // Default max attempts
+      const maxAttempts = 1;
 
       // Determine status
       let effectiveStatus: string;
@@ -101,7 +109,7 @@ export async function GET() {
       if (attemptCount > 0 && bestAttempt?.submittedAt) {
         effectiveStatus = "COMPLETED";
       } else if (attemptCount > 0 && !bestAttempt?.submittedAt) {
-        effectiveStatus = "IN_PROGRESS"; // Started but not submitted
+        effectiveStatus = "IN_PROGRESS";
       } else if (isPastDue) {
         effectiveStatus = "MISSED";
       } else if (isNotStarted) {
@@ -110,7 +118,6 @@ export async function GET() {
         effectiveStatus = "AVAILABLE";
       }
 
-      // Calculate total points from questions
       const questionCount = quiz.questions.length;
 
       return {
@@ -122,7 +129,12 @@ export async function GET() {
         endDate: quiz.endDate?.toISOString() || null,
         passingGrade: quiz.passingGrade || 70,
         createdAt: quiz.createdAt.toISOString(),
-        class: quiz.class,
+        // Client compatibility
+        class: {
+          id: quiz.section.id,
+          name: `${quiz.section.template.name} - Section ${quiz.section.sectionLabel}`,
+          subject: quiz.section.template.subject,
+        },
         questionCount,
         attemptCount,
         maxAttempts,

@@ -2,6 +2,7 @@
  * Quiz Attempt API
  * POST /api/quizzes/[id]/attempt - Start a quiz attempt
  * PUT /api/quizzes/[id]/attempt - Submit quiz answers
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -16,9 +17,10 @@ import {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: quizId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -45,7 +47,7 @@ export async function POST(
 
     // Fetch quiz
     const quiz = await prisma.quiz.findUnique({
-      where: { id: params.id },
+      where: { id: quizId },
       include: {
         questions: true,
       },
@@ -55,19 +57,18 @@ export async function POST(
       return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
     }
 
-    // Verify student is enrolled in the class
-    const enrollment = await prisma.enrollment.findUnique({
+    // Verify student is enrolled in the section
+    const enrollment = await prisma.enrollment.findFirst({
       where: {
-        studentId_classId: {
-          studentId: dbUser.studentProfile.id,
-          classId: quiz.classId,
-        },
+        studentId: dbUser.studentProfile.id,
+        sectionId: quiz.sectionId,
+        status: { in: ["ACTIVE", "EXPIRED"] },
       },
     });
 
-    if (!enrollment || !["PAID", "ACTIVE"].includes(enrollment.status)) {
+    if (!enrollment) {
       return NextResponse.json(
-        { error: "You must be enrolled in this class" },
+        { error: "You must be enrolled in this section" },
         { status: 403 }
       );
     }
@@ -145,9 +146,10 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: quizId } = await params;
     const supabase = await createClient();
 
     // Get authenticated user
@@ -176,7 +178,7 @@ export async function PUT(
     const body = await request.json();
     const validatedData = submitQuizSchema.parse(body);
 
-    // Fetch attempt
+    // Fetch attempt with section
     const attempt = await prisma.quizAttempt.findUnique({
       where: { id: validatedData.attemptId },
       include: {
@@ -185,9 +187,14 @@ export async function PUT(
             questions: {
               orderBy: { orderIndex: "asc" },
             },
-            class: {
+            section: {
               select: {
-                name: true,
+                sectionLabel: true,
+                template: {
+                  select: {
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -226,7 +233,7 @@ export async function PUT(
     }
 
     // Grade all answers
-    const gradedAnswers = validatedData.answers.map((answer) => {
+    const gradedAnswers = validatedData.answers.map((answer: any) => {
       const question = attempt.quiz.questions.find(
         (q) => q.id === answer.questionId
       );
@@ -262,7 +269,7 @@ export async function PUT(
       }),
       // Create new answers
       prisma.quizAnswer.createMany({
-        data: gradedAnswers.map((a) => ({
+        data: gradedAnswers.map((a: any) => ({
           attemptId: a.attemptId,
           questionId: a.questionId,
           answer: a.answer,
@@ -290,7 +297,11 @@ export async function PUT(
         },
         quiz: {
           include: {
-            class: true,
+            section: {
+              include: {
+                template: true,
+              },
+            },
           },
         },
       },

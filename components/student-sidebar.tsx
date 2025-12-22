@@ -19,6 +19,7 @@ import {
   IconUserCircle,
   IconSearch,
   IconCreditCard,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -62,6 +63,7 @@ const menuGroups = [
       { icon: IconFile, label: "Materi", path: "/student/materials" },
       { icon: IconClipboard, label: "Tugas", path: "/student/assignments" },
       { icon: IconChecklist, label: "Kuis", path: "/student/quizzes" },
+      { icon: IconMessageCircle, label: "Forum", path: "/student/forum" },
     ],
   },
   {
@@ -85,7 +87,7 @@ export function StudentSidebar({
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   // User state - fetch from session
   const [user, setUser] = useState({
@@ -148,6 +150,9 @@ export function StudentSidebar({
               <Link
                 href="/student/dashboard"
                 className="flex items-center gap-3"
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
               >
                 <div className="relative w-8 h-8 shrink-0">
                   <Image
@@ -191,7 +196,12 @@ export function StudentSidebar({
                         isActive={isActive}
                         tooltip={item.label}
                       >
-                        <Link href={item.path}>
+                        <Link
+                          href={item.path}
+                          onClick={() => {
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                        >
                           <Icon />
                           <span>{item.label}</span>
                         </Link>
@@ -255,7 +265,13 @@ export function StudentSidebar({
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem asChild>
-                    <Link href="/student/profile" className="cursor-pointer">
+                    <Link
+                      href="/student/profile"
+                      className="cursor-pointer"
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
                       <IconUserCircle className="mr-2 h-4 w-4" />
                       Account
                     </Link>

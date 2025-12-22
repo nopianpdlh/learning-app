@@ -3,13 +3,25 @@
  * GET /api/materials/[id] - Get material by ID
  * PUT /api/materials/[id] - Update material
  * DELETE /api/materials/[id] - Delete material
+ *
+ * Updated to use section-based system (ClassSection instead of Class)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
-import { updateMaterialSchema } from "@/lib/validations/material.schema";
+import { z } from "zod";
 import { deleteFile, extractPathFromUrl } from "@/lib/storage";
+
+// Validation schema for update
+const updateMaterialSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional().nullable(),
+  session: z.coerce.number().min(1).optional(),
+  fileType: z.enum(["PDF", "VIDEO", "DOCUMENT", "IMAGE"]).optional(),
+  fileUrl: z.string().url().optional().nullable().or(z.literal("")),
+  videoUrl: z.string().url().optional().nullable().or(z.literal("")),
+});
 
 /**
  * GET /api/materials/[id]
@@ -46,15 +58,21 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Get material
+    // Get material with section data
     const material = await prisma.material.findUnique({
       where: { id: params.id },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
-            name: true,
+            sectionLabel: true,
             tutorId: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+              },
+            },
             tutor: {
               select: {
                 user: {
@@ -78,12 +96,12 @@ export async function GET(
 
     // Check access permissions
     if (dbUser.role === "STUDENT") {
-      // Student must be enrolled in the class
+      // Student must be enrolled in the section
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          classId: material.classId,
+          sectionId: material.sectionId,
           studentId: dbUser.studentProfile?.id,
-          status: { in: ["PAID", "ACTIVE"] },
+          status: { in: ["ACTIVE", "EXPIRED"] },
         },
       });
 
@@ -94,8 +112,8 @@ export async function GET(
         );
       }
     } else if (dbUser.role === "TUTOR") {
-      // Tutor must own the class
-      if (material.class.tutorId !== dbUser.tutorProfile?.id) {
+      // Tutor must own the section
+      if (material.section.tutorId !== dbUser.tutorProfile?.id) {
         return NextResponse.json(
           { error: "Access denied to this material" },
           { status: 403 }
@@ -116,9 +134,20 @@ export async function GET(
       });
     }
 
+    // Transform for client compatibility
+    const response = {
+      ...material,
+      class: {
+        id: material.section.id,
+        name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
+        tutorId: material.section.tutorId,
+        tutor: material.section.tutor,
+      },
+    };
+
     return NextResponse.json({
       success: true,
-      data: material,
+      data: response,
     });
   } catch (error) {
     console.error("GET /api/materials/[id] error:", error);
@@ -175,7 +204,7 @@ export async function PUT(
     const existingMaterial = await prisma.material.findUnique({
       where: { id: params.id },
       include: {
-        class: true,
+        section: true,
       },
     });
 
@@ -186,13 +215,13 @@ export async function PUT(
       );
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      existingMaterial.class.tutorId !== dbUser.tutorProfile?.id
+      existingMaterial.section.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only update materials in your own classes" },
+        { error: "You can only update materials in your own sections" },
         { status: 403 }
       );
     }
@@ -212,16 +241,21 @@ export async function PUT(
         ...(validatedData.session && { session: validatedData.session }),
         ...(validatedData.fileType && { fileType: validatedData.fileType }),
         ...(validatedData.fileUrl !== undefined && {
-          fileUrl: validatedData.fileUrl,
+          fileUrl: validatedData.fileUrl || null,
         }),
         ...(validatedData.videoUrl !== undefined && {
-          videoUrl: validatedData.videoUrl,
+          videoUrl: validatedData.videoUrl || null,
         }),
       },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -229,15 +263,20 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      data: updatedMaterial,
+      data: {
+        ...updatedMaterial,
+        class: {
+          name: `${updatedMaterial.section.template.name} - Section ${updatedMaterial.section.sectionLabel}`,
+        },
+      },
       message: "Material updated successfully",
     });
   } catch (error) {
     console.error("PUT /api/materials/[id] error:", error);
 
-    if (error instanceof Error && error.name === "ZodError") {
+    if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error },
+        { error: "Validation error", details: error.issues },
         { status: 400 }
       );
     }
@@ -295,7 +334,7 @@ export async function DELETE(
     const existingMaterial = await prisma.material.findUnique({
       where: { id: params.id },
       include: {
-        class: true,
+        section: true,
       },
     });
 
@@ -306,13 +345,13 @@ export async function DELETE(
       );
     }
 
-    // Check if tutor owns the class
+    // Check if tutor owns the section
     if (
       dbUser.role === "TUTOR" &&
-      existingMaterial.class.tutorId !== dbUser.tutorProfile?.id
+      existingMaterial.section.tutorId !== dbUser.tutorProfile?.id
     ) {
       return NextResponse.json(
-        { error: "You can only delete materials from your own classes" },
+        { error: "You can only delete materials from your own sections" },
         { status: 403 }
       );
     }

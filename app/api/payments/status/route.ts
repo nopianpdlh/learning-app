@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * GET /api/payments/status?enrollmentId=xxx
  * Get payment status for an enrollment
+ * Updated to use section-based system
  */
 export async function GET(req: NextRequest) {
   try {
@@ -27,15 +28,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Find enrollment with payment details
+    // Find enrollment with payment details using section
     const enrollment = await db.enrollment.findUnique({
       where: { id: enrollmentId },
       include: {
-        class: {
+        section: {
           select: {
-            name: true,
-            subject: true,
-            thumbnail: true,
+            id: true,
+            sectionLabel: true,
+            template: {
+              select: {
+                name: true,
+                subject: true,
+                thumbnail: true,
+              },
+            },
           },
         },
         payment: true,
@@ -63,7 +70,13 @@ export async function GET(req: NextRequest) {
       enrollment: {
         id: enrollment.id,
         status: enrollment.status,
-        class: enrollment.class,
+        // Client compatibility - provide class object
+        class: {
+          id: enrollment.section.id,
+          name: `${enrollment.section.template.name} - Section ${enrollment.section.sectionLabel}`,
+          subject: enrollment.section.template.subject,
+          thumbnail: enrollment.section.template.thumbnail,
+        },
       },
       payment: enrollment.payment || null,
     });

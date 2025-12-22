@@ -246,38 +246,40 @@ export default function TutorAvailabilityManagementClient({
 
   // Weekly Grid Component
   const WeeklyGrid = ({ tutor }: { tutor: Tutor }) => (
-    <div className="grid grid-cols-7 gap-2 mt-4">
-      {DAYS.map((day) => (
-        <div key={day.value} className="space-y-2">
-          <div className="text-center font-medium text-sm py-2 bg-muted rounded">
-            {day.short}
-          </div>
-          <div className="min-h-[100px] space-y-1">
-            {getAvailabilityForDay(tutor, day.value).map((slot) => (
-              <div
-                key={slot.id}
-                className={`p-2 rounded text-xs ${
-                  slot.isActive
-                    ? "bg-green-100 text-green-800 border border-green-200"
-                    : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span>
-                    {formatTime(slot.startTime)}-{formatTime(slot.endTime)}
-                  </span>
-                  <button
-                    onClick={() => setDeletingSlotId(slot.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+    <div className="overflow-x-auto">
+      <div className="grid grid-cols-7 gap-2 mt-4 min-w-[600px]">
+        {DAYS.map((day) => (
+          <div key={day.value} className="space-y-2">
+            <div className="text-center font-medium text-sm py-2 bg-muted rounded">
+              {day.short}
+            </div>
+            <div className="min-h-[100px] space-y-1">
+              {getAvailabilityForDay(tutor, day.value).map((slot) => (
+                <div
+                  key={slot.id}
+                  className={`p-2 rounded text-xs ${
+                    slot.isActive
+                      ? "bg-green-100 text-green-800 border border-green-200"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>
+                      {formatTime(slot.startTime)}-{formatTime(slot.endTime)}
+                    </span>
+                    <button
+                      onClick={() => setDeletingSlotId(slot.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 
@@ -294,7 +296,7 @@ export default function TutorAvailabilityManagementClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -365,9 +367,9 @@ export default function TutorAvailabilityManagementClient({
       </Card>
 
       {/* Main Content */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Tutor List */}
-        <div className="col-span-4">
+        <div className="lg:col-span-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Daftar Tutor</CardTitle>
@@ -415,7 +417,7 @@ export default function TutorAvailabilityManagementClient({
         </div>
 
         {/* Schedule Grid */}
-        <div className="col-span-8">
+        <div className="lg:col-span-8">
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-lg">

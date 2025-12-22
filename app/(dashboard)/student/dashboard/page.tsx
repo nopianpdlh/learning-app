@@ -176,9 +176,9 @@ export default async function StudentDashboardPage() {
     maxScore: 100,
   }));
 
-  // Get upcoming live classes
+  // Get upcoming scheduled meetings (from ScheduledMeeting model that admin creates)
   const now = new Date();
-  const upcomingLiveClasses = await prisma.liveClass.findMany({
+  const upcomingMeetings = await prisma.scheduledMeeting.findMany({
     where: {
       sectionId: { in: sectionIds },
       scheduledAt: { gte: now },
@@ -203,8 +203,8 @@ export default async function StudentDashboardPage() {
     "Sabtu",
   ];
 
-  const upcomingEvents = upcomingLiveClasses.map((lc) => {
-    const scheduledDate = new Date(lc.scheduledAt);
+  const upcomingEvents = upcomingMeetings.map((meeting) => {
+    const scheduledDate = new Date(meeting.scheduledAt);
     const dayName = dayNames[scheduledDate.getDay()];
     const time = scheduledDate.toLocaleTimeString("id-ID", {
       hour: "2-digit",
@@ -212,21 +212,21 @@ export default async function StudentDashboardPage() {
     });
 
     return {
-      id: lc.id,
-      title: lc.title,
+      id: meeting.id,
+      title: meeting.title,
       date: `${dayName}, ${time}`,
       type: "live",
     };
   });
 
   // Get next live class (hero card)
-  const nextLiveClass = upcomingLiveClasses[0];
+  const nextMeeting = upcomingMeetings[0];
   let upcomingLiveClass = null;
 
-  if (nextLiveClass) {
-    const scheduledAt = new Date(nextLiveClass.scheduledAt);
+  if (nextMeeting) {
+    const scheduledAt = new Date(nextMeeting.scheduledAt);
     const endTime = new Date(
-      scheduledAt.getTime() + nextLiveClass.duration * 60 * 1000
+      scheduledAt.getTime() + nextMeeting.duration * 60 * 1000
     );
     const diffMs = scheduledAt.getTime() - now.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -243,9 +243,9 @@ export default async function StudentDashboardPage() {
     }
 
     upcomingLiveClass = {
-      id: nextLiveClass.id,
-      title: nextLiveClass.title,
-      tutorName: nextLiveClass.section.tutor.user.name,
+      id: nextMeeting.id,
+      title: nextMeeting.title,
+      tutorName: nextMeeting.section.tutor.user.name,
       time: `${scheduledAt.toLocaleTimeString("id-ID", {
         hour: "2-digit",
         minute: "2-digit",
@@ -254,8 +254,8 @@ export default async function StudentDashboardPage() {
         minute: "2-digit",
       })}`,
       countdown,
-      meetingUrl: nextLiveClass.meetingUrl,
-      isLive: diffMs <= 0 && diffMs > -nextLiveClass.duration * 60 * 1000,
+      meetingUrl: nextMeeting.meetingUrl || "",
+      isLive: diffMs <= 0 && diffMs > -nextMeeting.duration * 60 * 1000,
     };
   }
 

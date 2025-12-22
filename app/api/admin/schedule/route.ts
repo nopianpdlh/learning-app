@@ -83,35 +83,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for conflicting meetings
+    // Check for conflicting meetings - find all meetings for this tutor on the same day
+    const startOfDay = new Date(scheduledDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(scheduledDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const sameDayMeetings = await prisma.scheduledMeeting.findMany({
+      where: {
+        section: { tutorId: section.tutorId },
+        status: { not: "CANCELLED" },
+        scheduledAt: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    });
+
+    // Check for time overlap
     const meetingEnd = new Date(
       scheduledDate.getTime() + body.duration * 60000
     );
 
-    const conflictingMeeting = await prisma.scheduledMeeting.findFirst({
-      where: {
-        section: { tutorId: section.tutorId },
-        status: { not: "CANCELLED" },
-        OR: [
-          {
-            scheduledAt: {
-              gte: scheduledDate,
-              lt: meetingEnd,
-            },
-          },
-          {
-            AND: [
-              { scheduledAt: { lt: scheduledDate } },
-              // Would need to calculate end time from scheduledAt + duration
-            ],
-          },
-        ],
-      },
+    const conflictingMeeting = sameDayMeetings.find((m) => {
+      const existingStart = new Date(m.scheduledAt);
+      const existingEnd = new Date(
+        existingStart.getTime() + m.duration * 60000
+      );
+
+      // Check overlap: new meeting starts during existing, or existing starts during new
+      return (
+        (scheduledDate >= existingStart && scheduledDate < existingEnd) ||
+        (meetingEnd > existingStart && meetingEnd <= existingEnd) ||
+        (scheduledDate <= existingStart && meetingEnd >= existingEnd)
+      );
     });
 
     if (conflictingMeeting) {
       return NextResponse.json(
-        { error: "Conflicts with another meeting" },
+        {
+          error: `Bentrok dengan meeting lain pada jam ${new Date(
+            conflictingMeeting.scheduledAt
+          )
+            .toTimeString()
+            .substring(0, 5)}`,
+        },
         { status: 400 }
       );
     }

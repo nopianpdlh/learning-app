@@ -1,6 +1,7 @@
 /**
  * Submission Signed URL API
  * POST /api/submissions/[id]/signed-url - Generate signed URL for submission file
+ * Updated to use section-based system
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -26,7 +27,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get submission with student profile check
+    // Get submission with student profile check - using section instead of class
     const submission = await prisma.assignmentSubmission.findUnique({
       where: { id: submissionId },
       include: {
@@ -37,7 +38,7 @@ export async function POST(
         },
         assignment: {
           include: {
-            class: {
+            section: {
               select: {
                 tutorId: true,
               },
@@ -54,7 +55,7 @@ export async function POST(
       );
     }
 
-    // Check if user is the student who submitted OR tutor of the class
+    // Check if user is the student who submitted OR tutor of the section
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: {
@@ -65,9 +66,10 @@ export async function POST(
 
     const isStudent = submission.student.userId === user.id;
     const isTutor =
-      dbUser?.tutorProfile?.id === submission.assignment.class.tutorId;
+      dbUser?.tutorProfile?.id === submission.assignment.section.tutorId;
+    const isAdmin = dbUser?.role === "ADMIN";
 
-    if (!isStudent && !isTutor) {
+    if (!isStudent && !isTutor && !isAdmin) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
