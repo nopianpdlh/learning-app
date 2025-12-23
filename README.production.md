@@ -22,7 +22,7 @@ Platform E-Learning berbasis Next.js 15 dengan Supabase backend.
 
 ```bash
 # Clone repository
-git clone https://github.com/your-repo/learning-app.git
+git clone https://github.com/nopianpdlh/learning-app.git
 cd learning-app
 
 # Install dependencies
@@ -94,5 +94,5 @@ For issues, contact the development team.
 
 ---
 
-**Version**: 1.0.0  
-**Last Updated**: December 2024
+**Version**: 1.1.0  
+**Last Updated**: December 2025

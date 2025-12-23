@@ -72,8 +72,8 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/tutor-nomor-satu.git
-cd tutor-nomor-satu
+git clone https://github.com/nopianpdlh/learning-app.git
+cd learning-app
 
 # Install dependencies
 npm install
