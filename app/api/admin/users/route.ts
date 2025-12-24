@@ -32,7 +32,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, phone, role, password } = body;
+    const {
+      name,
+      email,
+      phone,
+      role,
+      password,
+      bio,
+      subjects,
+      experience,
+      education,
+    } = body;
 
     // Create user in Supabase Auth
     const { data: authData, error: authError } =
@@ -70,9 +80,21 @@ export async function POST(request: NextRequest) {
         },
       });
     } else if (role.toUpperCase() === "TUTOR") {
+      // Parse subjects from comma-separated string to array
+      const subjectsArray = subjects
+        ? subjects
+            .split(",")
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0)
+        : [];
+
       await db.tutorProfile.create({
         data: {
           userId: user.id,
+          bio: bio || null,
+          subjects: subjectsArray,
+          experience: experience ? parseInt(experience) : null,
+          education: education || null,
         },
       });
     }

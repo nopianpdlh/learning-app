@@ -12,8 +12,8 @@ import {
   Users,
   CheckCircle,
   XCircle,
-  Download,
 } from "lucide-react";
+import { SignedDownloadLink } from "@/components/ui/signed-download-link";
 
 export default async function TutorAssignmentDetailPage({
   params,
@@ -252,15 +252,11 @@ export default async function TutorAssignmentDetailPage({
 
         {assignment.attachmentUrl && (
           <div className="mt-4">
-            <a
-              href={assignment.attachmentUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700"
-            >
-              <Download className="w-4 h-4" />
-              Download Lampiran
-            </a>
+            <SignedDownloadLink
+              bucket="assignments"
+              fileUrl={assignment.attachmentUrl}
+              label="Download Lampiran"
+            />
           </div>
         )}
       </div>

@@ -62,40 +62,48 @@ export default async function StudentSectionDetailPage({
   }
 
   // Fetch content
-  const [materials, assignments, quizzes, meetings] = await Promise.all([
-    prisma.material.findMany({
-      where: { sectionId },
-      orderBy: { session: "asc" },
-    }),
-    prisma.assignment.findMany({
-      where: { sectionId, status: "PUBLISHED" },
-      orderBy: { dueDate: "asc" },
-      include: {
-        submissions: {
-          where: { studentId: dbUser.studentProfile.id },
-          select: { id: true, status: true, score: true },
+  const [materials, assignments, quizzes, meetings, completedMeetingsCount] =
+    await Promise.all([
+      prisma.material.findMany({
+        where: { sectionId },
+        orderBy: { session: "asc" },
+      }),
+      prisma.assignment.findMany({
+        where: { sectionId, status: "PUBLISHED" },
+        orderBy: { dueDate: "asc" },
+        include: {
+          submissions: {
+            where: { studentId: dbUser.studentProfile.id },
+            select: { id: true, status: true, score: true },
+          },
         },
-      },
-    }),
-    prisma.quiz.findMany({
-      where: { sectionId, status: "PUBLISHED" },
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: { select: { questions: true } },
-        attempts: {
-          where: { studentId: dbUser.studentProfile.id },
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { id: true, score: true, submittedAt: true },
+      }),
+      prisma.quiz.findMany({
+        where: { sectionId, status: "PUBLISHED" },
+        orderBy: { createdAt: "desc" },
+        include: {
+          _count: { select: { questions: true } },
+          attempts: {
+            where: { studentId: dbUser.studentProfile.id },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { id: true, score: true, submittedAt: true },
+          },
         },
-      },
-    }),
-    prisma.scheduledMeeting.findMany({
-      where: { sectionId },
-      orderBy: { scheduledAt: "asc" },
-      take: 5,
-    }),
-  ]);
+      }),
+      prisma.scheduledMeeting.findMany({
+        where: { sectionId },
+        orderBy: { scheduledAt: "asc" },
+        take: 5,
+      }),
+      // Count completed meetings (status COMPLETED OR past meetings)
+      prisma.scheduledMeeting.count({
+        where: {
+          sectionId,
+          OR: [{ status: "COMPLETED" }, { scheduledAt: { lt: new Date() } }],
+        },
+      }),
+    ]);
 
   const now = new Date();
   const expiryDate = enrollment.expiryDate
@@ -108,6 +116,10 @@ export default async function StudentSectionDetailPage({
       Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     );
   }
+
+  // Calculate meetings remaining based on completed meetings
+  const totalMeetings = enrollment.totalMeetings || 0;
+  const meetingsRemaining = Math.max(0, totalMeetings - completedMeetingsCount);
 
   return (
     <StudentSectionDetailClient
@@ -129,8 +141,8 @@ export default async function StudentSectionDetailPage({
         startDate: enrollment.startDate?.toISOString() || null,
         expiryDate: enrollment.expiryDate?.toISOString() || null,
         daysRemaining,
-        meetingsRemaining: enrollment.meetingsRemaining || 0,
-        totalMeetings: enrollment.totalMeetings || 0,
+        meetingsRemaining,
+        totalMeetings,
       }}
       materials={materials.map((m) => ({
         ...m,
@@ -167,6 +179,7 @@ export default async function StudentSectionDetailPage({
         scheduledAt: m.scheduledAt.toISOString(),
         duration: m.duration,
         meetingUrl: m.meetingUrl,
+        recordingUrl: m.recordingUrl,
         status: m.status,
       }))}
     />

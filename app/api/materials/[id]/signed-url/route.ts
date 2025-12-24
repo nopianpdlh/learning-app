@@ -33,7 +33,7 @@ export async function POST(
     const material = await prisma.material.findUnique({
       where: { id: params.id },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
             tutorId: true,

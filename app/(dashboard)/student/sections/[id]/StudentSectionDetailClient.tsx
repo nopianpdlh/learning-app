@@ -91,6 +91,7 @@ interface Props {
     scheduledAt: string;
     duration: number;
     meetingUrl: string | null;
+    recordingUrl: string | null;
     status: string;
   }[];
 }
@@ -356,9 +357,7 @@ export default function StudentSectionDetailClient({
                       <div className="flex items-center gap-3">
                         {getSubmissionBadge(assignment.submission)}
                         <Button size="sm" asChild>
-                          <Link
-                            href={`/student/sections/${section.id}/assignments/${assignment.id}`}
-                          >
+                          <Link href={`/student/assignments`}>
                             {assignment.submission ? "Lihat" : "Kerjakan"}
                           </Link>
                         </Button>
@@ -416,9 +415,7 @@ export default function StudentSectionDetailClient({
                           <Badge variant="outline">Belum Dikerjakan</Badge>
                         )}
                         <Button size="sm" asChild>
-                          <Link
-                            href={`/student/sections/${section.id}/quizzes/${quiz.id}`}
-                          >
+                          <Link href={`/student/quizzes/${quiz.id}`}>
                             {quiz.lastAttempt ? "Lihat Hasil" : "Mulai"}
                           </Link>
                         </Button>
@@ -479,6 +476,19 @@ export default function StudentSectionDetailClient({
                           )}
                           {isPast && !isLive && (
                             <Badge variant="secondary">Selesai</Badge>
+                          )}
+                          {/* Watch Recording button for past meetings */}
+                          {isPast && meeting.recordingUrl && (
+                            <Button size="sm" variant="outline" asChild>
+                              <a
+                                href={meeting.recordingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Play className="h-4 w-4 mr-1" />
+                                Tonton Rekaman
+                              </a>
+                            </Button>
                           )}
                           {meeting.meetingUrl && !isPast && (
                             <Button

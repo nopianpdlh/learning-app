@@ -3,12 +3,22 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Handle reset password redirect: if root URL has code parameter, redirect to /reset-password
+  if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
+    const code = request.nextUrl.searchParams.get("code");
+    const redirectUrl = new URL("/reset-password", request.url);
+    if (code) {
+      redirectUrl.searchParams.set("code", code);
+    }
+    return NextResponse.redirect(redirectUrl);
+  }
+
   const supabase = await createClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
-
-  const pathname = request.nextUrl.pathname;
 
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/register");
@@ -88,6 +98,7 @@ function getUserRole(user: {
 
 export const config = {
   matcher: [
+    "/",
     "/student/:path*",
     "/tutor/:path*",
     "/admin/:path*",

@@ -17,6 +17,15 @@ export default async function AdminSectionsPage() {
               },
             },
           },
+          _count: {
+            select: {
+              enrollments: {
+                where: {
+                  status: { in: ["ACTIVE", "PENDING"] },
+                },
+              },
+            },
+          },
         },
         orderBy: { sectionLabel: "asc" },
       },
@@ -29,6 +38,15 @@ export default async function AdminSectionsPage() {
     },
   });
 
+  // Transform programs to include currentEnrollments in sections
+  const transformedPrograms = programs.map((program) => ({
+    ...program,
+    sections: program.sections.map((section) => ({
+      ...section,
+      currentEnrollments: section._count.enrollments,
+    })),
+  }));
+
   // Fetch all tutors
   const tutors = await prisma.tutorProfile.findMany({
     include: {
@@ -40,5 +58,7 @@ export default async function AdminSectionsPage() {
     },
   });
 
-  return <SectionManagementClient programs={programs} tutors={tutors} />;
+  return (
+    <SectionManagementClient programs={transformedPrograms} tutors={tutors} />
+  );
 }

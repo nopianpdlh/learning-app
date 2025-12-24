@@ -29,6 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Pagination,
   PaginationContent,
@@ -77,6 +78,11 @@ export function UserManagementClient({
     phone: "",
     role: "STUDENT",
     password: "",
+    // Tutor-specific fields
+    bio: "",
+    subjects: "",
+    experience: "",
+    education: "",
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -141,6 +147,10 @@ export function UserManagementClient({
         phone: "",
         role: "STUDENT",
         password: "",
+        bio: "",
+        subjects: "",
+        experience: "",
+        education: "",
       });
       toast.success("User created successfully!");
     } catch (error) {
@@ -193,6 +203,10 @@ export function UserManagementClient({
         phone: "",
         role: "STUDENT",
         password: "",
+        bio: "",
+        subjects: "",
+        experience: "",
+        education: "",
       });
       toast.success("User updated successfully!");
     } catch (error) {
@@ -255,6 +269,10 @@ export function UserManagementClient({
       phone: user.phone || "",
       role: user.role,
       password: "",
+      bio: "",
+      subjects: "",
+      experience: "",
+      education: "",
     });
     setIsEditDialogOpen(true);
   };
@@ -361,6 +379,95 @@ export function UserManagementClient({
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Tutor-specific fields - only show when TUTOR role is selected */}
+                {formData.role === "TUTOR" && (
+                  <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm font-medium text-blue-700">
+                      Informasi Tutor
+                    </p>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="bio"
+                        className="text-gray-700 font-medium"
+                      >
+                        Bio / Deskripsi
+                      </Label>
+                      <Textarea
+                        id="bio"
+                        placeholder="Pengajar bahasa Inggris berpengalaman..."
+                        value={formData.bio}
+                        onChange={(e) =>
+                          setFormData({ ...formData, bio: e.target.value })
+                        }
+                        className="bg-white border-gray-300"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="subjects"
+                        className="text-gray-700 font-medium"
+                      >
+                        Subjects (pisahkan dengan koma)
+                      </Label>
+                      <Input
+                        id="subjects"
+                        placeholder="English, Grammar, Speaking"
+                        value={formData.subjects}
+                        onChange={(e) =>
+                          setFormData({ ...formData, subjects: e.target.value })
+                        }
+                        className="bg-white border-gray-300"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="experience"
+                          className="text-gray-700 font-medium"
+                        >
+                          Pengalaman (tahun)
+                        </Label>
+                        <Input
+                          id="experience"
+                          type="number"
+                          placeholder="5"
+                          value={formData.experience}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              experience: e.target.value,
+                            })
+                          }
+                          className="bg-white border-gray-300"
+                          min="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="education"
+                          className="text-gray-700 font-medium"
+                        >
+                          Pendidikan
+                        </Label>
+                        <Input
+                          id="education"
+                          placeholder="S1 Pendidikan"
+                          value={formData.education}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              education: e.target.value,
+                            })
+                          }
+                          className="bg-white border-gray-300"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label
                     htmlFor="password"
