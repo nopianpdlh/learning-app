@@ -122,6 +122,7 @@ export async function GET(request: NextRequest) {
         authorId: thread.authorId,
         authorName: author?.name || "Unknown",
         authorAvatar: author?.avatar || null,
+        authorRole: author?.role || "STUDENT",
         className: `${thread.section.template.name} - Section ${thread.section.sectionLabel}`,
         classId: thread.section.id,
         subject: thread.section.template.subject,

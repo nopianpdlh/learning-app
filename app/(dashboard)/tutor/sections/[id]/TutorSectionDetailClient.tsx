@@ -438,27 +438,38 @@ export default function TutorSectionDetailClient({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {meetings.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="font-medium">{m.title}</TableCell>
-                        <TableCell>{formatDateTime(m.scheduledAt)}</TableCell>
-                        <TableCell>{m.duration} menit</TableCell>
-                        <TableCell>{getStatusBadge(m.status)}</TableCell>
-                        <TableCell>
-                          {m.meetingUrl && (
-                            <Button size="sm" variant="ghost" asChild>
-                              <a
-                                href={m.meetingUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {meetings.map((m) => {
+                      // Check if meeting is past and should show as completed
+                      const isPast = new Date(m.scheduledAt) < new Date();
+                      const displayStatus =
+                        isPast && m.status === "SCHEDULED"
+                          ? "COMPLETED"
+                          : m.status;
+
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell className="font-medium">
+                            {m.title}
+                          </TableCell>
+                          <TableCell>{formatDateTime(m.scheduledAt)}</TableCell>
+                          <TableCell>{m.duration} menit</TableCell>
+                          <TableCell>{getStatusBadge(displayStatus)}</TableCell>
+                          <TableCell>
+                            {m.meetingUrl && (
+                              <Button size="sm" variant="ghost" asChild>
+                                <a
+                                  href={m.meetingUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

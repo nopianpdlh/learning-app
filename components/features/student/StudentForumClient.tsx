@@ -54,6 +54,7 @@ interface Discussion {
   authorName: string;
   authorAvatar: string | null;
   authorId: string;
+  authorRole: string;
   className: string;
   classId: string;
   subject: string;
@@ -442,9 +443,16 @@ export default function StudentForumClient({ enrolledSections }: Props) {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-sm">
-                            {discussion.authorName}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm">
+                              {discussion.authorName}
+                            </p>
+                            {discussion.authorRole === "TUTOR" && (
+                              <Badge className="bg-green-500 text-xs py-0 px-1.5">
+                                Tutor
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {discussion.className}
                           </p>
