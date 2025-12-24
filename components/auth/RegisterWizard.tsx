@@ -94,6 +94,19 @@ export function RegisterWizard() {
   };
 
   const onSubmit = async (data: RegisterInput) => {
+    // Guard: Only submit if on step 4 and terms are accepted
+    if (currentStep !== 4) {
+      // If user accidentally triggers submit (e.g., via Enter key), go to next step instead
+      nextStep();
+      return;
+    }
+
+    // Validate terms are accepted
+    if (!data.acceptTerms || !data.acceptPrivacy) {
+      toast.error("Please accept the Terms of Service and Privacy Policy");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
