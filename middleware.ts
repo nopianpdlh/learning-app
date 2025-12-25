@@ -26,7 +26,9 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute = pathname.startsWith("/admin");
   const isTutorRoute = pathname.startsWith("/tutor");
   const isStudentRoute = pathname.startsWith("/student");
-  const isDashboard = isAdminRoute || isTutorRoute || isStudentRoute;
+  const isExecutiveRoute = pathname.startsWith("/executive");
+  const isDashboard =
+    isAdminRoute || isTutorRoute || isStudentRoute || isExecutiveRoute;
 
   // Redirect to login if accessing dashboard without session
   if (isDashboard && !session) {
@@ -69,6 +71,14 @@ export async function middleware(request: NextRequest) {
         new URL(`/${redirectRole}/dashboard`, request.url)
       );
     }
+
+    // Executive can only access /executive/* routes
+    if (isExecutiveRoute && userRole !== "EXECUTIVE") {
+      const redirectRole = userRole.toLowerCase();
+      return NextResponse.redirect(
+        new URL(`/${redirectRole}/dashboard`, request.url)
+      );
+    }
   }
 
   return NextResponse.next();
@@ -102,6 +112,7 @@ export const config = {
     "/student/:path*",
     "/tutor/:path*",
     "/admin/:path*",
+    "/executive/:path*",
     "/login",
     "/register",
   ],

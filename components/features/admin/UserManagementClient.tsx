@@ -300,6 +300,7 @@ export function UserManagementClient({
               <SelectItem value="STUDENT">Students</SelectItem>
               <SelectItem value="TUTOR">Tutors</SelectItem>
               <SelectItem value="ADMIN">Admins</SelectItem>
+              <SelectItem value="EXECUTIVE">Executives</SelectItem>
             </SelectContent>
           </Select>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -376,6 +377,7 @@ export function UserManagementClient({
                       <SelectItem value="STUDENT">Student</SelectItem>
                       <SelectItem value="TUTOR">Tutor</SelectItem>
                       <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="EXECUTIVE">Executive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -575,6 +577,7 @@ export function UserManagementClient({
                       <SelectItem value="STUDENT">Student</SelectItem>
                       <SelectItem value="TUTOR">Tutor</SelectItem>
                       <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="EXECUTIVE">Executive</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

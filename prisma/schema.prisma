@@ -19,6 +19,7 @@ enum Role {
   ADMIN
   TUTOR
   STUDENT
+  EXECUTIVE
 }
 
 enum EnrollmentStatus {

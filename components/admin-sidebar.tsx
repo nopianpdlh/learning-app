@@ -88,7 +88,7 @@ const menuGroups = [
     ],
   },
   {
-    label: "Sistem",
+    label: "Laporan",
     items: [
       { icon: IconReport, label: "Reports", path: "/admin/reports" },
       {
