@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       // Verify assignment exists and tutor owns it
       const assignment = await prisma.assignment.findUnique({
         where: { id: assignmentId },
-        include: { class: true },
+        include: { section: true },
       });
 
       if (!assignment) {
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
       if (
         dbUser.role === "TUTOR" &&
-        assignment.class.tutorId !== dbUser.tutorProfile?.id
+        assignment.section.tutorId !== dbUser.tutorProfile?.id
       ) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
@@ -177,9 +177,9 @@ export async function POST(request: NextRequest) {
 
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          classId: assignment.classId,
+          sectionId: assignment.sectionId,
           studentId: dbUser.studentProfile?.id,
-          status: { in: ["PAID", "ACTIVE"] },
+          status: "ACTIVE",
         },
       });
 

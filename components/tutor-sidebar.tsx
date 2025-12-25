@@ -81,10 +81,10 @@ const menuGroups = [
       { icon: IconMessage, label: "Forum", path: "/tutor/forum" },
     ],
   },
-  {
-    label: "Settings",
-    items: [{ icon: IconSettings, label: "Settings", path: "/tutor/settings" }],
-  },
+  // {
+  //   label: "Settings",
+  //   items: [{ icon: IconSettings, label: "Settings", path: "/tutor/settings" }],
+  // },
 ];
 
 export function TutorSidebar({

@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
                 id: true,
                 name: true,
                 avatar: true,
+                role: true,
               },
             },
           },
@@ -112,6 +113,7 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         avatar: true,
+        role: true,
       },
     });
 
@@ -133,6 +135,7 @@ export async function GET(req: NextRequest) {
         authorName: author?.name || "Unknown",
         authorAvatar: author?.avatar || null,
         authorId: thread.authorId,
+        authorRole: author?.role || "STUDENT",
         className: `${thread.section.template.name} - ${thread.section.sectionLabel}`,
         classId: thread.sectionId,
         subject: thread.section.template.subject,
@@ -147,6 +150,7 @@ export async function GET(req: NextRequest) {
           authorId: post.authorId,
           authorName: post.author.name,
           authorAvatar: post.author.avatar,
+          authorRole: post.author.role,
           parentId: post.parentId,
           createdAt: post.createdAt.toISOString(),
           updatedAt: post.updatedAt.toISOString(),

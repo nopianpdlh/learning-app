@@ -47,7 +47,7 @@ export async function POST(
     const material = await prisma.material.findUnique({
       where: { id: params.id },
       include: {
-        class: {
+        section: {
           select: {
             id: true,
             tutorId: true,
@@ -73,12 +73,12 @@ export async function POST(
 
     // Check access permissions
     if (dbUser.role === "STUDENT") {
-      // Student must be enrolled in the class
+      // Student must be enrolled in the section
       const enrollment = await prisma.enrollment.findFirst({
         where: {
-          classId: material.classId,
+          sectionId: material.sectionId,
           studentId: dbUser.studentProfile?.id,
-          status: { in: ["PAID", "ACTIVE"] },
+          status: "ACTIVE",
         },
       });
 
@@ -89,8 +89,8 @@ export async function POST(
         );
       }
     } else if (dbUser.role === "TUTOR") {
-      // Tutor must own the class
-      if (material.class.tutorId !== dbUser.tutorProfile?.id) {
+      // Tutor must own the section
+      if (material.section.tutorId !== dbUser.tutorProfile?.id) {
         return NextResponse.json(
           { error: "Access denied to this material" },
           { status: 403 }

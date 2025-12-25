@@ -8,6 +8,127 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db";
 import DashboardClient from "./DashboardClient";
+import { Alert } from "@/components/ui/alert-banner";
+
+// Get urgent alerts for student dashboard
+async function getStudentAlerts(
+  studentProfileId: string,
+  sectionIds: string[]
+): Promise<Alert[]> {
+  const now = new Date();
+  const alerts: Alert[] = [];
+
+  // Check for unpaid enrollments
+  const unpaidEnrollments = await prisma.enrollment.count({
+    where: {
+      studentId: studentProfileId,
+      status: "PENDING",
+    },
+  });
+
+  if (unpaidEnrollments > 0) {
+    alerts.push({
+      id: "unpaid-enrollment",
+      type: "critical",
+      message: `Kamu memiliki ${unpaidEnrollments} kelas yang belum dibayar.`,
+      link: "/student/sections",
+      linkText: "Bayar Sekarang",
+    });
+  }
+
+  // Check for assignments due in 24 hours
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const urgentAssignments = await prisma.assignment.count({
+    where: {
+      sectionId: { in: sectionIds },
+      dueDate: { gte: now, lte: tomorrow },
+      status: "PUBLISHED",
+    },
+  });
+
+  if (urgentAssignments > 0) {
+    alerts.push({
+      id: "urgent-assignments",
+      type: "warning",
+      message: `${urgentAssignments} tugas harus dikerjakan dalam 24 jam!`,
+      link: "/student/assignments",
+      linkText: "Lihat Tugas",
+    });
+  }
+
+  // Check for expiring enrollments (within 7 days)
+  const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const expiringEnrollments = await prisma.enrollment.count({
+    where: {
+      studentId: studentProfileId,
+      status: "ACTIVE",
+      expiryDate: { gte: now, lte: weekFromNow },
+    },
+  });
+
+  if (expiringEnrollments > 0) {
+    alerts.push({
+      id: "expiring-enrollment",
+      type: "warning",
+      message: `${expiringEnrollments} kelas akan berakhir dalam 7 hari.`,
+      link: "/student/sections",
+      linkText: "Perpanjang",
+    });
+  }
+
+  // Check for upcoming live class (within 3 hours)
+  const threeHoursFromNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+  const upcomingLiveClass = await prisma.scheduledMeeting.findFirst({
+    where: {
+      sectionId: { in: sectionIds },
+      scheduledAt: { gte: now, lte: threeHoursFromNow },
+      status: "SCHEDULED",
+    },
+    include: {
+      section: { include: { template: true } },
+    },
+  });
+
+  if (upcomingLiveClass) {
+    const scheduledAt = new Date(upcomingLiveClass.scheduledAt);
+    const diffMins = Math.floor(
+      (scheduledAt.getTime() - now.getTime()) / 60000
+    );
+    const timeText =
+      diffMins < 60
+        ? `${diffMins} menit`
+        : `${Math.floor(diffMins / 60)} jam ${diffMins % 60} menit`;
+
+    alerts.push({
+      id: `upcoming-liveclass-${upcomingLiveClass.id}`,
+      type: "info",
+      message: `Live class "${upcomingLiveClass.title}" dimulai dalam ${timeText}!`,
+      link: upcomingLiveClass.meetingUrl || "/student/sections",
+      linkText: "Join",
+    });
+  }
+
+  // Check for new materials (added in last 24 hours)
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const newMaterials = await prisma.material.count({
+    where: {
+      sectionId: { in: sectionIds },
+      createdAt: { gte: yesterday },
+    },
+  });
+
+  if (newMaterials > 0) {
+    alerts.push({
+      id: "new-materials",
+      type: "info",
+      message: `Ada ${newMaterials} materi baru ditambahkan!`,
+      link: "/student/materials",
+      linkText: "Lihat Materi",
+    });
+  }
+
+  return alerts;
+}
 
 export default async function StudentDashboardPage() {
   const supabase = await createClient();
@@ -310,6 +431,9 @@ export default async function StudentDashboardPage() {
     100
   );
 
+  // Get alerts
+  const alerts = await getStudentAlerts(studentProfile.id, sectionIds);
+
   return (
     <DashboardClient
       studentName={userData?.name || "Student"}
@@ -324,6 +448,7 @@ export default async function StudentDashboardPage() {
       pendingAssignments={pendingAssignments}
       recentQuizzes={recentQuizzes}
       upcomingEvents={upcomingEvents}
+      alerts={alerts}
     />
   );
 }

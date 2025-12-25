@@ -193,6 +193,16 @@ export function ProgramDetailClient({ program }: ProgramDetailClientProps) {
                 </div>
               </div>
 
+              {/* Lesson Schedule for Semi-Private */}
+              {program.classType === "SEMI_PRIVATE" && (
+                <div className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                  <Clock className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-700 font-medium">
+                    Kelas dibuka di jam 18.45 atau 19.45 WIB
+                  </span>
+                </div>
+              )}
+
               {/* Price Card */}
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="p-6">

@@ -88,9 +88,14 @@ const menuGroups = [
     ],
   },
   {
-    label: "Sistem",
+    label: "Laporan",
     items: [
       { icon: IconReport, label: "Reports", path: "/admin/reports" },
+      {
+        icon: IconUsers,
+        label: "Kinerja Tutor",
+        path: "/admin/tutor-performance",
+      },
       { icon: IconShield, label: "Audit Logs", path: "/admin/auditLogs" },
     ],
   },

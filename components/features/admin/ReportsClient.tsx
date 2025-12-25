@@ -159,55 +159,163 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
       46
     );
 
-    // Summary Stats
-    doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text("Summary Statistics", 14, 58);
+    let currentY = 58;
 
-    autoTable(doc, {
-      startY: 62,
-      head: [["Metric", "Value"]],
-      body: [
-        ["Total Revenue", formatPrice(stats.totalRevenue)],
-        ["Active Students", stats.activeStudents.toString()],
-        ["Active Sections", stats.activeSections.toString()],
-        ["Completed Meetings", stats.completedMeetings.toString()],
-        ["Pending Payments", stats.pendingPayments.toString()],
-      ],
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [10, 38, 71] },
-    });
+    // Generate different content based on report type
+    switch (selectedReport) {
+      case "financial":
+        // Revenue Report - Focus on financial metrics
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Financial Summary", 14, currentY);
 
-    // Enrollments by Program
-    const finalY = (doc as any).lastAutoTable.finalY || 100;
-    doc.text("Enrollments by Program", 14, finalY + 15);
+        autoTable(doc, {
+          startY: currentY + 4,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Total Revenue", formatPrice(stats.totalRevenue)],
+            ["Pending Payments", stats.pendingPayments.toString()],
+          ],
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [34, 197, 94] },
+        });
 
-    autoTable(doc, {
-      startY: finalY + 19,
-      head: [["Program", "Enrollments"]],
-      body: stats.enrollmentsByProgram.map((p) => [p.name, p.count.toString()]),
-      styles: { fontSize: 10 },
-      headStyles: { fillColor: [255, 184, 0], textColor: [0, 0, 0] },
-    });
+        // Monthly Revenue
+        const finalY1 = (doc as any).lastAutoTable.finalY || 100;
+        doc.text("Monthly Revenue (Last 6 Months)", 14, finalY1 + 15);
 
-    // Recent Payments
-    const finalY2 = (doc as any).lastAutoTable.finalY || 150;
-    doc.text("Recent Payments", 14, finalY2 + 15);
+        autoTable(doc, {
+          startY: finalY1 + 19,
+          head: [["Month", "Revenue"]],
+          body: stats.monthlyRevenue.map((m) => [
+            m.month,
+            formatPrice(m.amount),
+          ]),
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [34, 197, 94] },
+        });
 
-    autoTable(doc, {
-      startY: finalY2 + 19,
-      head: [["Student", "Program", "Amount", "Date"]],
-      body: stats.recentPayments
-        .slice(0, 10)
-        .map((p) => [
-          p.studentName,
-          p.programName,
-          formatPrice(p.amount),
-          format(new Date(p.paidAt), "dd MMM yyyy", { locale: idLocale }),
-        ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [34, 197, 94] },
-    });
+        // Recent Payments
+        const finalY2 = (doc as any).lastAutoTable.finalY || 150;
+        doc.text("Recent Payments", 14, finalY2 + 15);
+
+        autoTable(doc, {
+          startY: finalY2 + 19,
+          head: [["Student", "Program", "Amount", "Date"]],
+          body: stats.recentPayments
+            .slice(0, 10)
+            .map((p) => [
+              p.studentName,
+              p.programName,
+              formatPrice(p.amount),
+              format(new Date(p.paidAt), "dd MMM yyyy", { locale: idLocale }),
+            ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [34, 197, 94] },
+        });
+        break;
+
+      case "enrollment":
+        // Enrollment Report - Focus on student enrollment
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Enrollment Summary", 14, currentY);
+
+        autoTable(doc, {
+          startY: currentY + 4,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Active Students", stats.activeStudents.toString()],
+            ["Active Sections", stats.activeSections.toString()],
+          ],
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [79, 70, 229] },
+        });
+
+        // Enrollments by Program
+        const finalY3 = (doc as any).lastAutoTable.finalY || 100;
+        doc.text("Enrollments by Program", 14, finalY3 + 15);
+
+        autoTable(doc, {
+          startY: finalY3 + 19,
+          head: [["Program", "Active Enrollments"]],
+          body: stats.enrollmentsByProgram.map((p) => [
+            p.name,
+            p.count.toString(),
+          ]),
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [79, 70, 229] },
+        });
+        break;
+
+      case "analytics":
+        // Class Analytics - Overview of all metrics
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Class Analytics Overview", 14, currentY);
+
+        autoTable(doc, {
+          startY: currentY + 4,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Total Revenue", formatPrice(stats.totalRevenue)],
+            ["Active Students", stats.activeStudents.toString()],
+            ["Active Sections", stats.activeSections.toString()],
+            ["Completed Meetings", stats.completedMeetings.toString()],
+            ["Pending Payments", stats.pendingPayments.toString()],
+          ],
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [10, 38, 71] },
+        });
+
+        // Enrollments by Program
+        const finalY4 = (doc as any).lastAutoTable.finalY || 100;
+        doc.text("Program Performance", 14, finalY4 + 15);
+
+        autoTable(doc, {
+          startY: finalY4 + 19,
+          head: [["Program", "Enrollments"]],
+          body: stats.enrollmentsByProgram.map((p) => [
+            p.name,
+            p.count.toString(),
+          ]),
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [255, 184, 0], textColor: [0, 0, 0] },
+        });
+        break;
+
+      case "meetings":
+        // Meeting Report - Focus on meetings
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Meeting Statistics", 14, currentY);
+
+        autoTable(doc, {
+          startY: currentY + 4,
+          head: [["Metric", "Value"]],
+          body: [
+            ["Completed Meetings", stats.completedMeetings.toString()],
+            ["Active Sections", stats.activeSections.toString()],
+          ],
+          styles: { fontSize: 10 },
+          headStyles: { fillColor: [249, 115, 22] },
+        });
+
+        // Note about meetings data
+        const finalY5 = (doc as any).lastAutoTable.finalY || 100;
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(
+          "Note: Detailed meeting schedule can be viewed in Schedule Management.",
+          14,
+          finalY5 + 15
+        );
+        break;
+
+      default:
+        // Default fallback
+        doc.text("No report type selected", 14, currentY);
+    }
 
     doc.save(
       `${reportName.replace(/\s+/g, "_")}_${format(
@@ -220,42 +328,109 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
   const generateExcel = (reportName: string, dateRange: string) => {
     const wb = XLSX.utils.book_new();
 
-    // Summary Sheet
-    const summaryData = [
+    // Header row for all sheets
+    const headerData = [
       ["Tutor Nomor Satu - " + reportName],
       ["Period: " + dateRange],
       ["Generated: " + format(new Date(), "dd MMM yyyy HH:mm")],
       [],
-      ["Metric", "Value"],
-      ["Total Revenue", stats.totalRevenue],
-      ["Active Students", stats.activeStudents],
-      ["Active Sections", stats.activeSections],
-      ["Completed Meetings", stats.completedMeetings],
-      ["Pending Payments", stats.pendingPayments],
     ];
-    const summaryWs = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(wb, summaryWs, "Summary");
 
-    // Enrollments Sheet
-    const enrollmentsData = [
-      ["Program", "Enrollments"],
-      ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
-    ];
-    const enrollmentsWs = XLSX.utils.aoa_to_sheet(enrollmentsData);
-    XLSX.utils.book_append_sheet(wb, enrollmentsWs, "Enrollments");
+    switch (selectedReport) {
+      case "financial":
+        // Financial Report - Revenue focused
+        const financialData = [
+          ...headerData,
+          ["Metric", "Value"],
+          ["Total Revenue", stats.totalRevenue],
+          ["Pending Payments", stats.pendingPayments],
+        ];
+        const financialWs = XLSX.utils.aoa_to_sheet(financialData);
+        XLSX.utils.book_append_sheet(wb, financialWs, "Summary");
 
-    // Payments Sheet
-    const paymentsData = [
-      ["Student", "Program", "Amount", "Date"],
-      ...stats.recentPayments.map((p) => [
-        p.studentName,
-        p.programName,
-        p.amount,
-        format(new Date(p.paidAt), "yyyy-MM-dd"),
-      ]),
-    ];
-    const paymentsWs = XLSX.utils.aoa_to_sheet(paymentsData);
-    XLSX.utils.book_append_sheet(wb, paymentsWs, "Payments");
+        // Monthly Revenue
+        const monthlyData = [
+          ["Month", "Revenue"],
+          ...stats.monthlyRevenue.map((m) => [m.month, m.amount]),
+        ];
+        const monthlyWs = XLSX.utils.aoa_to_sheet(monthlyData);
+        XLSX.utils.book_append_sheet(wb, monthlyWs, "Monthly Revenue");
+
+        // Payments
+        const paymentsData = [
+          ["Student", "Program", "Amount", "Date"],
+          ...stats.recentPayments.map((p) => [
+            p.studentName,
+            p.programName,
+            p.amount,
+            format(new Date(p.paidAt), "yyyy-MM-dd"),
+          ]),
+        ];
+        const paymentsWs = XLSX.utils.aoa_to_sheet(paymentsData);
+        XLSX.utils.book_append_sheet(wb, paymentsWs, "Payments");
+        break;
+
+      case "enrollment":
+        // Enrollment Report
+        const enrollmentSummary = [
+          ...headerData,
+          ["Metric", "Value"],
+          ["Active Students", stats.activeStudents],
+          ["Active Sections", stats.activeSections],
+        ];
+        const enrollmentWs = XLSX.utils.aoa_to_sheet(enrollmentSummary);
+        XLSX.utils.book_append_sheet(wb, enrollmentWs, "Summary");
+
+        // By Program
+        const programData = [
+          ["Program", "Enrollments"],
+          ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
+        ];
+        const programWs = XLSX.utils.aoa_to_sheet(programData);
+        XLSX.utils.book_append_sheet(wb, programWs, "By Program");
+        break;
+
+      case "analytics":
+        // Analytics - Full overview
+        const analyticsData = [
+          ...headerData,
+          ["Metric", "Value"],
+          ["Total Revenue", stats.totalRevenue],
+          ["Active Students", stats.activeStudents],
+          ["Active Sections", stats.activeSections],
+          ["Completed Meetings", stats.completedMeetings],
+          ["Pending Payments", stats.pendingPayments],
+        ];
+        const analyticsWs = XLSX.utils.aoa_to_sheet(analyticsData);
+        XLSX.utils.book_append_sheet(wb, analyticsWs, "Overview");
+
+        // Programs
+        const analyticsProgramData = [
+          ["Program", "Enrollments"],
+          ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
+        ];
+        const analyticsProgramWs =
+          XLSX.utils.aoa_to_sheet(analyticsProgramData);
+        XLSX.utils.book_append_sheet(wb, analyticsProgramWs, "Programs");
+        break;
+
+      case "meetings":
+        // Meeting Report
+        const meetingsData = [
+          ...headerData,
+          ["Metric", "Value"],
+          ["Completed Meetings", stats.completedMeetings],
+          ["Active Sections", stats.activeSections],
+        ];
+        const meetingsWs = XLSX.utils.aoa_to_sheet(meetingsData);
+        XLSX.utils.book_append_sheet(wb, meetingsWs, "Summary");
+        break;
+
+      default:
+        const defaultData = [...headerData, ["No data available"]];
+        const defaultWs = XLSX.utils.aoa_to_sheet(defaultData);
+        XLSX.utils.book_append_sheet(wb, defaultWs, "Data");
+    }
 
     XLSX.writeFile(
       wb,
@@ -267,15 +442,50 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
   };
 
   const generateCSV = (reportName: string, dateRange: string) => {
-    const csvData = [
-      ["Student", "Program", "Amount", "Date"],
-      ...stats.recentPayments.map((p) => [
-        p.studentName,
-        p.programName,
-        p.amount.toString(),
-        format(new Date(p.paidAt), "yyyy-MM-dd"),
-      ]),
-    ];
+    let csvData: (string | number)[][] = [];
+
+    switch (selectedReport) {
+      case "financial":
+        csvData = [
+          ["Student", "Program", "Amount", "Date"],
+          ...stats.recentPayments.map((p) => [
+            p.studentName,
+            p.programName,
+            p.amount,
+            format(new Date(p.paidAt), "yyyy-MM-dd"),
+          ]),
+        ];
+        break;
+
+      case "enrollment":
+        csvData = [
+          ["Program", "Active Enrollments"],
+          ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
+        ];
+        break;
+
+      case "analytics":
+        csvData = [
+          ["Metric", "Value"],
+          ["Total Revenue", stats.totalRevenue],
+          ["Active Students", stats.activeStudents],
+          ["Active Sections", stats.activeSections],
+          ["Completed Meetings", stats.completedMeetings],
+          ["Pending Payments", stats.pendingPayments],
+        ];
+        break;
+
+      case "meetings":
+        csvData = [
+          ["Metric", "Value"],
+          ["Completed Meetings", stats.completedMeetings],
+          ["Active Sections", stats.activeSections],
+        ];
+        break;
+
+      default:
+        csvData = [["No data available"]];
+    }
 
     const ws = XLSX.utils.aoa_to_sheet(csvData);
     const wb = XLSX.utils.book_new();

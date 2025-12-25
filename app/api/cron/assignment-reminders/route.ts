@@ -52,8 +52,9 @@ export async function GET(req: NextRequest) {
         },
       },
       include: {
-        class: {
+        section: {
           include: {
+            template: true,
             enrollments: {
               where: {
                 status: "ACTIVE",
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
     console.log(`Found ${assignments24h.length} assignments due in 24h`);
 
     for (const assignment of assignments24h) {
-      for (const enrollment of assignment.class.enrollments) {
+      for (const enrollment of assignment.section.enrollments) {
         // Check if student already submitted
         const hasSubmitted = assignment.submissions.some(
           (sub) => sub.studentId === enrollment.studentId
@@ -88,9 +89,9 @@ export async function GET(req: NextRequest) {
             to: enrollment.student.user.email,
             studentName: enrollment.student.user.name,
             assignmentTitle: assignment.title,
-            className: assignment.class.name,
+            className: assignment.section.template.name,
             dueDate: assignment.dueDate,
-            assignmentUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${assignment.classId}/assignments/${assignment.id}`,
+            assignmentUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/sections/${assignment.sectionId}/assignments/${assignment.id}`,
             hoursUntilDue: 24,
           });
 
@@ -132,8 +133,9 @@ export async function GET(req: NextRequest) {
         },
       },
       include: {
-        class: {
+        section: {
           include: {
+            template: true,
             enrollments: {
               where: {
                 status: "ACTIVE",
@@ -155,7 +157,7 @@ export async function GET(req: NextRequest) {
     console.log(`Found ${assignments6h.length} assignments due in 6h`);
 
     for (const assignment of assignments6h) {
-      for (const enrollment of assignment.class.enrollments) {
+      for (const enrollment of assignment.section.enrollments) {
         const hasSubmitted = assignment.submissions.some(
           (sub) => sub.studentId === enrollment.studentId
         );
@@ -167,9 +169,9 @@ export async function GET(req: NextRequest) {
             to: enrollment.student.user.email,
             studentName: enrollment.student.user.name,
             assignmentTitle: assignment.title,
-            className: assignment.class.name,
+            className: assignment.section.template.name,
             dueDate: assignment.dueDate,
-            assignmentUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${assignment.classId}/assignments/${assignment.id}`,
+            assignmentUrl: `${process.env.NEXT_PUBLIC_APP_URL}/student/sections/${assignment.sectionId}/assignments/${assignment.id}`,
             hoursUntilDue: 6,
           });
 

@@ -1,5 +1,4 @@
 import { db as prisma } from "@/lib/db";
-// import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import StudentSectionsClient from "./StudentSectionsClient";
@@ -43,6 +42,13 @@ export default async function StudentSectionsPage() {
               quizzes: true,
             },
           },
+          meetings: {
+            select: {
+              id: true,
+              status: true,
+              scheduledAt: true,
+            },
+          },
         },
       },
       payment: true,
@@ -70,14 +76,22 @@ export default async function StudentSectionsPage() {
         );
       }
 
+      // Calculate completed meetings from actual data (status COMPLETED OR past)
+      const nowTime = new Date();
+      const completedMeetings = section.meetings.filter(
+        (m) => m.status === "COMPLETED" || new Date(m.scheduledAt) < nowTime
+      ).length;
+      const totalMeetings = enrollment.totalMeetings || 0;
+      const meetingsRemaining = Math.max(0, totalMeetings - completedMeetings);
+
       return {
         enrollmentId: enrollment.id,
         enrollmentStatus: enrollment.status,
         startDate: enrollment.startDate?.toISOString() || null,
         expiryDate: enrollment.expiryDate?.toISOString() || null,
         daysRemaining,
-        meetingsRemaining: enrollment.meetingsRemaining || 0,
-        totalMeetings: enrollment.totalMeetings || 0,
+        meetingsRemaining,
+        totalMeetings,
         paymentStatus: enrollment.payment?.status || null,
         section: {
           id: section.id,

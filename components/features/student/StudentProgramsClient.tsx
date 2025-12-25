@@ -234,7 +234,9 @@ export function StudentProgramsClient({
                   <p className="text-lg font-bold text-primary">
                     {formatPrice(program.pricePerMonth)}
                   </p>
-                  <p className="text-xs text-muted-foreground">/bulan</p>
+                  <p className="text-xs text-muted-foreground">
+                    {program.classType === "PRIVATE" ? "/pertemuan" : "/bulan"}
+                  </p>
                 </div>
                 <Button asChild size="sm">
                   <Link href={`/student/programs/${program.id}`}>

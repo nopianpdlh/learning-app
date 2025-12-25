@@ -19,7 +19,57 @@ import {
   AdminDashboardHeader,
   AdminDashboardCalendar,
 } from "./DashboardWidgets";
+import { AlertBanner, Alert } from "@/components/ui/alert-banner";
 
+// Get urgent alerts for admin dashboard
+async function getAdminAlerts(): Promise<Alert[]> {
+  const now = new Date();
+  const alerts: Alert[] = [];
+
+  const [pendingWaitingList, pendingPayments, overdueInvoices] =
+    await Promise.all([
+      db.waitingList.count({ where: { status: "PENDING" } }),
+      db.payment.count({ where: { status: "PENDING" } }),
+      db.invoice.count({
+        where: {
+          status: "UNPAID",
+          dueDate: { lt: now },
+        },
+      }),
+    ]);
+
+  if (pendingWaitingList > 0) {
+    alerts.push({
+      id: "waiting-list-pending",
+      type: "warning",
+      message: `Ada ${pendingWaitingList} siswa di waiting list menunggu review.`,
+      link: "/admin/waiting-list",
+      linkText: "Review",
+    });
+  }
+
+  if (pendingPayments > 0) {
+    alerts.push({
+      id: "pending-payments",
+      type: "warning",
+      message: `${pendingPayments} pembayaran menunggu verifikasi.`,
+      link: "/admin/payments",
+      linkText: "Lihat",
+    });
+  }
+
+  if (overdueInvoices > 0) {
+    alerts.push({
+      id: "overdue-invoices",
+      type: "critical",
+      message: `${overdueInvoices} invoice sudah melewati jatuh tempo!`,
+      link: "/admin/invoices",
+      linkText: "Lihat",
+    });
+  }
+
+  return alerts;
+}
 async function getAdminStats() {
   // Get counts - using sections instead of legacy classes
   const [totalStudents, totalTutors, totalSections, payments, enrollments] =
@@ -226,12 +276,14 @@ async function getAdminUserName() {
 }
 
 export default async function AdminDashboard() {
-  const [stats, activities, upcomingLiveClass, userName] = await Promise.all([
-    getAdminStats(),
-    getRecentActivities(),
-    getUpcomingLiveClass(),
-    getAdminUserName(),
-  ]);
+  const [stats, activities, upcomingLiveClass, userName, alerts] =
+    await Promise.all([
+      getAdminStats(),
+      getRecentActivities(),
+      getUpcomingLiveClass(),
+      getAdminUserName(),
+      getAdminAlerts(),
+    ]);
 
   const statsCards = [
     {
@@ -271,6 +323,9 @@ export default async function AdminDashboard() {
         upcomingLiveClass={upcomingLiveClass}
         calendarEvents={[]}
       />
+
+      {/* Alert Banners */}
+      <AlertBanner alerts={alerts} storageKey="admin_alerts" />
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

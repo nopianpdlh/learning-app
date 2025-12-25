@@ -40,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SectionCombobox } from "@/components/features/admin/SectionCombobox";
 import {
   Calendar,
   Plus,
@@ -126,6 +127,7 @@ export default function ScheduleManagementClient({
     time: "",
     duration: "90",
     meetingUrl: "",
+    recordingUrl: "",
   });
 
   // Filter meetings
@@ -154,6 +156,7 @@ export default function ScheduleManagementClient({
       time: "",
       duration: "90",
       meetingUrl: "",
+      recordingUrl: "",
     });
     setConflictCheck(null);
   };
@@ -171,19 +174,23 @@ export default function ScheduleManagementClient({
     const scheduledDate = new Date(`${formData.date}T${formData.time}`);
     const dayOfWeek = scheduledDate.getDay();
     const timeStr = formData.time;
+    const isPastMeeting = scheduledDate < new Date();
 
-    // Check tutor availability
-    const tutorAvailable = section.tutor.availability.some((a) => {
-      if (a.dayOfWeek !== dayOfWeek) return false;
-      return a.startTime <= timeStr && a.endTime > timeStr;
-    });
-
-    if (!tutorAvailable) {
-      setConflictCheck({
-        valid: false,
-        message: `Tutor ${section.tutor.user.name} tidak tersedia di ${DAYS[dayOfWeek]} jam ${timeStr}`,
+    // Skip tutor availability check for past meetings when editing
+    if (!isPastMeeting || !editingMeeting) {
+      // Check tutor availability
+      const tutorAvailable = section.tutor.availability.some((a) => {
+        if (a.dayOfWeek !== dayOfWeek) return false;
+        return a.startTime <= timeStr && a.endTime > timeStr;
       });
-      return;
+
+      if (!tutorAvailable) {
+        setConflictCheck({
+          valid: false,
+          message: `Tutor ${section.tutor.user.name} tidak tersedia di ${DAYS[dayOfWeek]} jam ${timeStr}`,
+        });
+        return;
+      }
     }
 
     // Check for conflicting meetings (same tutor, same time)
@@ -213,6 +220,15 @@ export default function ScheduleManagementClient({
       setConflictCheck({
         valid: false,
         message: `Bentrok dengan meeting "${conflictingMeeting.title}" di Section ${conflictingMeeting.section.sectionLabel}`,
+      });
+      return;
+    }
+
+    // For past meetings being edited, show appropriate message
+    if (isPastMeeting && editingMeeting) {
+      setConflictCheck({
+        valid: true,
+        message: `Meeting sudah terlewat. Anda bisa edit recording URL.`,
       });
       return;
     }
@@ -296,6 +312,7 @@ export default function ScheduleManagementClient({
           scheduledAt,
           duration: parseInt(formData.duration),
           meetingUrl: formData.meetingUrl || null,
+          recordingUrl: formData.recordingUrl || null,
         }),
       });
 
@@ -361,6 +378,7 @@ export default function ScheduleManagementClient({
       time: date.toTimeString().substring(0, 5),
       duration: meeting.duration.toString(),
       meetingUrl: meeting.meetingUrl || "",
+      recordingUrl: meeting.recordingUrl || "",
     });
     setIsEditDialogOpen(true);
     setTimeout(() => checkConflict(), 100);
@@ -458,7 +476,7 @@ export default function ScheduleManagementClient({
             type="date"
             value={formData.date}
             onChange={(e) => handleFormChange("date", e.target.value)}
-            min={new Date().toISOString().split("T")[0]}
+            min={isEditing ? undefined : new Date().toISOString().split("T")[0]}
             required
           />
         </div>
@@ -502,6 +520,22 @@ export default function ScheduleManagementClient({
             placeholder="https://zoom.us/..."
           />
         </div>
+        {/* Recording URL - only show when editing */}
+        {isEditing && (
+          <div className="space-y-2">
+            <Label>Recording URL (untuk meeting selesai)</Label>
+            <Input
+              value={formData.recordingUrl}
+              onChange={(e) =>
+                setFormData({ ...formData, recordingUrl: e.target.value })
+              }
+              placeholder="https://youtube.com/... atau link rekaman lainnya"
+            />
+            <p className="text-xs text-muted-foreground">
+              Siswa yang tidak hadir bisa menonton rekaman ini
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Conflict Check Result */}
@@ -583,24 +617,14 @@ export default function ScheduleManagementClient({
             <form onSubmit={handleAddMeeting} className="space-y-4">
               <div className="space-y-2">
                 <Label>Section *</Label>
-                <Select
+                <SectionCombobox
+                  sections={sections}
                   value={formData.sectionId}
                   onValueChange={(value) =>
                     handleFormChange("sectionId", value)
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih section" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white max-h-[300px]">
-                    {sections.map((section) => (
-                      <SelectItem key={section.id} value={section.id}>
-                        {section.template.name} - Section {section.sectionLabel}{" "}
-                        ({section.tutor.user.name})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  placeholder="Pilih section..."
+                />
               </div>
 
               <div className="space-y-2">

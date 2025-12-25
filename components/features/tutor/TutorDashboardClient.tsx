@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { AlertBanner, Alert } from "@/components/ui/alert-banner";
 import {
   BookOpen,
   Users,
@@ -62,7 +63,13 @@ interface DashboardData {
   recentActivity: RecentActivity[];
 }
 
-export default function TutorDashboardClient() {
+interface TutorDashboardClientProps {
+  alerts: Alert[];
+}
+
+export default function TutorDashboardClient({
+  alerts,
+}: TutorDashboardClientProps) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -190,6 +197,9 @@ export default function TutorDashboardClient() {
           Manage your classes and help your students succeed
         </p>
       </div>
+
+      {/* Alert Banners */}
+      <AlertBanner alerts={alerts} storageKey="tutor_alerts" />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

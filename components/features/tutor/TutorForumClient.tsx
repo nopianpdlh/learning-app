@@ -15,6 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MessageSquare,
@@ -24,6 +31,7 @@ import {
   Loader2,
   Pin,
   Search,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -35,6 +43,7 @@ interface Post {
   authorId: string;
   authorName: string;
   authorAvatar: string | null;
+  authorRole: string;
   parentId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +56,7 @@ interface Discussion {
   authorName: string;
   authorAvatar: string | null;
   authorId: string;
+  authorRole: string;
   className: string;
   classId: string;
   subject: string;
@@ -91,6 +101,13 @@ export default function TutorForumClient() {
   const [classFilter, setClassFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [replyText, setReplyText] = useState("");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  // New thread form state
+  const [newTitle, setNewTitle] = useState("");
+  const [newContent, setNewContent] = useState("");
+  const [newSectionId, setNewSectionId] = useState("");
 
   // Fetch discussions
   useEffect(() => {
@@ -225,6 +242,46 @@ export default function TutorForumClient() {
     }
   };
 
+  const handleCreateThread = async () => {
+    if (!newTitle.trim() || !newContent.trim() || !newSectionId) {
+      toast.error("Mohon lengkapi semua field");
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const response = await fetch("/api/forum/threads", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          content: newContent.trim(),
+          classId: newSectionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Diskusi berhasil dibuat");
+        setNewTitle("");
+        setNewContent("");
+        setNewSectionId("");
+        setIsCreateOpen(false);
+        await fetchDiscussions();
+      } else {
+        toast.error(data.error || "Gagal membuat diskusi");
+      }
+    } catch (error) {
+      console.error("Error creating thread:", error);
+      toast.error("Terjadi kesalahan saat membuat diskusi");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const selectedThread = discussions.find((d) => d.id === selectedDiscussion);
 
   if (loading) {
@@ -238,11 +295,82 @@ export default function TutorForumClient() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Forum Diskusi</h1>
-        <p className="text-muted-foreground mt-1">
-          Kelola diskusi dan jawab pertanyaan siswa
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Forum Diskusi</h1>
+          <p className="text-muted-foreground mt-1">
+            Kelola diskusi dan jawab pertanyaan siswa
+          </p>
+        </div>
+
+        {/* Create New Thread Button */}
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Buat Diskusi Baru
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Buat Diskusi Baru</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Pilih Kelas</label>
+                <Select value={newSectionId} onValueChange={setNewSectionId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih kelas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Judul Diskusi</label>
+                <Input
+                  placeholder="Contoh: Pengumuman materi baru minggu ini"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Isi Diskusi</label>
+                <Textarea
+                  placeholder="Tulis isi diskusi atau pengumuman..."
+                  rows={6}
+                  value={newContent}
+                  onChange={(e) => setNewContent(e.target.value)}
+                />
+              </div>
+
+              <Button
+                className="w-full"
+                onClick={handleCreateThread}
+                disabled={creating}
+              >
+                {creating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Membuat...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Buat Diskusi
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stats */}
@@ -356,9 +484,16 @@ export default function TutorForumClient() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-sm">
-                            {discussion.authorName}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm">
+                              {discussion.authorName}
+                            </p>
+                            {discussion.authorRole === "TUTOR" && (
+                              <Badge className="bg-green-500 text-xs py-0 px-1.5">
+                                Tutor
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-muted-foreground">
                             {discussion.className}
                           </p>

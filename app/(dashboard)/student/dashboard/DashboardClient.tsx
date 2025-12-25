@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { AlertBanner, Alert } from "@/components/ui/alert-banner";
 import {
   BookOpen,
   ClipboardList,
@@ -84,6 +85,7 @@ interface DashboardClientProps {
   pendingAssignments: PendingAssignment[];
   recentQuizzes: RecentQuiz[];
   upcomingEvents: UpcomingEvent[];
+  alerts: Alert[];
 }
 
 export default function DashboardClient({
@@ -94,6 +96,7 @@ export default function DashboardClient({
   pendingAssignments,
   recentQuizzes,
   upcomingEvents,
+  alerts,
 }: DashboardClientProps) {
   const handleJoinClass = () => {
     if (upcomingLiveClass?.meetingUrl) {
@@ -130,6 +133,9 @@ export default function DashboardClient({
           Ready to continue your learning journey?
         </p>
       </div>
+
+      {/* Alert Banners */}
+      <AlertBanner alerts={alerts} storageKey="student_alerts" />
 
       {/* Live Class Hero Card */}
       {upcomingLiveClass && (
