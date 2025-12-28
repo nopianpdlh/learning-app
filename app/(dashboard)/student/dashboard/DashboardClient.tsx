@@ -330,7 +330,7 @@ export default function DashboardClient({
                           size="sm"
                           asChild
                         >
-                          <Link href={`/student/classes/${classItem.id}`}>
+                          <Link href={`/student/sections/${classItem.id}`}>
                             Buka Kelas
                           </Link>
                         </Button>

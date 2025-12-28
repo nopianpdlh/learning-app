@@ -184,6 +184,8 @@ export default async function StudentSectionDetailPage({
         meetingUrl: m.meetingUrl,
         recordingUrl: m.recordingUrl,
         status: m.status,
+        requestStatus: m.requestStatus,
+        requestedBy: m.requestedBy,
       }))}
     />
   );

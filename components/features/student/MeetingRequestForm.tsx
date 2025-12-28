@@ -33,13 +33,15 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  Ban,
 } from "lucide-react";
 
 interface MeetingRequest {
   id: string;
   scheduledAt: string;
   duration: number;
-  requestStatus: string;
+  status: string; // Meeting status: SCHEDULED, CANCELLED, etc.
+  requestStatus: string; // Request status: PENDING, APPROVED, REJECTED
   requestNote: string | null;
   rejectionNote: string | null;
   section: {
@@ -161,8 +163,18 @@ export function MeetingRequestForm({
     setNote("");
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
+  const getStatusBadge = (request: MeetingRequest) => {
+    // Check if meeting was cancelled (status = CANCELLED regardless of requestStatus)
+    if (request.status === "CANCELLED") {
+      return (
+        <Badge variant="destructive" className="flex items-center gap-1">
+          <Ban className="h-3 w-3" />
+          Dibatalkan
+        </Badge>
+      );
+    }
+
+    switch (request.requestStatus) {
       case "PENDING":
         return (
           <Badge variant="secondary" className="flex items-center gap-1">
@@ -185,7 +197,7 @@ export function MeetingRequestForm({
           </Badge>
         );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{request.requestStatus}</Badge>;
     }
   };
 
@@ -346,7 +358,7 @@ export function MeetingRequestForm({
                       </p>
                     )}
                 </div>
-                {getStatusBadge(request.requestStatus)}
+                {getStatusBadge(request)}
               </div>
             ))}
           </div>

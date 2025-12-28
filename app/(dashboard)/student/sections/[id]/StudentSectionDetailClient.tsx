@@ -45,6 +45,9 @@ import {
   Play,
   CalendarPlus,
   Loader2,
+  Ban,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 
 interface Props {
@@ -115,6 +118,8 @@ interface Props {
     meetingUrl: string | null;
     recordingUrl: string | null;
     status: string;
+    requestStatus: string | null;
+    requestedBy: string | null;
   }[];
 }
 
@@ -651,9 +656,52 @@ export default function StudentSectionDetailClient({
                               LIVE
                             </Badge>
                           )}
-                          {isPast && !isLive && (
-                            <Badge variant="secondary">Selesai</Badge>
+                          {/* Cancelled badge */}
+                          {meeting.status === "CANCELLED" && (
+                            <Badge
+                              variant="destructive"
+                              className="flex items-center gap-1"
+                            >
+                              <Ban className="h-3 w-3" />
+                              Dibatalkan
+                            </Badge>
                           )}
+                          {/* Request status badges */}
+                          {meeting.requestedBy &&
+                            meeting.status !== "CANCELLED" && (
+                              <>
+                                {meeting.requestStatus === "PENDING" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <AlertCircle className="h-3 w-3" />
+                                    Menunggu Approval
+                                  </Badge>
+                                )}
+                                {meeting.requestStatus === "APPROVED" && (
+                                  <Badge className="bg-green-500 flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    Disetujui
+                                  </Badge>
+                                )}
+                                {meeting.requestStatus === "REJECTED" && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Ditolak
+                                  </Badge>
+                                )}
+                              </>
+                            )}
+                          {isPast &&
+                            !isLive &&
+                            meeting.status !== "CANCELLED" &&
+                            !meeting.requestedBy && (
+                              <Badge variant="secondary">Selesai</Badge>
+                            )}
                           {/* Watch Recording button for past meetings */}
                           {isPast && meeting.recordingUrl && (
                             <Button size="sm" variant="outline" asChild>
