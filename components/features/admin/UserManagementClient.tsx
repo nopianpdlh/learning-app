@@ -39,7 +39,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Mail, Phone, Search, Plus, Edit, Trash2 } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  RefreshCw,
+  AlertTriangle,
+} from "lucide-react";
 import { set } from "zod";
 
 interface User {
@@ -65,6 +74,13 @@ export function UserManagementClient({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    orphanInSupabase: { id: string; email: string }[];
+    orphanInPrisma: { id: string; email: string }[];
+    synced: number;
+  } | null>(null);
   const itemsPerPage = 10;
 
   // Initialize Supabase client for auth
@@ -110,6 +126,52 @@ export function UserManagementClient({
   const handleRoleFilterChange = (value: string) => {
     setRoleFilter(value);
     setCurrentPage(1);
+  };
+
+  // Sync users function
+  const handleCheckSync = async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch("/api/admin/users/sync");
+      const data = await response.json();
+      if (response.ok) {
+        setSyncResult(data);
+      } else {
+        toast.error(data.error || "Gagal memeriksa sinkronisasi");
+      }
+    } catch (error) {
+      toast.error("Terjadi kesalahan saat memeriksa sinkronisasi");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSync = async (action: string) => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch("/api/admin/users/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        toast.success(data.message);
+        setSyncResult(null);
+        setIsSyncDialogOpen(false);
+        // Refresh users list
+        const usersRes = await fetch("/api/admin/users");
+        if (usersRes.ok) {
+          setUsers(await usersRes.json());
+        }
+      } else {
+        toast.error(data.error || "Gagal sinkronisasi");
+      }
+    } catch (error) {
+      toast.error("Terjadi kesalahan saat sinkronisasi");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -310,6 +372,117 @@ export function UserManagementClient({
                 Add User
               </Button>
             </DialogTrigger>
+            {/* Sync Users Button */}
+            <Dialog open={isSyncDialogOpen} onOpenChange={setIsSyncDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsSyncDialogOpen(true);
+                    handleCheckSync();
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Sync Users
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Sinkronisasi User</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-2">
+                  {isSyncing && !syncResult && (
+                    <div className="flex items-center justify-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                      <span className="ml-2">Memeriksa...</span>
+                    </div>
+                  )}
+                  {syncResult && (
+                    <>
+                      <div className="text-sm text-muted-foreground">
+                        Total user tersinkronisasi:{" "}
+                        <strong>{syncResult.synced}</strong>
+                      </div>
+
+                      {syncResult.orphanInSupabase.length > 0 && (
+                        <div className="border rounded-lg p-4 bg-orange-50">
+                          <div className="flex items-center gap-2 text-orange-700 font-medium mb-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            User di Supabase Auth (tidak ada di Database):{" "}
+                            {syncResult.orphanInSupabase.length}
+                          </div>
+                          <ul className="text-sm text-orange-600 max-h-32 overflow-y-auto">
+                            {syncResult.orphanInSupabase.map((u) => (
+                              <li key={u.id} className="truncate">
+                                • {u.email}
+                              </li>
+                            ))}
+                          </ul>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="mt-2"
+                            onClick={() =>
+                              handleSync("delete_supabase_orphans")
+                            }
+                            disabled={isSyncing}
+                          >
+                            Hapus dari Supabase Auth
+                          </Button>
+                        </div>
+                      )}
+
+                      {syncResult.orphanInPrisma.length > 0 && (
+                        <div className="border rounded-lg p-4 bg-red-50">
+                          <div className="flex items-center gap-2 text-red-700 font-medium mb-2">
+                            <AlertTriangle className="h-4 w-4" />
+                            User di Database (tidak ada di Supabase):{" "}
+                            {syncResult.orphanInPrisma.length}
+                          </div>
+                          <ul className="text-sm text-red-600 max-h-32 overflow-y-auto">
+                            {syncResult.orphanInPrisma.map((u) => (
+                              <li key={u.id} className="truncate">
+                                • {u.email}
+                              </li>
+                            ))}
+                          </ul>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="mt-2"
+                            onClick={() => handleSync("delete_prisma_orphans")}
+                            disabled={isSyncing}
+                          >
+                            Hapus dari Database
+                          </Button>
+                        </div>
+                      )}
+
+                      {syncResult.orphanInSupabase.length === 0 &&
+                        syncResult.orphanInPrisma.length === 0 && (
+                          <div className="text-center py-4 text-green-600">
+                            ✅ Semua user sudah tersinkronisasi dengan baik!
+                          </div>
+                        )}
+
+                      {(syncResult.orphanInSupabase.length > 0 ||
+                        syncResult.orphanInPrisma.length > 0) && (
+                        <Button
+                          className="w-full"
+                          onClick={() => handleSync("delete_all")}
+                          disabled={isSyncing}
+                        >
+                          {isSyncing ? (
+                            <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Hapus Semua Orphan Users
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Add New User</DialogTitle>

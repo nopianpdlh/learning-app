@@ -127,7 +127,21 @@ export default function SectionManagementClient({
   const [formData, setFormData] = useState({
     sectionLabel: "",
     tutorId: "",
+    status: "ACTIVE" as "ACTIVE" | "FULL" | "ARCHIVED",
   });
+
+  // Force delete state
+  const [forceDeleteConfirm, setForceDeleteConfirm] = useState<{
+    section: ClassSection;
+    details: {
+      sectionName: string;
+      enrollments: number;
+      meetings: number;
+      materials: number;
+      assignments: number;
+      quizzes: number;
+    };
+  } | null>(null);
 
   // Check for sections at 90% capacity
   useEffect(() => {
@@ -201,6 +215,7 @@ export default function SectionManagementClient({
     setFormData({
       sectionLabel: "",
       tutorId: "",
+      status: "ACTIVE",
     });
     setSelectedProgramId("");
   };
@@ -213,6 +228,7 @@ export default function SectionManagementClient({
         setFormData({
           sectionLabel: getNextSectionLabel(program.sections),
           tutorId: "",
+          status: "ACTIVE",
         });
       }
     }
@@ -277,19 +293,23 @@ export default function SectionManagementClient({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          sectionLabel: formData.sectionLabel,
           tutorId: formData.tutorId,
+          status: formData.status,
+          templateId: editingSection.templateId,
         }),
       });
 
-      if (!response.ok) throw new Error("Failed to update section");
-
-      const updatedSection = await response.json();
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to update section");
+      }
 
       setPrograms(
         programs.map((p) => ({
           ...p,
           sections: p.sections.map((s) =>
-            s.id === editingSection.id ? updatedSection : s
+            s.id === editingSection.id ? { ...s, ...data } : s
           ),
         }))
       );
@@ -300,44 +320,65 @@ export default function SectionManagementClient({
       resetForm();
     } catch (error) {
       console.error(error);
-      toast.error("Gagal mengupdate section");
+      toast.error(
+        error instanceof Error ? error.message : "Gagal mengupdate section"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDeleteSection = async () => {
-    if (!deletingSection) return;
+  const handleDeleteSection = async (force = false) => {
+    const section = force ? forceDeleteConfirm?.section : deletingSection;
+    if (!section) return;
 
-    if (deletingSection.currentEnrollments > 0) {
-      toast.error("Tidak bisa menghapus section dengan enrollment aktif");
-      setDeletingSection(null);
-      return;
-    }
-
+    setIsLoading(true);
     try {
-      const response = await fetch(
-        `/api/admin/sections/${deletingSection.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const url = force
+        ? `/api/admin/sections/${section.id}?force=true`
+        : `/api/admin/sections/${section.id}`;
 
-      if (!response.ok) throw new Error("Failed to delete section");
+      const response = await fetch(url, { method: "DELETE" });
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Check if can force delete
+        if (data.canForceDelete) {
+          setDeletingSection(null);
+          setForceDeleteConfirm({
+            section,
+            details: data.details,
+          });
+          return;
+        }
+        throw new Error(data.error || "Failed to delete section");
+      }
 
       setPrograms(
         programs.map((p) => ({
           ...p,
-          sections: p.sections.filter((s) => s.id !== deletingSection.id),
+          sections: p.sections.filter((s) => s.id !== section.id),
         }))
       );
 
-      toast.success("Section berhasil dihapus");
+      if (force) {
+        toast.success(
+          `Section dan ${
+            data.deleted?.enrollments || 0
+          } enrollment berhasil dihapus`
+        );
+      } else {
+        toast.success("Section berhasil dihapus");
+      }
     } catch (error) {
       console.error(error);
-      toast.error("Gagal menghapus section");
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menghapus section"
+      );
     } finally {
       setDeletingSection(null);
+      setForceDeleteConfirm(null);
+      setIsLoading(false);
     }
   };
 
@@ -346,6 +387,7 @@ export default function SectionManagementClient({
     setFormData({
       sectionLabel: section.sectionLabel,
       tutorId: section.tutorId,
+      status: section.status,
     });
     setIsEditDialogOpen(true);
   };
@@ -415,7 +457,6 @@ export default function SectionManagementClient({
           }
           placeholder="A, B, C..."
           required
-          disabled={!isEditing}
         />
       </div>
 
@@ -439,6 +480,27 @@ export default function SectionManagementClient({
           </SelectContent>
         </Select>
       </div>
+
+      {isEditing && (
+        <div className="space-y-2">
+          <Label htmlFor="status">Status</Label>
+          <Select
+            value={formData.status}
+            onValueChange={(value: "ACTIVE" | "FULL" | "ARCHIVED") =>
+              setFormData({ ...formData, status: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih status" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="ACTIVE">Active</SelectItem>
+              <SelectItem value="FULL">Full</SelectItem>
+              <SelectItem value="ARCHIVED">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <Button
         type="submit"
@@ -494,6 +556,7 @@ export default function SectionManagementClient({
                       suggestionProgram.sections
                     ),
                     tutorId: "",
+                    status: "ACTIVE",
                   });
                   setShowSuggestion(false);
                   setIsAddDialogOpen(true);
@@ -767,9 +830,6 @@ export default function SectionManagementClient({
                                           setDeletingSection(section)
                                         }
                                         className="text-red-500 hover:text-red-700"
-                                        disabled={
-                                          section.currentEnrollments > 0
-                                        }
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
@@ -818,10 +878,67 @@ export default function SectionManagementClient({
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDeleteSection}
+              onClick={() => handleDeleteSection(false)}
               className="bg-red-500 hover:bg-red-600"
             >
               Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Force Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!forceDeleteConfirm}
+        onOpenChange={(open) => !open && setForceDeleteConfirm(null)}
+      >
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              ⚠️ Peringatan: Hapus Paksa
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Section{" "}
+                <strong>{forceDeleteConfirm?.details.sectionName}</strong>{" "}
+                memiliki data aktif yang akan ikut dihapus:
+              </p>
+              <ul className="list-disc list-inside bg-red-50 p-3 rounded-md text-red-700">
+                <li>
+                  <strong>{forceDeleteConfirm?.details.enrollments}</strong>{" "}
+                  enrollment(s) aktif
+                </li>
+                <li>
+                  <strong>{forceDeleteConfirm?.details.meetings}</strong>{" "}
+                  meeting(s)
+                </li>
+                <li>
+                  <strong>{forceDeleteConfirm?.details.materials}</strong>{" "}
+                  materi
+                </li>
+                <li>
+                  <strong>{forceDeleteConfirm?.details.assignments}</strong>{" "}
+                  tugas
+                </li>
+                <li>
+                  <strong>{forceDeleteConfirm?.details.quizzes}</strong> kuis
+                </li>
+              </ul>
+              <p className="text-red-600 font-semibold">
+                Semua data termasuk pembayaran dan riwayat akan dihapus
+                permanen!
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDeleteSection(true)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isLoading}
+            >
+              {isLoading ? "Menghapus..." : "Ya, Hapus Paksa"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

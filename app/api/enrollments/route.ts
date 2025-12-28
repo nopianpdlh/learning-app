@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const sectionId = body.sectionId || body.classId; // Support both for compatibility
+    const sectionId = body.sectionId; // Support both for compatibility
 
     if (!sectionId) {
       return NextResponse.json(
@@ -104,6 +104,12 @@ export async function POST(req: NextRequest) {
       include: {
         section: { include: { template: true } },
       },
+    });
+
+    // Increment currentEnrollments in section
+    await db.classSection.update({
+      where: { id: sectionId },
+      data: { currentEnrollments: { increment: 1 } },
     });
 
     const price = section.template.pricePerMonth;

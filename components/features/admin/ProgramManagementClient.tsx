@@ -236,6 +236,29 @@ export default function ProgramManagementClient({
     });
   };
 
+  // Auto-set smart defaults when class type changes
+  const handleClassTypeChange = (value: "SEMI_PRIVATE" | "PRIVATE") => {
+    if (value === "PRIVATE") {
+      // PRIVATE class defaults: 1 student, 1 meeting per period
+      setFormData({
+        ...formData,
+        classType: value,
+        maxStudentsPerSection: "1",
+        meetingsPerPeriod: "1",
+      });
+      toast.info("Default untuk PRIVATE: 1 siswa, 1 pertemuan/periode");
+    } else {
+      // SEMI_PRIVATE defaults: 10 students, 8 meetings per period
+      setFormData({
+        ...formData,
+        classType: value,
+        maxStudentsPerSection: "10",
+        meetingsPerPeriod: "8",
+      });
+      toast.info("Default untuk SEMI_PRIVATE: 10 siswa, 8 pertemuan/periode");
+    }
+  };
+
   const handleAddProgram = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -523,9 +546,7 @@ export default function ProgramManagementClient({
                   <Label htmlFor="add-classType">Tipe Kelas *</Label>
                   <Select
                     value={formData.classType}
-                    onValueChange={(value: "SEMI_PRIVATE" | "PRIVATE") =>
-                      setFormData({ ...formData, classType: value })
-                    }
+                    onValueChange={handleClassTypeChange}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Pilih tipe" />
@@ -1051,9 +1072,7 @@ export default function ProgramManagementClient({
                 <Label htmlFor="edit-classType">Tipe Kelas *</Label>
                 <Select
                   value={formData.classType}
-                  onValueChange={(value: "SEMI_PRIVATE" | "PRIVATE") =>
-                    setFormData({ ...formData, classType: value })
-                  }
+                  onValueChange={handleClassTypeChange}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih tipe" />

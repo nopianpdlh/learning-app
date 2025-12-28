@@ -32,14 +32,21 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Generate avatar URL if avatar exists
+    let avatarUrl = "";
+    if (userData.avatar) {
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(userData.avatar);
+      avatarUrl = urlData.publicUrl;
+    }
+
     return NextResponse.json({
-      user: {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        phone: userData.phone,
-        avatar: userData.avatar,
-      },
+      name: userData.name,
+      email: userData.email,
+      phone: userData.phone,
+      avatar: userData.avatar,
+      avatarUrl,
       profile: userData.studentProfile
         ? {
             id: userData.studentProfile.id,

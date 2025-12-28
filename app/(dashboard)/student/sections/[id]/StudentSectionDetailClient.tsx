@@ -8,6 +8,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 import {
   BookOpen,
   FileText,
@@ -24,6 +43,11 @@ import {
   XCircle,
   AlertTriangle,
   Play,
+  CalendarPlus,
+  Loader2,
+  Ban,
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 
 interface Props {
@@ -38,6 +62,7 @@ interface Props {
       subject: string;
       gradeLevel: string;
       thumbnail: string | null;
+      classType: string;
     };
     tutor: {
       id: string;
@@ -93,6 +118,8 @@ interface Props {
     meetingUrl: string | null;
     recordingUrl: string | null;
     status: string;
+    requestStatus: string | null;
+    requestedBy: string | null;
   }[];
 }
 
@@ -105,6 +132,68 @@ export default function StudentSectionDetailClient({
   meetings,
 }: Props) {
   const [activeTab, setActiveTab] = useState("materials");
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTime, setSelectedTime] = useState("");
+  const [duration, setDuration] = useState("60");
+  const [note, setNote] = useState("");
+
+  const isPrivateClass = section.template.classType === "PRIVATE";
+
+  const handleRequestSubmit = async () => {
+    if (!selectedDate || !selectedTime) {
+      toast.error("Silakan lengkapi tanggal dan waktu");
+      return;
+    }
+
+    const scheduledAt = new Date(`${selectedDate}T${selectedTime}`);
+    const minTime = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    if (scheduledAt < minTime) {
+      toast.error("Jadwal harus minimal 24 jam dari sekarang");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/student/meeting-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sectionId: section.id,
+          scheduledAt: scheduledAt.toISOString(),
+          duration: parseInt(duration),
+          note,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(
+          "Request jadwal berhasil dikirim! Tunggu approval admin."
+        );
+        setRequestDialogOpen(false);
+        setSelectedDate("");
+        setSelectedTime("");
+        setDuration("60");
+        setNote("");
+      } else {
+        toast.error(data.error || "Gagal mengirim request");
+      }
+    } catch (error) {
+      toast.error("Terjadi kesalahan");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getMinDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split("T")[0];
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("id-ID", {
@@ -430,7 +519,100 @@ export default function StudentSectionDetailClient({
 
         {/* Meetings Tab */}
         <TabsContent value="meetings" className="space-y-4 mt-4">
-          {meetings.length === 0 ? (
+          {/* Request Button for PRIVATE class */}
+          {isPrivateClass && enrollment.meetingsRemaining > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Request Jadwal Pertemuan</p>
+                  <p className="text-sm text-muted-foreground">
+                    Anda memiliki {enrollment.meetingsRemaining} meeting tersisa
+                  </p>
+                </div>
+                <Dialog
+                  open={requestDialogOpen}
+                  onOpenChange={setRequestDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button>
+                      <CalendarPlus className="h-4 w-4 mr-2" />
+                      Request Jadwal
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Request Jadwal Meeting</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Tanggal *</Label>
+                        <Input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          min={getMinDate()}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Waktu *</Label>
+                        <Input
+                          type="time"
+                          value={selectedTime}
+                          onChange={(e) => setSelectedTime(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Durasi</Label>
+                        <Select value={duration} onValueChange={setDuration}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="30">30 menit</SelectItem>
+                            <SelectItem value="45">45 menit</SelectItem>
+                            <SelectItem value="60">60 menit</SelectItem>
+                            <SelectItem value="90">90 menit</SelectItem>
+                            <SelectItem value="120">120 menit</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Catatan (Opsional)</Label>
+                        <Textarea
+                          placeholder="Contoh: Mau fokus belajar materi X"
+                          value={note}
+                          onChange={(e) => setNote(e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        * Jadwal harus minimal 24 jam dari sekarang
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setRequestDialogOpen(false)}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        onClick={handleRequestSubmit}
+                        disabled={submitting}
+                      >
+                        {submitting && (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        )}
+                        Kirim Request
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          )}
+
+          {meetings.length === 0 && !isPrivateClass ? (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
                 Belum ada jadwal pertemuan
@@ -474,9 +656,52 @@ export default function StudentSectionDetailClient({
                               LIVE
                             </Badge>
                           )}
-                          {isPast && !isLive && (
-                            <Badge variant="secondary">Selesai</Badge>
+                          {/* Cancelled badge */}
+                          {meeting.status === "CANCELLED" && (
+                            <Badge
+                              variant="destructive"
+                              className="flex items-center gap-1"
+                            >
+                              <Ban className="h-3 w-3" />
+                              Dibatalkan
+                            </Badge>
                           )}
+                          {/* Request status badges */}
+                          {meeting.requestedBy &&
+                            meeting.status !== "CANCELLED" && (
+                              <>
+                                {meeting.requestStatus === "PENDING" && (
+                                  <Badge
+                                    variant="secondary"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <AlertCircle className="h-3 w-3" />
+                                    Menunggu Approval
+                                  </Badge>
+                                )}
+                                {meeting.requestStatus === "APPROVED" && (
+                                  <Badge className="bg-green-500 flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3" />
+                                    Disetujui
+                                  </Badge>
+                                )}
+                                {meeting.requestStatus === "REJECTED" && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="flex items-center gap-1"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    Ditolak
+                                  </Badge>
+                                )}
+                              </>
+                            )}
+                          {isPast &&
+                            !isLive &&
+                            meeting.status !== "CANCELLED" &&
+                            !meeting.requestedBy && (
+                              <Badge variant="secondary">Selesai</Badge>
+                            )}
                           {/* Watch Recording button for past meetings */}
                           {isPast && meeting.recordingUrl && (
                             <Button size="sm" variant="outline" asChild>
