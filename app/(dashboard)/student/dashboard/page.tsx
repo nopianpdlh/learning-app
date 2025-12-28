@@ -166,7 +166,14 @@ export default async function StudentDashboardPage() {
     include: {
       section: {
         include: {
-          template: { select: { name: true, subject: true, thumbnail: true } },
+          template: {
+            select: {
+              name: true,
+              subject: true,
+              thumbnail: true,
+              classType: true,
+            },
+          },
           tutor: {
             include: { user: { select: { name: true } } },
           },
@@ -434,6 +441,24 @@ export default async function StudentDashboardPage() {
   // Get alerts
   const alerts = await getStudentAlerts(studentProfile.id, sectionIds);
 
+  // Prepare private enrollments for meeting request
+  const privateEnrollments = enrollments
+    .filter(
+      (e) => e.section.template.classType === "PRIVATE" && e.status === "ACTIVE"
+    )
+    .map((e) => ({
+      id: e.id,
+      sectionId: e.sectionId,
+      meetingsRemaining: e.meetingsRemaining,
+      section: {
+        sectionLabel: e.section.sectionLabel,
+        template: {
+          name: e.section.template.name,
+          classType: e.section.template.classType,
+        },
+      },
+    }));
+
   return (
     <DashboardClient
       studentName={userData?.name || "Student"}
@@ -449,6 +474,7 @@ export default async function StudentDashboardPage() {
       recentQuizzes={recentQuizzes}
       upcomingEvents={upcomingEvents}
       alerts={alerts}
+      privateEnrollments={privateEnrollments}
     />
   );
 }

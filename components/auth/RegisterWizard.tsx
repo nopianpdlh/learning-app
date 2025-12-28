@@ -109,6 +109,32 @@ export function RegisterWizard() {
 
     setIsLoading(true);
 
+    // Translate Supabase errors to Indonesian
+    const translateError = (msg: string): string => {
+      const errorMap: Record<string, string> = {
+        "User already registered":
+          "Email sudah terdaftar. Silakan login atau gunakan email lain.",
+        "A user with this email address has already been registered":
+          "Email ini sudah terdaftar. Silakan login atau gunakan email lain.",
+        "Password should be at least 6 characters":
+          "Password minimal 6 karakter.",
+        "Unable to validate email address: invalid format":
+          "Format email tidak valid.",
+        "Signup requires a valid password": "Password tidak valid.",
+        "Email rate limit exceeded":
+          "Terlalu banyak permintaan. Coba lagi nanti.",
+        "For security purposes, you can only request this once every 60 seconds":
+          "Untuk keamanan, Anda hanya bisa request sekali per 60 detik.",
+      };
+
+      for (const [key, value] of Object.entries(errorMap)) {
+        if (msg.toLowerCase().includes(key.toLowerCase())) {
+          return value;
+        }
+      }
+      return msg;
+    };
+
     try {
       const supabase = createClient();
 
@@ -127,9 +153,22 @@ export function RegisterWizard() {
       });
 
       if (authError) {
-        toast.error(authError.message);
+        toast.error(translateError(authError.message));
         setIsLoading(false);
         return;
+      }
+
+      // Check if user already exists but not confirmed (Supabase returns user without session)
+      if (authData.user && !authData.session) {
+        // Check if this is a "fake" signup (user exists but unconfirmed email returned)
+        const identities = authData.user.identities;
+        if (identities && identities.length === 0) {
+          toast.error(
+            "Email ini sudah terdaftar. Silakan login atau gunakan email lain."
+          );
+          setIsLoading(false);
+          return;
+        }
       }
 
       if (authData.user) {
@@ -150,18 +189,22 @@ export function RegisterWizard() {
 
         if (!response.ok) {
           const errorData = await response.json();
-          toast.error(errorData.error || "Failed to create account");
+          toast.error(
+            errorData.error || "Gagal membuat akun. Silakan coba lagi."
+          );
           setIsLoading(false);
           return;
         }
 
         // Show success and redirect
-        toast.success("Account created! Please check your email to verify.");
+        toast.success(
+          "Akun berhasil dibuat! Silakan cek email Anda untuk verifikasi."
+        );
         router.push("/login?registered=true");
       }
     } catch (error) {
       console.error("Registration error:", error);
-      toast.error("An unexpected error occurred");
+      toast.error("Terjadi kesalahan. Silakan coba lagi.");
     } finally {
       setIsLoading(false);
     }

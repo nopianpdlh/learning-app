@@ -633,6 +633,15 @@ model ScheduledMeeting {
   status       MeetingStatus @default(SCHEDULED)
   createdBy    String        // Admin yang buat
   recordingUrl String?
+  
+  // NEW: Student Meeting Request Fields
+  requestedBy    String?       // StudentProfile ID (null = admin created)
+  requestStatus  String?       // "PENDING" | "APPROVED" | "REJECTED" (null = direct)
+  requestNote    String?       // Student's note for the request
+  reviewedBy     String?       // Admin ID who reviewed
+  reviewedAt     DateTime?     // When reviewed
+  rejectionNote  String?       // Reason if rejected
+  
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -642,6 +651,8 @@ model ScheduledMeeting {
   @@index([sectionId])
   @@index([scheduledAt])
   @@index([status])
+  @@index([requestStatus])
+  @@index([requestedBy])
 }
 
 model MeetingAttendance {

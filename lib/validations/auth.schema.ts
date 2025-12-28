@@ -18,12 +18,11 @@ export const accountStepSchema = z
 
 // Step 2: Personal information
 export const personalStepSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
+  name: z.string().min(3, "Nama minimal 3 karakter"),
   phone: z
     .string()
-    .min(10, "Phone number is not valid")
-    .optional()
-    .or(z.literal("")),
+    .min(10, "Nomor WhatsApp tidak valid (minimal 10 digit)")
+    .regex(/^[0-9+]+$/, "Nomor WhatsApp hanya boleh angka"),
 });
 
 // Step 3: Student profile
@@ -57,9 +56,8 @@ export const registerSchema = z
     name: z.string().min(3, "Name must be at least 3 characters"),
     phone: z
       .string()
-      .min(10, "Phone number is not valid")
-      .optional()
-      .or(z.literal("")),
+      .min(10, "Nomor WhatsApp tidak valid (minimal 10 digit)")
+      .regex(/^[0-9+]+$/, "Nomor WhatsApp hanya boleh angka"),
     gradeLevel: z.enum(["SD", "SMP", "SMA", "DEWASA"]).optional(),
     acceptTerms: z.boolean(),
     acceptPrivacy: z.boolean(),

@@ -27,6 +27,7 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
+import { MeetingRequestForm } from "@/components/features/student/MeetingRequestForm";
 
 interface UpcomingLiveClass {
   id: string;
@@ -77,6 +78,19 @@ interface Stats {
   weeklyProgress: number;
 }
 
+interface PrivateEnrollment {
+  id: string;
+  sectionId: string;
+  meetingsRemaining: number;
+  section: {
+    sectionLabel: string;
+    template: {
+      name: string;
+      classType: string;
+    };
+  };
+}
+
 interface DashboardClientProps {
   studentName: string;
   stats: Stats;
@@ -86,6 +100,7 @@ interface DashboardClientProps {
   recentQuizzes: RecentQuiz[];
   upcomingEvents: UpcomingEvent[];
   alerts: Alert[];
+  privateEnrollments: PrivateEnrollment[];
 }
 
 export default function DashboardClient({
@@ -97,6 +112,7 @@ export default function DashboardClient({
   recentQuizzes,
   upcomingEvents,
   alerts,
+  privateEnrollments,
 }: DashboardClientProps) {
   const handleJoinClass = () => {
     if (upcomingLiveClass?.meetingUrl) {
@@ -184,6 +200,11 @@ export default function DashboardClient({
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* Meeting Request Form - Only for PRIVATE class students */}
+      {privateEnrollments.length > 0 && (
+        <MeetingRequestForm enrollments={privateEnrollments} />
       )}
 
       {/* Quick Stats */}

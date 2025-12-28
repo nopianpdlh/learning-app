@@ -47,6 +47,56 @@ function LoginForm() {
 
   const emailValue = watch("email");
 
+  // Translate common auth errors to Indonesian
+  const translateAuthError = (errorMessage: string): string => {
+    const errorMap: Record<string, string> = {
+      "Invalid login credentials":
+        "Email atau password salah. Silakan coba lagi.",
+      "Email not confirmed":
+        "Email belum diverifikasi. Silakan cek inbox email Anda.",
+      "User already registered":
+        "Email sudah terdaftar. Silakan login atau gunakan email lain.",
+      "Password should be at least 6 characters":
+        "Password minimal 6 karakter.",
+      "Signup requires a valid password": "Password tidak valid.",
+      "Unable to validate email address: invalid format":
+        "Format email tidak valid.",
+      "For security purposes, you can only request this once every 60 seconds":
+        "Untuk keamanan, Anda hanya bisa request sekali per 60 detik.",
+      "Email rate limit exceeded":
+        "Terlalu banyak permintaan. Coba lagi nanti.",
+      "A user with this email address has already been registered":
+        "Email ini sudah terdaftar. Silakan login atau gunakan email lain.",
+    };
+
+    // Check for partial matches
+    for (const [key, value] of Object.entries(errorMap)) {
+      if (errorMessage.toLowerCase().includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+
+    return errorMessage;
+  };
+
+  // Get auth error message from URL
+  const getAuthErrorMessage = (): string | null => {
+    if (!authError) return null;
+
+    const errorMessages: Record<string, string> = {
+      auth_failed: "Autentikasi gagal. Silakan coba lagi.",
+      email_expired:
+        "Link verifikasi email sudah kadaluarsa. Silakan minta link baru.",
+      invalid_token: "Token tidak valid. Silakan login ulang.",
+      oauth_failed:
+        "Login dengan Google gagal. Silakan coba lagi atau gunakan email.",
+      user_not_found: "Akun tidak ditemukan. Silakan daftar terlebih dahulu.",
+      database_error: "Terjadi kesalahan sistem. Silakan coba lagi nanti.",
+    };
+
+    return errorMessages[authError] || "Terjadi kesalahan. Silakan coba lagi.";
+  };
+
   const onSubmit = async (data: LoginInput) => {
     setIsLoading(true);
     setError(null);
@@ -61,18 +111,20 @@ function LoginForm() {
       });
 
     if (authError) {
+      const translatedError = translateAuthError(authError.message);
+
       // Check if it's an email not confirmed error
       if (
         authError.message.toLowerCase().includes("email not confirmed") ||
         authError.message.toLowerCase().includes("not verified")
       ) {
         setError(
-          "Your email is not verified. Please check your inbox or resend the verification email."
+          "Email belum diverifikasi. Silakan cek inbox email Anda atau kirim ulang link verifikasi."
         );
         setShowResendOption(true);
         setLastEmail(data.email);
       } else {
-        setError(authError.message);
+        setError(translatedError);
       }
       setIsLoading(false);
       return;
@@ -89,25 +141,33 @@ function LoginForm() {
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
+    setError(null);
+
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
         },
       });
 
       if (error) {
-        setError(error.message);
+        setError(translateAuthError(error.message));
       }
     } catch (err) {
       console.error("Google login error:", err);
-      setError("Failed to login with Google");
+      setError("Gagal login dengan Google. Silakan coba lagi.");
     } finally {
       setIsGoogleLoading(false);
     }
   };
+
+  const authErrorMessage = getAuthErrorMessage();
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -122,7 +182,7 @@ function LoginForm() {
           />
         </div>
         <CardTitle className="text-2xl">Tutor Nomor Satu</CardTitle>
-        <CardDescription>Sign in to your account to continue</CardDescription>
+        <CardDescription>Masuk ke akun Anda untuk melanjutkan</CardDescription>
       </CardHeader>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -132,19 +192,17 @@ function LoginForm() {
             <Alert className="bg-green-50 border-green-200">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
-                Registration successful! Please check your email to verify your
-                account.
+                Registrasi berhasil! Silakan cek email Anda untuk verifikasi
+                akun.
               </AlertDescription>
             </Alert>
           )}
 
           {/* Auth error from callback */}
-          {authError && (
+          {authErrorMessage && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Authentication failed. Please try again.
-              </AlertDescription>
+              <AlertDescription>{authErrorMessage}</AlertDescription>
             </Alert>
           )}
 

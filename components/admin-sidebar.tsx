@@ -13,6 +13,7 @@ import {
   IconClipboardList,
   IconClock,
   IconCalendar,
+  IconCalendarEvent,
   IconCash,
   IconFileInvoice,
   IconReport,
@@ -72,6 +73,11 @@ const menuGroups = [
   {
     label: "Penjadwalan",
     items: [
+      {
+        icon: IconCalendarEvent,
+        label: "Request Jadwal",
+        path: "/admin/meeting-requests",
+      },
       {
         icon: IconClock,
         label: "Tutor Availability",
