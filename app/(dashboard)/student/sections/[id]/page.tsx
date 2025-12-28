@@ -127,7 +127,10 @@ export default async function StudentSectionDetailPage({
         id: section.id,
         label: section.sectionLabel,
         status: section.status,
-        template: section.template,
+        template: {
+          ...section.template,
+          classType: section.template.classType,
+        },
         tutor: {
           id: section.tutor.id,
           name: section.tutor.user.name,
