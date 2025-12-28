@@ -41,6 +41,8 @@ import {
   User,
   BookOpen,
   RefreshCw,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 
 interface MeetingRequest {
@@ -59,6 +61,11 @@ interface MeetingRequest {
     tutor: { user: { name: string; email: string } };
   };
   student: { name: string; email: string; phone: string | null } | null;
+  availabilityCheck?: {
+    isWithinAvailability: boolean;
+    hasConflict: boolean;
+    tutorAvailability: { startTime: string; endTime: string }[];
+  };
 }
 
 export default function MeetingRequestsPage() {
@@ -217,7 +224,7 @@ export default function MeetingRequestsPage() {
                   <TableHead>Program</TableHead>
                   <TableHead>Jadwal Diminta</TableHead>
                   <TableHead>Durasi</TableHead>
-                  <TableHead>Catatan</TableHead>
+                  <TableHead>Ketersediaan</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
@@ -275,10 +282,45 @@ export default function MeetingRequestsPage() {
                         {request.duration} menit
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <p className="truncate text-sm">
-                        {request.requestNote || "-"}
-                      </p>
+                    <TableCell>
+                      {request.availabilityCheck ? (
+                        <div className="space-y-1">
+                          {request.availabilityCheck.isWithinAvailability ? (
+                            <Badge className="bg-green-500 flex items-center gap-1 w-fit">
+                              <CheckCircle className="h-3 w-3" />
+                              Tutor Available
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="destructive"
+                              className="flex items-center gap-1 w-fit"
+                            >
+                              <AlertTriangle className="h-3 w-3" />
+                              Di Luar Jadwal
+                            </Badge>
+                          )}
+                          {request.availabilityCheck.hasConflict && (
+                            <Badge
+                              variant="destructive"
+                              className="flex items-center gap-1 w-fit"
+                            >
+                              <AlertTriangle className="h-3 w-3" />
+                              Bentrok
+                            </Badge>
+                          )}
+                          {request.availabilityCheck.tutorAvailability.length >
+                            0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Slot:{" "}
+                              {request.availabilityCheck.tutorAvailability
+                                .map((s) => `${s.startTime}-${s.endTime}`)
+                                .join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(request.requestStatus)}

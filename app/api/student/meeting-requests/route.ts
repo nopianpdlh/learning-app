@@ -159,6 +159,99 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get section with tutor info
+    const section = await db.classSection.findUnique({
+      where: { id: sectionId },
+      include: { tutor: true },
+    });
+
+    if (!section) {
+      return NextResponse.json(
+        { error: "Section tidak ditemukan" },
+        { status: 404 }
+      );
+    }
+
+    // Check tutor availability for that day and time
+    const dayOfWeek = requestedTime.getDay(); // 0=Sunday, 6=Saturday
+    const requestedHour = requestedTime.getHours();
+    const requestedMinute = requestedTime.getMinutes();
+    const requestedTimeStr = `${String(requestedHour).padStart(
+      2,
+      "0"
+    )}:${String(requestedMinute).padStart(2, "0")}`;
+    const endTimeDate = new Date(
+      requestedTime.getTime() + parseInt(duration) * 60000
+    );
+    const endHour = endTimeDate.getHours();
+    const endMinute = endTimeDate.getMinutes();
+    const endTimeStr = `${String(endHour).padStart(2, "0")}:${String(
+      endMinute
+    ).padStart(2, "0")}`;
+
+    const tutorAvailability = await db.tutorAvailability.findMany({
+      where: {
+        tutorId: section.tutorId,
+        dayOfWeek,
+        isActive: true,
+      },
+    });
+
+    // Check if requested time falls within any availability slot
+    const isWithinAvailability = tutorAvailability.some((slot) => {
+      return requestedTimeStr >= slot.startTime && endTimeStr <= slot.endTime;
+    });
+
+    if (!isWithinAvailability) {
+      const dayNames = [
+        "Minggu",
+        "Senin",
+        "Selasa",
+        "Rabu",
+        "Kamis",
+        "Jumat",
+        "Sabtu",
+      ];
+      return NextResponse.json(
+        {
+          error: `Tutor tidak tersedia pada hari ${dayNames[dayOfWeek]} jam ${requestedTimeStr}. Silakan pilih waktu lain sesuai jadwal tutor.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check for conflict with existing meetings (same tutor, overlapping time)
+    const conflictMeeting = await db.scheduledMeeting.findFirst({
+      where: {
+        section: { tutorId: section.tutorId },
+        status: { in: ["SCHEDULED", "LIVE"] },
+        OR: [
+          { requestStatus: { in: ["PENDING", "APPROVED"] } },
+          { requestStatus: null },
+        ],
+        AND: [
+          { scheduledAt: { lte: endTimeDate } },
+          {
+            scheduledAt: {
+              gte: new Date(
+                requestedTime.getTime() - parseInt(duration) * 60000
+              ),
+            },
+          },
+        ],
+      },
+    });
+
+    if (conflictMeeting) {
+      return NextResponse.json(
+        {
+          error:
+            "Waktu yang dipilih bentrok dengan jadwal meeting lain. Silakan pilih waktu lain.",
+        },
+        { status: 400 }
+      );
+    }
+
     // Create meeting request
     const meeting = await db.scheduledMeeting.create({
       data: {
