@@ -34,7 +34,7 @@ export default async function TutorSectionsPage() {
       template: true,
       enrollments: {
         where: {
-          status: { in: ["ACTIVE", "EXPIRED"] },
+          status: { in: ["ACTIVE", "PENDING"] },
         },
         select: { id: true },
       },

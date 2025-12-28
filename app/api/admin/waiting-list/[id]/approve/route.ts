@@ -115,6 +115,12 @@ export async function POST(
       },
     });
 
+    // Increment currentEnrollments in section
+    await prisma.classSection.update({
+      where: { id: body.sectionId },
+      data: { currentEnrollments: { increment: 1 } },
+    });
+
     // Auto-create invoice
     const invoiceNumber = generateInvoiceNumber();
     const dueDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours

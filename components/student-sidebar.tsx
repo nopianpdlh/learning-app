@@ -96,7 +96,7 @@ export function StudentSidebar({
     avatar: "",
   });
 
-  // Fetch real user data from Supabase session
+  // Fetch real user data from Supabase session AND database
   useEffect(() => {
     const fetchUser = async () => {
       const supabase = createClient();
@@ -105,6 +105,7 @@ export function StudentSidebar({
       } = await supabase.auth.getUser();
 
       if (authUser) {
+        // First set basic info from auth
         setUser({
           name:
             authUser.user_metadata?.name ||
@@ -113,10 +114,25 @@ export function StudentSidebar({
           email: authUser.email || "",
           avatar: authUser.user_metadata?.avatar_url || "",
         });
+
+        // Then fetch latest profile including avatar from database
+        try {
+          const res = await fetch("/api/student/profile");
+          if (res.ok) {
+            const profile = await res.json();
+            setUser({
+              name: profile.name || authUser.email?.split("@")[0] || "Student",
+              email: authUser.email || "",
+              avatar: profile.avatarUrl || "",
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching profile for sidebar:", error);
+        }
       }
     };
     fetchUser();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Generate initials from name
   const getInitials = (name: string) => {

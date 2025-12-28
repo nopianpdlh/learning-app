@@ -65,6 +65,12 @@ export async function GET() {
             data: { status: "CANCELLED" },
           });
 
+          // Decrement currentEnrollments in section
+          await prisma.classSection.update({
+            where: { id: payment.enrollment.sectionId },
+            data: { currentEnrollments: { decrement: 1 } },
+          });
+
           // Update waiting list entry
           await prisma.waitingList.updateMany({
             where: {

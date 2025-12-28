@@ -32,5 +32,13 @@ export default async function AdminWaitingListPage() {
     },
   });
 
-  return <WaitingListManagementClient waitingList={waitingList} />;
+  // Transform Date objects to strings for client component
+  const transformedWaitingList = waitingList.map((entry) => ({
+    ...entry,
+    requestedAt: entry.requestedAt.toISOString(),
+    approvedAt: entry.approvedAt?.toISOString() || null,
+    rejectedAt: entry.rejectedAt?.toISOString() || null,
+  }));
+
+  return <WaitingListManagementClient waitingList={transformedWaitingList} />;
 }
