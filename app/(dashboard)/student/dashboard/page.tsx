@@ -142,20 +142,20 @@ export default async function StudentDashboardPage() {
     redirect("/login");
   }
 
-  // Get student profile
-  const studentProfile = await prisma.studentProfile.findUnique({
-    where: { userId: user.id },
-  });
+  // Get student profile and user data in parallel
+  const [studentProfile, userData] = await Promise.all([
+    prisma.studentProfile.findUnique({
+      where: { userId: user.id },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true },
+    }),
+  ]);
 
   if (!studentProfile) {
     redirect("/login");
   }
-
-  // Get user info
-  const userData = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { name: true },
-  });
 
   // Get enrolled sections
   const enrollments = await prisma.enrollment.findMany({
@@ -186,25 +186,119 @@ export default async function StudentDashboardPage() {
   });
 
   const sectionIds = enrollments.map((e) => e.sectionId);
+  const now = new Date();
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
 
-  // Calculate progress for each section
-  const submittedAssignments = await prisma.assignmentSubmission.findMany({
-    where: {
-      studentId: studentProfile.id,
-      assignment: { sectionId: { in: sectionIds } },
-    },
-    select: { assignmentId: true, assignment: { select: { sectionId: true } } },
-  });
+  // Run all independent queries in parallel
+  const [
+    submittedAssignments,
+    completedQuizzes,
+    allAssignments,
+    recentQuizAttempts,
+    upcomingMeetings,
+    gradedSubmissions,
+    weeklySubmissions,
+    weeklyQuizzes,
+    alerts,
+  ] = await Promise.all([
+    // Progress tracking
+    prisma.assignmentSubmission.findMany({
+      where: {
+        studentId: studentProfile.id,
+        assignment: { sectionId: { in: sectionIds } },
+      },
+      select: {
+        assignmentId: true,
+        assignment: { select: { sectionId: true } },
+      },
+    }),
+    prisma.quizAttempt.findMany({
+      where: {
+        studentId: studentProfile.id,
+        submittedAt: { not: null },
+        quiz: { sectionId: { in: sectionIds } },
+      },
+      select: { quizId: true, quiz: { select: { sectionId: true } } },
+    }),
+    // Pending assignments
+    prisma.assignment.findMany({
+      where: {
+        sectionId: { in: sectionIds },
+        dueDate: { gte: now },
+        status: "PUBLISHED",
+      },
+      include: {
+        section: {
+          select: {
+            sectionLabel: true,
+            template: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: "asc" },
+    }),
+    // Recent quiz scores
+    prisma.quizAttempt.findMany({
+      where: {
+        studentId: studentProfile.id,
+        submittedAt: { not: null },
+        score: { not: null },
+      },
+      include: {
+        quiz: {
+          include: {
+            section: {
+              select: {
+                sectionLabel: true,
+                template: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { submittedAt: "desc" },
+      take: 5,
+    }),
+    // Upcoming meetings
+    prisma.scheduledMeeting.findMany({
+      where: {
+        sectionId: { in: sectionIds },
+        scheduledAt: { gte: now },
+        status: { not: "CANCELLED" },
+      },
+      include: {
+        section: {
+          include: { tutor: { include: { user: { select: { name: true } } } } },
+        },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 5,
+    }),
+    // Graded submissions for average score
+    prisma.assignmentSubmission.findMany({
+      where: {
+        studentId: studentProfile.id,
+        status: "GRADED",
+        score: { not: null },
+      },
+      include: { assignment: { select: { maxPoints: true } } },
+    }),
+    // Weekly progress
+    prisma.assignmentSubmission.count({
+      where: { studentId: studentProfile.id, submittedAt: { gte: weekAgo } },
+    }),
+    prisma.quizAttempt.count({
+      where: {
+        studentId: studentProfile.id,
+        submittedAt: { gte: weekAgo, not: null },
+      },
+    }),
+    // Alerts
+    getStudentAlerts(studentProfile.id, sectionIds),
+  ]);
 
-  const completedQuizzes = await prisma.quizAttempt.findMany({
-    where: {
-      studentId: studentProfile.id,
-      submittedAt: { not: null },
-      quiz: { sectionId: { in: sectionIds } },
-    },
-    select: { quizId: true, quiz: { select: { sectionId: true } } },
-  });
-
+  // Process myClasses
   const myClasses = enrollments.slice(0, 4).map((enrollment) => {
     const section = enrollment.section;
     const totalItems = section.assignments.length + section.quizzes.length;
@@ -230,30 +324,12 @@ export default async function StudentDashboardPage() {
     };
   });
 
-  // Get pending assignments
-  const allAssignments = await prisma.assignment.findMany({
-    where: {
-      sectionId: { in: sectionIds },
-      dueDate: { gte: new Date() },
-      status: "PUBLISHED",
-    },
-    include: {
-      section: {
-        select: {
-          sectionLabel: true,
-          template: { select: { name: true } },
-        },
-      },
-    },
-    orderBy: { dueDate: "asc" },
-  });
-
+  // Process pending assignments
   const submittedIds = new Set(submittedAssignments.map((s) => s.assignmentId));
   const pendingAssignments = allAssignments
     .filter((a) => !submittedIds.has(a.id))
     .slice(0, 5)
     .map((a) => {
-      const now = new Date();
       const due = new Date(a.dueDate);
       const diffDays = Math.ceil(
         (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
@@ -273,29 +349,7 @@ export default async function StudentDashboardPage() {
       };
     });
 
-  // Get recent quiz scores
-  const recentQuizAttempts = await prisma.quizAttempt.findMany({
-    where: {
-      studentId: studentProfile.id,
-      submittedAt: { not: null },
-      score: { not: null },
-    },
-    include: {
-      quiz: {
-        include: {
-          section: {
-            select: {
-              sectionLabel: true,
-              template: { select: { name: true } },
-            },
-          },
-        },
-      },
-    },
-    orderBy: { submittedAt: "desc" },
-    take: 5,
-  });
-
+  // Process recent quizzes
   const recentQuizzes = recentQuizAttempts.map((attempt) => ({
     id: attempt.quiz.id,
     title: attempt.quiz.title,
@@ -304,23 +358,7 @@ export default async function StudentDashboardPage() {
     maxScore: 100,
   }));
 
-  // Get upcoming scheduled meetings (from ScheduledMeeting model that admin creates)
-  const now = new Date();
-  const upcomingMeetings = await prisma.scheduledMeeting.findMany({
-    where: {
-      sectionId: { in: sectionIds },
-      scheduledAt: { gte: now },
-      status: { not: "CANCELLED" },
-    },
-    include: {
-      section: {
-        include: { tutor: { include: { user: { select: { name: true } } } } },
-      },
-    },
-    orderBy: { scheduledAt: "asc" },
-    take: 5,
-  });
-
+  // Process upcoming events
   const dayNames = [
     "Minggu",
     "Senin",
@@ -392,15 +430,6 @@ export default async function StudentDashboardPage() {
   const pendingAssignmentCount = pendingAssignments.length;
 
   // Calculate average score
-  const gradedSubmissions = await prisma.assignmentSubmission.findMany({
-    where: {
-      studentId: studentProfile.id,
-      status: "GRADED",
-      score: { not: null },
-    },
-    include: { assignment: { select: { maxPoints: true } } },
-  });
-
   const allScores: number[] = [];
   gradedSubmissions.forEach((s) => {
     allScores.push((s.score! / s.assignment.maxPoints) * 100);
@@ -417,29 +446,12 @@ export default async function StudentDashboardPage() {
       : 0;
 
   // Calculate weekly progress
-  const weekAgo = new Date();
-  weekAgo.setDate(weekAgo.getDate() - 7);
-
-  const weeklySubmissions = await prisma.assignmentSubmission.count({
-    where: { studentId: studentProfile.id, submittedAt: { gte: weekAgo } },
-  });
-
-  const weeklyQuizzes = await prisma.quizAttempt.count({
-    where: {
-      studentId: studentProfile.id,
-      submittedAt: { gte: weekAgo, not: null },
-    },
-  });
-
   const weeklyTotal = weeklySubmissions + weeklyQuizzes;
   const weeklyTarget = 10;
   const weeklyProgress = Math.min(
     Math.round((weeklyTotal / weeklyTarget) * 100),
     100
   );
-
-  // Get alerts
-  const alerts = await getStudentAlerts(studentProfile.id, sectionIds);
 
   // Prepare private enrollments for meeting request
   const privateEnrollments = enrollments

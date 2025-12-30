@@ -31,37 +31,37 @@ export default function ClassHeader({
     {
       key: "overview" as const,
       label: "Overview",
-      href: `/student/classes/${classId}`,
+      href: `/student/sections/${classId}`,
     },
     {
       key: "materials" as const,
       label: "Materi",
-      href: `/student/classes/${classId}/materials`,
+      href: `/student/sections/${classId}/materials`,
     },
     {
       key: "assignments" as const,
       label: "Tugas",
-      href: `/student/classes/${classId}/assignments`,
+      href: `/student/sections/${classId}/assignments`,
     },
     {
       key: "quizzes" as const,
       label: "Kuis",
-      href: `/student/classes/${classId}/quizzes`,
+      href: `/student/sections/${classId}/quizzes`,
     },
     {
       key: "forum" as const,
       label: "Forum",
-      href: `/student/classes/${classId}/forum`,
+      href: `/student/sections/${classId}/forum`,
     },
     {
       key: "grades" as const,
       label: "Nilai",
-      href: `/student/classes/${classId}/grades`,
+      href: `/student/sections/${classId}/grades`,
     },
     {
       key: "live-classes" as const,
       label: "Live Class",
-      href: `/student/classes/${classId}/live-classes`,
+      href: `/student/sections/${classId}/live-classes`,
     },
   ];
 
@@ -77,7 +77,7 @@ export default function ClassHeader({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.push("/student/classes")}
+            onClick={() => router.push("/student/sections")}
             className="gap-2 shrink-0"
           >
             <ArrowLeft className="h-4 w-4" />

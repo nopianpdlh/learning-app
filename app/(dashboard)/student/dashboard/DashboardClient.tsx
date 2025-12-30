@@ -282,7 +282,7 @@ export default function DashboardClient({
               <div className="flex items-center justify-between">
                 <CardTitle>Kelas yang Diikuti</CardTitle>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link href="/student/classes">Lihat Semua</Link>
+                  <Link href="/student/sections">Lihat Semua</Link>
                 </Button>
               </div>
             </CardHeader>
@@ -292,7 +292,7 @@ export default function DashboardClient({
                   <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>Belum ada kelas yang diikuti</p>
                   <Button variant="outline" size="sm" className="mt-4" asChild>
-                    <Link href="/student/classes">Jelajahi Kelas</Link>
+                    <Link href="/student/sections">Jelajahi Kelas</Link>
                   </Button>
                 </div>
               ) : (

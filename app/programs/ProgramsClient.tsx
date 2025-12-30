@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { DEFAULT_BLUR_DATA_URL } from "@/lib/image-utils";
 import { Navbar } from "@/components/home/Navbar";
 import { Footer } from "@/components/home/Footer";
 import { Button } from "@/components/ui/button";
@@ -217,6 +218,8 @@ export function ProgramsClient({ programs }: ProgramsClientProps) {
                           alt={program.name}
                           fill
                           className="object-cover object-top group-hover:scale-110 transition-transform duration-500"
+                          placeholder="blur"
+                          blurDataURL={DEFAULT_BLUR_DATA_URL}
                         />
                       ) : (
                         <div className="w-full h-full bg-linear-to-br from-primary/20 to-indigo-100 flex items-center justify-center">

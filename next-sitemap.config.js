@@ -9,17 +9,21 @@ module.exports = {
     "/admin/*",
     "/student/*",
     "/tutor/*",
+    "/executive/*",
     "/api/*",
     "/auth/*",
     "/payment/*",
+    "/complete-profile",
+    "/dashboard",
+    "/notifications",
   ],
 
-  // Static pages to include
+  // Static pages with priority
   additionalPaths: async (config) => [
-    await config.transform(config, "/"),
-    await config.transform(config, "/login"),
-    await config.transform(config, "/register"),
-    await config.transform(config, "/programs"),
+    { loc: "/", priority: 1.0, changefreq: "daily" },
+    { loc: "/programs", priority: 0.9, changefreq: "daily" },
+    { loc: "/login", priority: 0.7, changefreq: "monthly" },
+    { loc: "/register", priority: 0.8, changefreq: "monthly" },
   ],
 
   robotsTxtOptions: {
@@ -27,7 +31,17 @@ module.exports = {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/student", "/tutor", "/api", "/auth", "/payment"],
+        disallow: [
+          "/admin",
+          "/student",
+          "/tutor",
+          "/executive",
+          "/api",
+          "/auth",
+          "/payment",
+          "/complete-profile",
+          "/dashboard",
+        ],
       },
     ],
   },
