@@ -18,19 +18,42 @@ async function getTutorAlerts(tutorProfileId: string): Promise<Alert[]> {
 
   if (sectionIds.length === 0) return alerts;
 
-  // Check for unanswered forum threads
-  const unansweredForums = await prisma.forumThread.count({
-    where: {
-      sectionId: { in: sectionIds },
-      posts: {
-        none: {
-          author: {
-            role: "TUTOR",
+  // Run all alert checks in parallel
+  const threeHoursFromNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+  const [unansweredForums, pendingGrading, upcomingMeeting] = await Promise.all(
+    [
+      // Check for unanswered forum threads
+      prisma.forumThread.count({
+        where: {
+          sectionId: { in: sectionIds },
+          posts: {
+            none: {
+              author: {
+                role: "TUTOR",
+              },
+            },
           },
         },
-      },
-    },
-  });
+      }),
+      // Check for pending grading (submitted assignments)
+      prisma.assignmentSubmission.count({
+        where: {
+          assignment: { sectionId: { in: sectionIds } },
+          status: "SUBMITTED",
+        },
+      }),
+      // Check for upcoming meetings (within 3 hours)
+      prisma.scheduledMeeting.findFirst({
+        where: {
+          sectionId: { in: sectionIds },
+          scheduledAt: { gte: now, lte: threeHoursFromNow },
+          status: "SCHEDULED",
+        },
+        include: { section: { include: { template: true } } },
+      }),
+    ]
+  );
 
   if (unansweredForums > 0) {
     alerts.push({
@@ -42,14 +65,6 @@ async function getTutorAlerts(tutorProfileId: string): Promise<Alert[]> {
     });
   }
 
-  // Check for pending grading (submitted assignments)
-  const pendingGrading = await prisma.assignmentSubmission.count({
-    where: {
-      assignment: { sectionId: { in: sectionIds } },
-      status: "SUBMITTED",
-    },
-  });
-
   if (pendingGrading > 0) {
     alerts.push({
       id: "pending-grading",
@@ -59,17 +74,6 @@ async function getTutorAlerts(tutorProfileId: string): Promise<Alert[]> {
       linkText: "Nilai",
     });
   }
-
-  // Check for upcoming meetings (within 3 hours)
-  const threeHoursFromNow = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-  const upcomingMeeting = await prisma.scheduledMeeting.findFirst({
-    where: {
-      sectionId: { in: sectionIds },
-      scheduledAt: { gte: now, lte: threeHoursFromNow },
-      status: "SCHEDULED",
-    },
-    include: { section: { include: { template: true } } },
-  });
 
   if (upcomingMeeting) {
     const scheduledAt = new Date(upcomingMeeting.scheduledAt);
