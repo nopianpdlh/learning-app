@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { DEFAULT_BLUR_DATA_URL } from "@/lib/image-utils";
 import { testimonials } from "@/lib/home-data";
 import { ChevronLeft, ChevronRight, Star, Quote } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,8 @@ export function TestimonialsSection() {
                       width={128}
                       height={128}
                       className="object-cover"
+                      placeholder="blur"
+                      blurDataURL={DEFAULT_BLUR_DATA_URL}
                     />
                   </div>
                   <div className="absolute -bottom-2 -right-2 bg-primary rounded-full p-2">

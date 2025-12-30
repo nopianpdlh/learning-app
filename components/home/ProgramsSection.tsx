@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { DEFAULT_BLUR_DATA_URL } from "@/lib/image-utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -90,6 +91,8 @@ export function ProgramsSection() {
                     alt={program.name}
                     fill
                     className="object-cover object-top group-hover:scale-110 transition-transform duration-500"
+                    placeholder="blur"
+                    blurDataURL={DEFAULT_BLUR_DATA_URL}
                   />
                   <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
                   <Badge className="absolute top-3 left-3">

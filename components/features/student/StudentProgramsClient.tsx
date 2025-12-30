@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { DEFAULT_BLUR_DATA_URL } from "@/lib/image-utils";
 import {
   Card,
   CardContent,
@@ -180,6 +181,8 @@ export function StudentProgramsClient({
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-contain p-2"
+                    placeholder="blur"
+                    blurDataURL={DEFAULT_BLUR_DATA_URL}
                   />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-blue-500 to-blue-700">

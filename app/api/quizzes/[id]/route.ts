@@ -334,7 +334,7 @@ export async function PUT(
         });
 
         // Send email notifications
-        const quizUrl = `${process.env.NEXT_PUBLIC_APP_URL}/student/classes/${existingQuiz.sectionId}/quizzes/${updatedQuiz.id}`;
+        const quizUrl = `${process.env.NEXT_PUBLIC_APP_URL}/student/sections/${existingQuiz.sectionId}/quizzes/${updatedQuiz.id}`;
 
         for (const enrollment of enrolledStudents) {
           sendQuizPublishedNotification({

@@ -119,7 +119,7 @@ function PaymentStatusContent() {
           description: "Pembayaran tidak dapat diproses. Silakan coba lagi.",
           color: "bg-red-50 border-red-200 text-red-800",
           buttonText: "Coba Lagi",
-          buttonAction: () => router.push("/student/classes"),
+          buttonAction: () => router.push("/student/sections"),
         };
       default:
         return {

@@ -1,10 +1,26 @@
+import { Metadata } from "next";
 import { db } from "@/lib/db";
 import { SectionStatus } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { ProgramDetailClient } from "./ProgramDetailClient";
 
+// Revalidate every 5 minutes (ISR)
+export const revalidate = 300;
+
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+// Pre-generate all published program pages at build time
+export async function generateStaticParams() {
+  const programs = await db.classTemplate.findMany({
+    where: { published: true },
+    select: { id: true },
+  });
+
+  return programs.map((program) => ({
+    id: program.id,
+  }));
 }
 
 async function getProgram(id: string) {
@@ -24,7 +40,9 @@ async function getProgram(id: string) {
   return program;
 }
 
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
   const program = await getProgram(id);
 
@@ -34,7 +52,22 @@ export async function generateMetadata({ params }: PageProps) {
 
   return {
     title: `${program.name} - Tutor Nomor Satu`,
-    description: program.description?.slice(0, 160),
+    description:
+      program.description?.slice(0, 160) ||
+      `Program ${program.name} dengan tutor bersertifikat`,
+    keywords: [
+      program.subject,
+      program.gradeLevel,
+      "kursus online",
+      "bimbel",
+    ].filter(Boolean),
+    openGraph: {
+      title: `${program.name} - Tutor Nomor Satu`,
+      description:
+        program.description?.slice(0, 160) || `Program ${program.name}`,
+      type: "website",
+      images: program.thumbnail ? [program.thumbnail] : undefined,
+    },
   };
 }
 
@@ -46,17 +79,43 @@ export default async function ProgramDetailPage({ params }: PageProps) {
     notFound();
   }
 
+  // JSON-LD structured data for SEO
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Course",
+    name: program.name,
+    description: program.description,
+    provider: {
+      "@type": "Organization",
+      name: "Tutor Nomor Satu",
+      url: process.env.NEXT_PUBLIC_APP_URL,
+    },
+    offers: {
+      "@type": "Offer",
+      price: program.pricePerMonth,
+      priceCurrency: "IDR",
+    },
+  };
+
   // Transform to match client interface
   const transformedProgram = {
     ...program,
     sections: program.sections.map((section) => ({
       id: section.id,
       name: section.sectionLabel,
-      schedule: null as string | null, // Could be added if available
+      schedule: null as string | null,
       status: section.status,
       _count: section._count,
     })),
   };
 
-  return <ProgramDetailClient program={transformedProgram} />;
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <ProgramDetailClient program={transformedProgram} />
+    </>
+  );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { DEFAULT_BLUR_DATA_URL } from "@/lib/image-utils";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -291,6 +292,8 @@ export function ProgramDetailClient({
                   fill
                   sizes="(max-width: 768px) 100vw, 66vw"
                   className="object-contain p-4"
+                  placeholder="blur"
+                  blurDataURL={DEFAULT_BLUR_DATA_URL}
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-blue-500 to-blue-700">

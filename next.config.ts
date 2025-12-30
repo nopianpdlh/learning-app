@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
         protocol: "https",
@@ -18,8 +19,26 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // Enable compression
+  compress: true,
+
+  // Disable source maps in production for smaller bundle
+  productionBrowserSourceMaps: false,
+
+  // Experimental optimizations
+  experimental: {
+    // Tree-shake these packages for smaller bundles
+    optimizePackageImports: [
+      "@tabler/icons-react",
+      "lucide-react",
+      "date-fns",
+      "@radix-ui/react-icons",
+      "recharts",
+    ],
+  },
+
   // Temporary: Allow build with TypeScript/ESLint warnings during migration
-  // Route handlers need to be updated to Next.js 15 format (params as Promise)
   typescript: {
     ignoreBuildErrors: true,
   },
