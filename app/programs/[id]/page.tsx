@@ -11,6 +11,18 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
+// Pre-generate all published program pages at build time
+export async function generateStaticParams() {
+  const programs = await db.classTemplate.findMany({
+    where: { published: true },
+    select: { id: true },
+  });
+
+  return programs.map((program) => ({
+    id: program.id,
+  }));
+}
+
 async function getProgram(id: string) {
   const program = await db.classTemplate.findUnique({
     where: { id, published: true },
