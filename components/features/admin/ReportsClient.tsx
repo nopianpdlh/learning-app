@@ -18,7 +18,6 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   Download,
-  FileText,
   TrendingUp,
   Users,
   DollarSign,
@@ -28,13 +27,33 @@ import {
   BookOpen,
   Video,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format, subDays } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from "recharts";
+
+import {
+  getRevenueReportData,
+  RevenueReportData,
+  getEnrollmentReportData,
+  EnrollmentReportData,
+  getClassAnalyticsData,
+  ClassAnalyticsData,
+  getMeetingReportData,
+  MeetingReportData,
+} from "@/lib/reports";
 
 // Types
 interface ReportStats {
@@ -96,6 +115,11 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Chart Capture States
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [showHiddenChart, setShowHiddenChart] = useState(false);
+  const chartRef = useRef<HTMLDivElement>(null);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -120,12 +144,72 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
         locale: idLocale,
       })} - ${format(dateTo, "dd MMM yyyy", { locale: idLocale })}`;
 
+      let reportData: any = null;
+
+      switch (selectedReport) {
+        case "financial":
+          reportData = await getRevenueReportData(dateFrom, dateTo);
+          break;
+        case "enrollment":
+          reportData = await getEnrollmentReportData(dateFrom, dateTo);
+          break;
+        case "analytics":
+          reportData = await getClassAnalyticsData(dateFrom, dateTo);
+          break;
+        case "meetings":
+          reportData = await getMeetingReportData(dateFrom, dateTo);
+          break;
+      }
+
+      // Handle Chart Generation for Analytics
+      let chartImage: string | null = null;
+      if (selectedReport === "analytics" && reportData) {
+        const d = reportData as ClassAnalyticsData;
+
+        // Group by program for chart (Revenue by Program)
+        const programRevenue: Record<string, number> = {};
+        d.sections.forEach((s) => {
+          programRevenue[s.programName] =
+            (programRevenue[s.programName] || 0) + s.revenue;
+        });
+
+        // Transform to array
+        const chartD = Object.entries(programRevenue)
+          .map(([name, val]) => ({
+            name: name,
+            value: val,
+          }))
+          .sort((a, b) => b.value - a.value); // Sort desc
+
+        if (chartD.length > 0) {
+          setChartData(chartD);
+          setShowHiddenChart(true);
+
+          // Wait for render (crucial)
+          await new Promise((resolve) => setTimeout(resolve, 800));
+
+          if (chartRef.current) {
+            try {
+              const canvas = await html2canvas(chartRef.current, {
+                scale: 2, // Better quality
+                logging: false,
+                backgroundColor: "#ffffff",
+              } as any);
+              chartImage = canvas.toDataURL("image/png");
+            } catch (e) {
+              console.error("Chart capture failed", e);
+            }
+          }
+          setShowHiddenChart(false);
+        }
+      }
+
       if (exportFormat === "pdf") {
-        generatePDF(reportName, dateRange);
+        generatePDF(reportName, dateRange, reportData, chartImage);
       } else if (exportFormat === "excel") {
-        generateExcel(reportName, dateRange);
+        generateExcel(reportName, dateRange, reportData);
       } else {
-        generateCSV(reportName, dateRange);
+        generateCSV(reportName, dateRange, reportData);
       }
 
       toast.success(`${reportName} berhasil di-generate`);
@@ -133,188 +217,292 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
       console.error(error);
       toast.error("Gagal generate report");
     } finally {
+      setShowHiddenChart(false);
       setIsGenerating(false);
     }
   };
 
-  const generatePDF = (reportName: string, dateRange: string) => {
+  const generatePDF = (
+    reportName: string,
+    dateRange: string,
+    data: any,
+    chartImage: string | null
+  ) => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
 
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(10, 38, 71); // #0A2647
+    // --- Header Section ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(10, 38, 71); // Brand Blue
     doc.text("Tutor Nomor Satu", 14, 20);
 
     doc.setFontSize(16);
-    doc.text(reportName, 14, 32);
-
-    doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Period: ${dateRange}`, 14, 40);
-    doc.text(
-      `Generated: ${format(new Date(), "dd MMM yyyy HH:mm", {
-        locale: idLocale,
-      })}`,
-      14,
-      46
-    );
+    doc.text(reportName.toUpperCase(), 14, 29);
 
-    let currentY = 58;
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(200);
+    doc.line(14, 33, pageWidth - 14, 33);
 
-    // Generate different content based on report type
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    const dateStr = `Generated: ${format(new Date(), "dd MMM yyyy HH:mm", {
+      locale: idLocale,
+    })}`;
+    const periodStr = `Period: ${dateRange}`;
+
+    doc.text(periodStr, 14, 40);
+    doc.text(dateStr, 14, 45);
+
+    let currentY = 55;
+
+    // --- Content Section ---
     switch (selectedReport) {
-      case "financial":
-        // Revenue Report - Focus on financial metrics
-        doc.setFontSize(12);
+      case "financial": {
+        const d = data as RevenueReportData;
+        if (!d) return;
+
+        // Summary Box
+        doc.setFillColor(245, 247, 250);
+        doc.roundedRect(14, currentY, pageWidth - 28, 25, 3, 3, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
         doc.setTextColor(0);
-        doc.text("Financial Summary", 14, currentY);
+        doc.text("Financial Summary", 20, currentY + 8);
 
-        autoTable(doc, {
-          startY: currentY + 4,
-          head: [["Metric", "Value"]],
-          body: [
-            ["Total Revenue", formatPrice(stats.totalRevenue)],
-            ["Pending Payments", stats.pendingPayments.toString()],
-          ],
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [34, 197, 94] },
-        });
-
-        // Monthly Revenue
-        const finalY1 = (doc as any).lastAutoTable.finalY || 100;
-        doc.text("Monthly Revenue (Last 6 Months)", 14, finalY1 + 15);
-
-        autoTable(doc, {
-          startY: finalY1 + 19,
-          head: [["Month", "Revenue"]],
-          body: stats.monthlyRevenue.map((m) => [
-            m.month,
-            formatPrice(m.amount),
-          ]),
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [34, 197, 94] },
-        });
-
-        // Recent Payments
-        const finalY2 = (doc as any).lastAutoTable.finalY || 150;
-        doc.text("Recent Payments", 14, finalY2 + 15);
-
-        autoTable(doc, {
-          startY: finalY2 + 19,
-          head: [["Student", "Program", "Amount", "Date"]],
-          body: stats.recentPayments
-            .slice(0, 10)
-            .map((p) => [
-              p.studentName,
-              p.programName,
-              formatPrice(p.amount),
-              format(new Date(p.paidAt), "dd MMM yyyy", { locale: idLocale }),
-            ]),
-          styles: { fontSize: 9 },
-          headStyles: { fillColor: [34, 197, 94] },
-        });
-        break;
-
-      case "enrollment":
-        // Enrollment Report - Focus on student enrollment
-        doc.setFontSize(12);
-        doc.setTextColor(0);
-        doc.text("Enrollment Summary", 14, currentY);
-
-        autoTable(doc, {
-          startY: currentY + 4,
-          head: [["Metric", "Value"]],
-          body: [
-            ["Active Students", stats.activeStudents.toString()],
-            ["Active Sections", stats.activeSections.toString()],
-          ],
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [79, 70, 229] },
-        });
-
-        // Enrollments by Program
-        const finalY3 = (doc as any).lastAutoTable.finalY || 100;
-        doc.text("Enrollments by Program", 14, finalY3 + 15);
-
-        autoTable(doc, {
-          startY: finalY3 + 19,
-          head: [["Program", "Active Enrollments"]],
-          body: stats.enrollmentsByProgram.map((p) => [
-            p.name,
-            p.count.toString(),
-          ]),
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [79, 70, 229] },
-        });
-        break;
-
-      case "analytics":
-        // Class Analytics - Overview of all metrics
-        doc.setFontSize(12);
-        doc.setTextColor(0);
-        doc.text("Class Analytics Overview", 14, currentY);
-
-        autoTable(doc, {
-          startY: currentY + 4,
-          head: [["Metric", "Value"]],
-          body: [
-            ["Total Revenue", formatPrice(stats.totalRevenue)],
-            ["Active Students", stats.activeStudents.toString()],
-            ["Active Sections", stats.activeSections.toString()],
-            ["Completed Meetings", stats.completedMeetings.toString()],
-            ["Pending Payments", stats.pendingPayments.toString()],
-          ],
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [10, 38, 71] },
-        });
-
-        // Enrollments by Program
-        const finalY4 = (doc as any).lastAutoTable.finalY || 100;
-        doc.text("Program Performance", 14, finalY4 + 15);
-
-        autoTable(doc, {
-          startY: finalY4 + 19,
-          head: [["Program", "Enrollments"]],
-          body: stats.enrollmentsByProgram.map((p) => [
-            p.name,
-            p.count.toString(),
-          ]),
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [255, 184, 0], textColor: [0, 0, 0] },
-        });
-        break;
-
-      case "meetings":
-        // Meeting Report - Focus on meetings
-        doc.setFontSize(12);
-        doc.setTextColor(0);
-        doc.text("Meeting Statistics", 14, currentY);
-
-        autoTable(doc, {
-          startY: currentY + 4,
-          head: [["Metric", "Value"]],
-          body: [
-            ["Completed Meetings", stats.completedMeetings.toString()],
-            ["Active Sections", stats.activeSections.toString()],
-          ],
-          styles: { fontSize: 10 },
-          headStyles: { fillColor: [249, 115, 22] },
-        });
-
-        // Note about meetings data
-        const finalY5 = (doc as any).lastAutoTable.finalY || 100;
-        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
         doc.setTextColor(100);
-        doc.text(
-          "Note: Detailed meeting schedule can be viewed in Schedule Management.",
-          14,
-          finalY5 + 15
-        );
-        break;
+        doc.text("Total Revenue", 20, currentY + 18);
+        doc.text("Transactions", 90, currentY + 18);
+        doc.text("Avg. Transaction", 160, currentY + 18);
 
-      default:
-        // Default fallback
-        doc.text("No report type selected", 14, currentY);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(10, 38, 71);
+        doc.text(formatPrice(d.summary.totalRevenue), 20, currentY + 23);
+        doc.text(d.summary.transactionCount.toString(), 90, currentY + 23);
+        doc.text(formatPrice(d.summary.averageTransaction), 160, currentY + 23);
+
+        currentY += 35;
+
+        // Details Table
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Transaction Details", 14, currentY - 5);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [["ID", "Date", "Student", "Program", "Method", "Amount"]],
+          body: d.payments.map((p) => [
+            p.id.substring(0, 8),
+            format(new Date(p.date), "dd/MM/yyyy"),
+            p.studentName,
+            p.programName,
+            p.paymentMethod,
+            formatPrice(p.amount),
+          ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [10, 38, 71], textColor: 255 },
+          foot: [
+            [
+              {
+                content: "TOTAL",
+                colSpan: 5,
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+              {
+                content: formatPrice(d.summary.totalRevenue),
+                styles: { halign: "right", fontStyle: "bold" },
+              },
+            ],
+          ],
+        });
+        break;
+      }
+
+      case "enrollment": {
+        const d = data as EnrollmentReportData;
+        if (!d) return;
+
+        // Summary
+        doc.setFillColor(245, 247, 250);
+        doc.roundedRect(14, currentY, pageWidth - 28, 25, 3, 3, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(0);
+        doc.text("Enrollment Summary", 20, currentY + 8);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text("New Enrollments", 20, currentY + 18);
+        doc.text("Total Active Students", 90, currentY + 18);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(79, 70, 229);
+        doc.text(d.summary.totalNewEnrollments.toString(), 20, currentY + 23);
+        doc.text(d.summary.activeEnrollments.toString(), 90, currentY + 23);
+
+        currentY += 35;
+
+        // List
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("New Student Enrollments", 14, currentY - 5);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [
+            ["Date", "Student Name", "Email", "Program", "Section", "Status"],
+          ],
+          body: d.enrollments.map((e) => [
+            format(new Date(e.enrolledAt), "dd/MM/yyyy"),
+            e.studentName,
+            e.studentEmail,
+            e.programName,
+            e.sectionLabel,
+            e.status,
+          ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+        });
+        break;
+      }
+
+      case "analytics": {
+        const d = data as ClassAnalyticsData;
+        if (!d) return;
+
+        // Summary
+        doc.setFillColor(245, 247, 250);
+        doc.roundedRect(14, currentY, pageWidth - 28, 25, 3, 3, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(0);
+        doc.text("Performance Summary", 20, currentY + 8);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text("Active Classes", 20, currentY + 18);
+        doc.text("Period Revenue", 90, currentY + 18);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(10, 38, 71);
+        doc.text(d.summary.totalSections.toString(), 20, currentY + 23);
+        doc.text(formatPrice(d.summary.totalRevenue), 90, currentY + 23);
+
+        currentY += 35;
+
+        // CHART IN PDF
+        if (chartImage) {
+          doc.setFontSize(12);
+          doc.setTextColor(0);
+          doc.text("Revenue by Program", 14, currentY - 5);
+
+          // Add image (x, y, w, h)
+          doc.addImage(chartImage, "PNG", 14, currentY, 180, 80);
+          currentY += 90;
+        }
+
+        // Table
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Class Performance", 14, currentY - 5);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [["Program", "Section", "Tutor", "Students", "New", "Revenue"]],
+          body: d.sections.map((s) => [
+            s.programName,
+            s.sectionLabel,
+            s.tutorName,
+            s.totalStudents,
+            s.newStudents,
+            formatPrice(s.revenue),
+          ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [10, 38, 71], textColor: 255 },
+          columnStyles: { 5: { halign: "right" } },
+        });
+        break;
+      }
+
+      case "meetings": {
+        const d = data as MeetingReportData;
+        if (!d) return;
+
+        // Summary
+        doc.setFillColor(245, 247, 250);
+        doc.roundedRect(14, currentY, pageWidth - 28, 25, 3, 3, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(0);
+        doc.text("Meeting Summary", 20, currentY + 8);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.text("Scheduled", 20, currentY + 18);
+        doc.text("Completed", 90, currentY + 18);
+        doc.text("Completion Rate", 160, currentY + 18);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.setTextColor(249, 115, 22);
+        doc.text(d.summary.totalScheduled.toString(), 20, currentY + 23);
+        doc.text(d.summary.totalCompleted.toString(), 90, currentY + 23);
+        doc.text(d.summary.completionRate + "%", 160, currentY + 23);
+
+        currentY += 35;
+
+        // Table
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Meeting Schedule", 14, currentY - 5);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [["Date", "Title", "Program", "Section", "Status", "Attend"]],
+          body: d.meetings.map((m) => [
+            format(new Date(m.scheduledAt), "dd/MM/yyyy HH:mm"),
+            m.title,
+            m.programName,
+            m.sectionLabel,
+            m.status,
+            m.attendanceCount,
+          ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [249, 115, 22], textColor: 255 },
+        });
+        break;
+      }
+    }
+
+    // Footer
+    const pageCount = doc.internal.pages.length - 1;
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        pageWidth - 20,
+        doc.internal.pageSize.height - 10
+      );
+      doc.text(
+        "Tutor Nomor Satu - Confidential",
+        14,
+        doc.internal.pageSize.height - 10
+      );
     }
 
     doc.save(
@@ -325,10 +513,8 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
     );
   };
 
-  const generateExcel = (reportName: string, dateRange: string) => {
+  const generateExcel = (reportName: string, dateRange: string, data: any) => {
     const wb = XLSX.utils.book_new();
-
-    // Header row for all sheets
     const headerData = [
       ["Tutor Nomor Satu - " + reportName],
       ["Period: " + dateRange],
@@ -337,99 +523,137 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
     ];
 
     switch (selectedReport) {
-      case "financial":
-        // Financial Report - Revenue focused
-        const financialData = [
+      case "financial": {
+        const d = data as RevenueReportData;
+        if (!d) return;
+
+        const summary = [
+          ["SUMMARY"],
+          ["Total Revenue", d.summary.totalRevenue],
+          ["Transactions", d.summary.transactionCount],
+          ["Avg Transaction", d.summary.averageTransaction],
+          [],
+        ];
+
+        const rows = d.payments.map((p) => [
+          p.id,
+          format(new Date(p.date), "yyyy-MM-dd HH:mm"),
+          p.studentName,
+          p.programName,
+          p.paymentMethod,
+          p.amount,
+          p.status,
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([
           ...headerData,
-          ["Metric", "Value"],
-          ["Total Revenue", stats.totalRevenue],
-          ["Pending Payments", stats.pendingPayments],
-        ];
-        const financialWs = XLSX.utils.aoa_to_sheet(financialData);
-        XLSX.utils.book_append_sheet(wb, financialWs, "Summary");
-
-        // Monthly Revenue
-        const monthlyData = [
-          ["Month", "Revenue"],
-          ...stats.monthlyRevenue.map((m) => [m.month, m.amount]),
-        ];
-        const monthlyWs = XLSX.utils.aoa_to_sheet(monthlyData);
-        XLSX.utils.book_append_sheet(wb, monthlyWs, "Monthly Revenue");
-
-        // Payments
-        const paymentsData = [
-          ["Student", "Program", "Amount", "Date"],
-          ...stats.recentPayments.map((p) => [
-            p.studentName,
-            p.programName,
-            p.amount,
-            format(new Date(p.paidAt), "yyyy-MM-dd"),
-          ]),
-        ];
-        const paymentsWs = XLSX.utils.aoa_to_sheet(paymentsData);
-        XLSX.utils.book_append_sheet(wb, paymentsWs, "Payments");
+          ...summary,
+          ["ID", "Date", "Student", "Program", "Method", "Amount", "Status"],
+          ...rows,
+          [],
+          ["TOTAL", "", "", "", "", d.summary.totalRevenue],
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, "Financial Report");
         break;
+      }
 
-      case "enrollment":
-        // Enrollment Report
-        const enrollmentSummary = [
+      case "enrollment": {
+        const d = data as EnrollmentReportData;
+        if (!d) return;
+
+        const summary = [
+          ["SUMMARY"],
+          ["New Enrollments", d.summary.totalNewEnrollments],
+          ["Total Active Students", d.summary.activeEnrollments],
+          [],
+        ];
+
+        const rows = d.enrollments.map((e) => [
+          format(new Date(e.enrolledAt), "yyyy-MM-dd"),
+          e.studentName,
+          e.studentEmail,
+          e.programName,
+          e.sectionLabel,
+          e.status,
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([
           ...headerData,
-          ["Metric", "Value"],
-          ["Active Students", stats.activeStudents],
-          ["Active Sections", stats.activeSections],
-        ];
-        const enrollmentWs = XLSX.utils.aoa_to_sheet(enrollmentSummary);
-        XLSX.utils.book_append_sheet(wb, enrollmentWs, "Summary");
-
-        // By Program
-        const programData = [
-          ["Program", "Enrollments"],
-          ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
-        ];
-        const programWs = XLSX.utils.aoa_to_sheet(programData);
-        XLSX.utils.book_append_sheet(wb, programWs, "By Program");
+          ...summary,
+          ["Date", "Student Name", "Email", "Program", "Section", "Status"],
+          ...rows,
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, "Enrollments");
         break;
+      }
 
-      case "analytics":
-        // Analytics - Full overview
-        const analyticsData = [
+      case "analytics": {
+        const d = data as ClassAnalyticsData;
+        if (!d) return;
+
+        const summary = [
+          ["SUMMARY"],
+          ["Total Sections", d.summary.totalSections],
+          ["Total Period Revenue", d.summary.totalRevenue],
+          [],
+        ];
+
+        const rows = d.sections.map((s) => [
+          s.programName,
+          s.sectionLabel,
+          s.tutorName,
+          s.totalStudents,
+          s.newStudents,
+          s.revenue,
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([
           ...headerData,
-          ["Metric", "Value"],
-          ["Total Revenue", stats.totalRevenue],
-          ["Active Students", stats.activeStudents],
-          ["Active Sections", stats.activeSections],
-          ["Completed Meetings", stats.completedMeetings],
-          ["Pending Payments", stats.pendingPayments],
-        ];
-        const analyticsWs = XLSX.utils.aoa_to_sheet(analyticsData);
-        XLSX.utils.book_append_sheet(wb, analyticsWs, "Overview");
-
-        // Programs
-        const analyticsProgramData = [
-          ["Program", "Enrollments"],
-          ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
-        ];
-        const analyticsProgramWs =
-          XLSX.utils.aoa_to_sheet(analyticsProgramData);
-        XLSX.utils.book_append_sheet(wb, analyticsProgramWs, "Programs");
+          ...summary,
+          [
+            "Program",
+            "Section",
+            "Tutor",
+            "Total Students",
+            "New Students",
+            "Revenue",
+          ],
+          ...rows,
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, "Class Analytics");
         break;
+      }
 
-      case "meetings":
-        // Meeting Report
-        const meetingsData = [
+      case "meetings": {
+        const d = data as MeetingReportData;
+        if (!d) return;
+
+        const summary = [
+          ["SUMMARY"],
+          ["Total Scheduled", d.summary.totalScheduled],
+          ["Total Completed", d.summary.totalCompleted],
+          ["Completion Rate (%)", d.summary.completionRate],
+          [],
+        ];
+
+        const rows = d.meetings.map((m) => [
+          format(new Date(m.scheduledAt), "yyyy-MM-dd HH:mm"),
+          m.title,
+          m.programName,
+          m.sectionLabel,
+          m.status,
+          m.attendanceCount,
+        ]);
+
+        const ws = XLSX.utils.aoa_to_sheet([
           ...headerData,
-          ["Metric", "Value"],
-          ["Completed Meetings", stats.completedMeetings],
-          ["Active Sections", stats.activeSections],
-        ];
-        const meetingsWs = XLSX.utils.aoa_to_sheet(meetingsData);
-        XLSX.utils.book_append_sheet(wb, meetingsWs, "Summary");
+          ...summary,
+          ["Date", "Title", "Program", "Section", "Status", "Attendance"],
+          ...rows,
+        ]);
+        XLSX.utils.book_append_sheet(wb, ws, "Meeting Report");
         break;
-
-      default:
-        const defaultData = [...headerData, ["No data available"]];
-        const defaultWs = XLSX.utils.aoa_to_sheet(defaultData);
-        XLSX.utils.book_append_sheet(wb, defaultWs, "Data");
+      }
     }
 
     XLSX.writeFile(
@@ -441,66 +665,65 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
     );
   };
 
-  const generateCSV = (reportName: string, dateRange: string) => {
-    let csvData: (string | number)[][] = [];
-
-    switch (selectedReport) {
-      case "financial":
-        csvData = [
-          ["Student", "Program", "Amount", "Date"],
-          ...stats.recentPayments.map((p) => [
-            p.studentName,
-            p.programName,
-            p.amount,
-            format(new Date(p.paidAt), "yyyy-MM-dd"),
-          ]),
-        ];
-        break;
-
-      case "enrollment":
-        csvData = [
-          ["Program", "Active Enrollments"],
-          ...stats.enrollmentsByProgram.map((p) => [p.name, p.count]),
-        ];
-        break;
-
-      case "analytics":
-        csvData = [
-          ["Metric", "Value"],
-          ["Total Revenue", stats.totalRevenue],
-          ["Active Students", stats.activeStudents],
-          ["Active Sections", stats.activeSections],
-          ["Completed Meetings", stats.completedMeetings],
-          ["Pending Payments", stats.pendingPayments],
-        ];
-        break;
-
-      case "meetings":
-        csvData = [
-          ["Metric", "Value"],
-          ["Completed Meetings", stats.completedMeetings],
-          ["Active Sections", stats.activeSections],
-        ];
-        break;
-
-      default:
-        csvData = [["No data available"]];
-    }
-
-    const ws = XLSX.utils.aoa_to_sheet(csvData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Data");
-    XLSX.writeFile(
-      wb,
-      `${reportName.replace(/\s+/g, "_")}_${format(
-        new Date(),
-        "yyyyMMdd_HHmmss"
-      )}.csv`
-    );
+  const generateCSV = (reportName: string, dateRange: string, data: any) => {
+    toast.info("For detailed reports, please use Excel or PDF format.");
   };
 
   return (
     <div className="space-y-6">
+      {/* Hidden Chart Container for Capture */}
+      {showHiddenChart && (
+        <div
+          style={{
+            position: "fixed",
+            left: "-9999px",
+            top: 0,
+            width: "800px",
+            height: "400px",
+            background: "white",
+            zIndex: -1,
+          }}
+          ref={chartRef}
+        >
+          <div
+            className="p-8 bg-white"
+            style={{ width: "800px", height: "400px" }}
+          >
+            <h3 className="text-2xl font-bold mb-4 text-center text-[#0A2647] font-sans">
+              Revenue Breakdown by Program
+            </h3>
+            <div style={{ width: "100%", height: "300px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    fontSize={14}
+                    tick={{ fill: "#333" }}
+                    tickMargin={10}
+                  />
+                  <YAxis
+                    tickFormatter={(val) => `Rp${val / 1000}k`}
+                    fontSize={14}
+                    tick={{ fill: "#333" }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    fill="#0A2647"
+                    name="Revenue"
+                    radius={[4, 4, 0, 0]}
+                    barSize={60}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[#0A2647]">
           Reports & Analytics
@@ -510,7 +733,7 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
         </p>
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card>
           <CardContent className="p-4">
@@ -599,7 +822,6 @@ export default function ReportsClient({ stats }: ReportsClientProps) {
                 <SelectContent className="bg-white border border-gray-200 shadow-lg">
                   <SelectItem value="pdf">PDF</SelectItem>
                   <SelectItem value="excel">Excel</SelectItem>
-                  <SelectItem value="csv">CSV</SelectItem>
                 </SelectContent>
               </Select>
             </div>
