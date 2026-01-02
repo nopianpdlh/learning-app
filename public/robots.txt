@@ -4,9 +4,12 @@ Allow: /
 Disallow: /admin
 Disallow: /student
 Disallow: /tutor
+Disallow: /executive
 Disallow: /api
 Disallow: /auth
 Disallow: /payment
+Disallow: /complete-profile
+Disallow: /dashboard
 
 # Host
 Host: http://localhost:3000

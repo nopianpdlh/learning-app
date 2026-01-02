@@ -21,6 +21,7 @@ import {
   Download,
   TrendingUp,
   GraduationCap,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -28,6 +29,12 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface TutorPerformanceData {
   id: string;
@@ -455,30 +462,94 @@ export default function TutorPerformanceClient({
         </CardContent>
       </Card>
 
-      {/* Legend */}
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-sm font-medium mb-2">Keterangan Status:</p>
-          <div className="flex flex-wrap gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Badge className="bg-green-500">Excellent</Badge>
-              <span>≥ 80%</span>
+      {/* Legend and Guide */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Keterangan Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4 text-sm">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-green-500 w-32 justify-center">
+                  Excellent
+                </Badge>
+                <span>≥ 80% (Sangat Baik)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-yellow-500 w-32 justify-center">
+                  Good
+                </Badge>
+                <span>60-79% (Baik)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-orange-500 w-32 justify-center">
+                  Fair
+                </Badge>
+                <span>40-59% (Cukup)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge className="bg-red-500 w-32 justify-center">
+                  Improvement
+                </Badge>
+                <span>&lt; 40% (Perlu Perbaikan)</span>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <div className="flex items-center gap-2">
-              <Badge className="bg-yellow-500">Good</Badge>
-              <span>60-79%</span>
+              <Info className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-base">Panduan Perhitungan</CardTitle>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-orange-500">Fair</Badge>
-              <span>40-59%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-red-500">Needs Improvement</Badge>
-              <span>&lt; 40%</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="item-1">
+                <AccordionTrigger>Cara Perhitungan Metrik</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 text-sm text-muted-foreground">
+                    <div>
+                      <p className="font-semibold text-foreground mb-1">
+                        Submission Rate
+                      </p>
+                      <p>
+                        (Total Tugas Dikumpulkan / Total Tugas Seharusnya) x
+                        100%
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground mb-1">
+                        Pass Rate
+                      </p>
+                      <p>(Total Quiz Lulus / Total Percobaan Quiz) x 100%</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground mb-1">
+                        Meeting Completion
+                      </p>
+                      <p>(Meeting Selesai / Total Jadwal Meeting) x 100%</p>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="item-2">
+                <AccordionTrigger>Penentuan Skor Akhir</AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>Status kinerja dihitung dari rata-rata tiga komponen:</p>
+                    <code className="bg-muted px-2 py-1 rounded block w-fit text-xs">
+                      (Submission + Pass Rate + Meeting) / 3
+                    </code>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
