@@ -242,7 +242,9 @@ export function StudentSidebar({
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="h-8 w-8 rounded-lg">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    {user.avatar && (
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                    )}
                     <AvatarFallback className="rounded-lg bg-primary text-primary-foreground">
                       {getInitials(user.name)}
                     </AvatarFallback>
