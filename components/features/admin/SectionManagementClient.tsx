@@ -330,6 +330,7 @@ export default function SectionManagementClient({
 
   const handleDeleteSection = async (force = false) => {
     const section = force ? forceDeleteConfirm?.section : deletingSection;
+
     if (!section) return;
 
     setIsLoading(true);
@@ -349,6 +350,7 @@ export default function SectionManagementClient({
             section,
             details: data.details,
           });
+          setIsLoading(false); // Reset loading state so Force Delete button is clickable
           return;
         }
         throw new Error(data.error || "Failed to delete section");
@@ -370,12 +372,17 @@ export default function SectionManagementClient({
       } else {
         toast.success("Section berhasil dihapus");
       }
+
+      // Reset states after successful delete
+      setDeletingSection(null);
+      setForceDeleteConfirm(null);
+      setIsLoading(false);
     } catch (error) {
       console.error(error);
       toast.error(
         error instanceof Error ? error.message : "Gagal menghapus section"
       );
-    } finally {
+      // Only reset on error, not when switching to force delete dialog
       setDeletingSection(null);
       setForceDeleteConfirm(null);
       setIsLoading(false);
@@ -898,37 +905,39 @@ export default function SectionManagementClient({
               <AlertTriangle className="h-5 w-5" />
               ⚠️ Peringatan: Hapus Paksa
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p>
-                Section{" "}
-                <strong>{forceDeleteConfirm?.details.sectionName}</strong>{" "}
-                memiliki data aktif yang akan ikut dihapus:
-              </p>
-              <ul className="list-disc list-inside bg-red-50 p-3 rounded-md text-red-700">
-                <li>
-                  <strong>{forceDeleteConfirm?.details.enrollments}</strong>{" "}
-                  enrollment(s) aktif
-                </li>
-                <li>
-                  <strong>{forceDeleteConfirm?.details.meetings}</strong>{" "}
-                  meeting(s)
-                </li>
-                <li>
-                  <strong>{forceDeleteConfirm?.details.materials}</strong>{" "}
-                  materi
-                </li>
-                <li>
-                  <strong>{forceDeleteConfirm?.details.assignments}</strong>{" "}
-                  tugas
-                </li>
-                <li>
-                  <strong>{forceDeleteConfirm?.details.quizzes}</strong> kuis
-                </li>
-              </ul>
-              <p className="text-red-600 font-semibold">
-                Semua data termasuk pembayaran dan riwayat akan dihapus
-                permanen!
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <span>
+                  Section{" "}
+                  <strong>{forceDeleteConfirm?.details.sectionName}</strong>{" "}
+                  memiliki data aktif yang akan ikut dihapus:
+                </span>
+                <ul className="list-disc list-inside bg-red-50 p-3 rounded-md text-red-700">
+                  <li>
+                    <strong>{forceDeleteConfirm?.details.enrollments}</strong>{" "}
+                    enrollment(s) aktif
+                  </li>
+                  <li>
+                    <strong>{forceDeleteConfirm?.details.meetings}</strong>{" "}
+                    meeting(s)
+                  </li>
+                  <li>
+                    <strong>{forceDeleteConfirm?.details.materials}</strong>{" "}
+                    materi
+                  </li>
+                  <li>
+                    <strong>{forceDeleteConfirm?.details.assignments}</strong>{" "}
+                    tugas
+                  </li>
+                  <li>
+                    <strong>{forceDeleteConfirm?.details.quizzes}</strong> kuis
+                  </li>
+                </ul>
+                <span className="text-red-600 font-semibold block">
+                  Semua data termasuk pembayaran dan riwayat akan dihapus
+                  permanen!
+                </span>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
