@@ -151,6 +151,8 @@ export async function DELETE(
             materials: true,
             assignments: true,
             quizzes: true,
+            liveClasses: true,
+            forumThreads: true,
           },
         },
       },
@@ -160,7 +162,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    const hasData = section._count.enrollments > 0;
+    const hasData =
+      section._count.enrollments > 0 ||
+      section._count.meetings > 0 ||
+      section._count.materials > 0 ||
+      section._count.assignments > 0 ||
+      section._count.quizzes > 0 ||
+      section._count.liveClasses > 0 ||
+      section._count.forumThreads > 0;
 
     // If section has data and not force delete
     if (hasData && !force) {
@@ -192,85 +201,151 @@ export async function DELETE(
       const enrollmentIds = enrollments.map((e) => e.id);
 
       // Delete in proper order to avoid FK constraint errors
-      await prisma.$transaction(async (tx) => {
-        // 1. Delete payments for these enrollments
-        await tx.payment.deleteMany({
-          where: { enrollmentId: { in: enrollmentIds } },
-        });
+      // Using longer timeout (30s) because cascade delete has many queries
+      await prisma.$transaction(
+        async (tx) => {
+          // 0. Delete invoices for these enrollments (must be before payments)
+          await tx.invoice.deleteMany({
+            where: { enrollmentId: { in: enrollmentIds } },
+          });
 
-        // 2. Delete enrollments
-        await tx.enrollment.deleteMany({
-          where: { sectionId: id },
-        });
+          // 1. Delete payments for these enrollments
+          await tx.payment.deleteMany({
+            where: { enrollmentId: { in: enrollmentIds } },
+          });
 
-        // 3. Delete meeting attendance
-        const meetings = await tx.scheduledMeeting.findMany({
-          where: { sectionId: id },
-          select: { id: true },
-        });
-        const meetingIds = meetings.map((m) => m.id);
+          // 1.5 Delete meeting attendance for these enrollments
+          await tx.meetingAttendance.deleteMany({
+            where: { enrollmentId: { in: enrollmentIds } },
+          });
 
-        await tx.meetingAttendance.deleteMany({
-          where: { meetingId: { in: meetingIds } },
-        });
+          // 2. Delete enrollments
+          await tx.enrollment.deleteMany({
+            where: { sectionId: id },
+          });
 
-        // 4. Delete meetings
-        await tx.scheduledMeeting.deleteMany({
-          where: { sectionId: id },
-        });
+          // 3. Delete meeting attendance
+          const meetings = await tx.scheduledMeeting.findMany({
+            where: { sectionId: id },
+            select: { id: true },
+          });
+          const meetingIds = meetings.map((m) => m.id);
 
-        // 5. Delete quiz attempts
-        const quizzes = await tx.quiz.findMany({
-          where: { sectionId: id },
-          select: { id: true },
-        });
-        const quizIds = quizzes.map((q) => q.id);
+          await tx.meetingAttendance.deleteMany({
+            where: { meetingId: { in: meetingIds } },
+          });
 
-        await tx.quizAttempt.deleteMany({
-          where: { quizId: { in: quizIds } },
-        });
+          // 4. Delete meetings
+          await tx.scheduledMeeting.deleteMany({
+            where: { sectionId: id },
+          });
 
-        // 6. Delete quiz questions
-        await tx.quizQuestion.deleteMany({
-          where: { quizId: { in: quizIds } },
-        });
+          // 5. Delete quiz answers first
+          const quizzes = await tx.quiz.findMany({
+            where: { sectionId: id },
+            select: { id: true },
+          });
+          const quizIds = quizzes.map((q) => q.id);
 
-        // 7. Delete quizzes
-        await tx.quiz.deleteMany({
-          where: { sectionId: id },
-        });
+          const quizAttempts = await tx.quizAttempt.findMany({
+            where: { quizId: { in: quizIds } },
+            select: { id: true },
+          });
+          const quizAttemptIds = quizAttempts.map((a) => a.id);
 
-        // 8. Delete assignment submissions
-        const assignments = await tx.assignment.findMany({
-          where: { sectionId: id },
-          select: { id: true },
-        });
-        const assignmentIds = assignments.map((a) => a.id);
+          await tx.quizAnswer.deleteMany({
+            where: { attemptId: { in: quizAttemptIds } },
+          });
 
-        await tx.assignmentSubmission.deleteMany({
-          where: { assignmentId: { in: assignmentIds } },
-        });
+          // 5.5 Delete quiz attempts
+          await tx.quizAttempt.deleteMany({
+            where: { quizId: { in: quizIds } },
+          });
 
-        // 9. Delete assignments
-        await tx.assignment.deleteMany({
-          where: { sectionId: id },
-        });
+          // 6. Delete quiz questions
+          await tx.quizQuestion.deleteMany({
+            where: { quizId: { in: quizIds } },
+          });
 
-        // 10. Delete materials
-        await tx.material.deleteMany({
-          where: { sectionId: id },
-        });
+          // 7. Delete quizzes
+          await tx.quiz.deleteMany({
+            where: { sectionId: id },
+          });
 
-        // 11. Delete live classes
-        await tx.liveClass.deleteMany({
-          where: { sectionId: id },
-        });
+          // 8. Delete assignment submissions
+          const assignments = await tx.assignment.findMany({
+            where: { sectionId: id },
+            select: { id: true },
+          });
+          const assignmentIds = assignments.map((a) => a.id);
 
-        // 13. Finally delete the section
-        await tx.classSection.delete({
-          where: { id },
-        });
-      });
+          await tx.assignmentSubmission.deleteMany({
+            where: { assignmentId: { in: assignmentIds } },
+          });
+
+          // 9. Delete assignments
+          await tx.assignment.deleteMany({
+            where: { sectionId: id },
+          });
+
+          // 10. Delete material bookmarks first
+          const materials = await tx.material.findMany({
+            where: { sectionId: id },
+            select: { id: true },
+          });
+          const materialIds = materials.map((m) => m.id);
+
+          await tx.materialBookmark.deleteMany({
+            where: { materialId: { in: materialIds } },
+          });
+
+          // 10.5 Delete materials
+          await tx.material.deleteMany({
+            where: { sectionId: id },
+          });
+
+          // 11. Delete live class attendances first
+          const liveClasses = await tx.liveClass.findMany({
+            where: { sectionId: id },
+            select: { id: true },
+          });
+          const liveClassIds = liveClasses.map((lc) => lc.id);
+
+          await tx.liveClassAttendance.deleteMany({
+            where: { liveClassId: { in: liveClassIds } },
+          });
+
+          // 11.5 Delete live classes
+          await tx.liveClass.deleteMany({
+            where: { sectionId: id },
+          });
+
+          // 12. Delete forum posts first (due to self-referencing replies)
+          const forumThreads = await tx.forumThread.findMany({
+            where: { sectionId: id },
+            select: { id: true },
+          });
+          const forumThreadIds = forumThreads.map((ft) => ft.id);
+
+          await tx.forumPost.deleteMany({
+            where: { threadId: { in: forumThreadIds } },
+          });
+
+          // 12.5 Delete forum threads
+          await tx.forumThread.deleteMany({
+            where: { sectionId: id },
+          });
+
+          // 13. Finally delete the section
+          await tx.classSection.delete({
+            where: { id },
+          });
+        },
+        {
+          maxWait: 10000, // 10 seconds max wait to acquire transaction
+          timeout: 30000, // 30 seconds timeout for the transaction
+        }
+      );
 
       return NextResponse.json({
         success: true,

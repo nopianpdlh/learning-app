@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "yhkvvanmnbgrjayctniw.supabase.co",
-        pathname: "/storage/v1/object/public/**",
+        pathname: "/storage/v1/**", // Allow all storage paths (public + signed URLs)
       },
       {
         protocol: "https",

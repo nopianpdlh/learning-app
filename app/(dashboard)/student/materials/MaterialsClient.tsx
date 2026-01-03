@@ -250,22 +250,118 @@ export default function MaterialsClient({
   const subjects = Array.from(new Set(materials.map((m) => m.class.subject)));
 
   const MaterialCard = ({ material }: { material: Material }) => {
-    // Generate thumbnail if not provided
-    const thumbnail =
-      material.thumbnail ||
-      (material.fileType === "VIDEO"
-        ? "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&q=80"
-        : "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=400&q=80");
+    // Helper to check if string is a valid absolute URL
+    const isValidUrl = (str: string) => {
+      return str.startsWith("http://") || str.startsWith("https://");
+    };
+
+    // Smart thumbnail generation based on file type
+    const getThumbnail = () => {
+      // If explicit thumbnail is set, use it (must be valid URL)
+      if (material.thumbnail && isValidUrl(material.thumbnail)) {
+        return material.thumbnail;
+      }
+
+      // For IMAGE type - use the actual image file as thumbnail (only if it's a full URL)
+      if (
+        material.fileType === "IMAGE" &&
+        material.fileUrl &&
+        isValidUrl(material.fileUrl)
+      ) {
+        return material.fileUrl;
+      }
+
+      // For VIDEO type - try to extract YouTube thumbnail
+      if (
+        (material.fileType === "VIDEO" || material.fileType === "LINK") &&
+        material.videoUrl
+      ) {
+        try {
+          const url = material.videoUrl;
+          // YouTube thumbnail extraction
+          if (url.includes("youtube.com/watch")) {
+            const videoId = new URL(url).searchParams.get("v");
+            if (videoId)
+              return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          }
+          if (url.includes("youtu.be/")) {
+            const videoId = url.split("youtu.be/")[1]?.split("?")[0];
+            if (videoId)
+              return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          }
+        } catch (e) {
+          // Invalid URL, fall through to placeholder
+          console.warn("Failed to parse video URL:", e);
+        }
+      }
+
+      // Return null to trigger placeholder
+      return null;
+    };
+
+    const thumbnail = getThumbnail();
+
+    // Type-specific placeholder colors and icons
+    const getPlaceholderStyle = () => {
+      switch (material.fileType) {
+        case "PDF":
+          return "from-red-500 to-red-700";
+        case "DOCUMENT":
+          return "from-blue-500 to-blue-700";
+        case "VIDEO":
+        case "LINK":
+          return "from-purple-500 to-purple-700";
+        case "IMAGE":
+          return "from-green-500 to-green-700";
+        default:
+          return "from-gray-500 to-gray-700";
+      }
+    };
+
+    const getTypeLabel = () => {
+      switch (material.fileType) {
+        case "PDF":
+          return "PDF";
+        case "DOCUMENT":
+          return "DOC";
+        case "VIDEO":
+        case "LINK":
+          return "VIDEO";
+        case "IMAGE":
+          return "IMG";
+        default:
+          return material.fileType;
+      }
+    };
 
     return (
       <Card className="overflow-hidden hover:shadow-lg transition-shadow">
         <div className="relative aspect-video bg-muted">
-          <Image
-            src={thumbnail}
-            alt={material.title}
-            fill
-            className="object-cover object-top"
-          />
+          {thumbnail ? (
+            <Image
+              src={thumbnail}
+              alt={material.title}
+              fill
+              className="object-cover object-top"
+            />
+          ) : (
+            /* Type-specific gradient placeholder with icon */
+            <div
+              className={`absolute inset-0 bg-linear-to-br ${getPlaceholderStyle()} flex items-center justify-center`}
+            >
+              <div className="text-center text-white">
+                {material.fileType === "VIDEO" ||
+                material.fileType === "LINK" ? (
+                  <Video className="h-12 w-12 mx-auto mb-2 opacity-80" />
+                ) : (
+                  <FileText className="h-12 w-12 mx-auto mb-2 opacity-80" />
+                )}
+                <span className="text-lg font-bold opacity-90">
+                  {getTypeLabel()}
+                </span>
+              </div>
+            </div>
+          )}
           <div className="absolute top-2 right-2 flex gap-2">
             <Badge
               variant={material.fileType === "VIDEO" ? "default" : "secondary"}

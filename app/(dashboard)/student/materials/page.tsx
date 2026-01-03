@@ -74,20 +74,62 @@ export default async function StudentMaterialsPage() {
       orderBy: [{ session: "asc" }, { createdAt: "desc" }],
     });
 
-    // Format materials
-    const formattedMaterials = materials.map((material) => ({
-      ...material,
-      class: {
-        id: material.section.id,
-        name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
-        subject: material.section.template.subject,
-      },
-      createdAt: material.createdAt,
-      updatedAt: material.updatedAt,
-      bookmarked: material.bookmarks.length > 0,
-      bookmarks: undefined,
-      section: undefined,
-    }));
+    // Generate thumbnails for materials
+    const generateThumbnail = async (material: (typeof materials)[0]) => {
+      // For IMAGE type - generate signed URL for thumbnail
+      if (material.fileType === "IMAGE" && material.fileUrl) {
+        try {
+          const { data } = await supabase.storage
+            .from("materials")
+            .createSignedUrl(material.fileUrl, 3600); // 1 hour
+          return data?.signedUrl || null;
+        } catch {
+          return null;
+        }
+      }
+
+      // For VIDEO type - extract YouTube thumbnail
+      if (
+        (material.fileType === "VIDEO" || material.fileType === "LINK") &&
+        material.videoUrl
+      ) {
+        try {
+          const url = material.videoUrl;
+          if (url.includes("youtube.com/watch")) {
+            const videoId = new URL(url).searchParams.get("v");
+            if (videoId)
+              return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          }
+          if (url.includes("youtu.be/")) {
+            const videoId = url.split("youtu.be/")[1]?.split("?")[0];
+            if (videoId)
+              return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+          }
+        } catch {
+          return null;
+        }
+      }
+
+      return material.thumbnail || null;
+    };
+
+    // Format materials with generated thumbnails
+    const formattedMaterials = await Promise.all(
+      materials.map(async (material) => ({
+        ...material,
+        thumbnail: await generateThumbnail(material),
+        class: {
+          id: material.section.id,
+          name: `${material.section.template.name} - Section ${material.section.sectionLabel}`,
+          subject: material.section.template.subject,
+        },
+        createdAt: material.createdAt,
+        updatedAt: material.updatedAt,
+        bookmarked: material.bookmarks.length > 0,
+        bookmarks: undefined,
+        section: undefined,
+      }))
+    );
 
     // Calculate stats
     const stats = {

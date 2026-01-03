@@ -117,6 +117,19 @@ export async function POST(req: NextRequest) {
           status: enrollmentStatus,
         },
       });
+
+      // Update Invoice status to PAID
+      await db.invoice.updateMany({
+        where: {
+          enrollmentId: payment.enrollmentId,
+          status: { not: "PAID" },
+        },
+        data: {
+          status: "PAID",
+          paidAt: settlement_time ? new Date(settlement_time) : new Date(),
+          paymentId: payment.id,
+        },
+      });
     }
 
     const className = payment.enrollment.section
